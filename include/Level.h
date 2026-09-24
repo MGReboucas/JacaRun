@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-enum class EntityType { Ground, High, Coin, Crab, Fish, RareFish, Shield, Magnet };
+enum class EntityType { Ground, High, Coin, Crab, Fish, RareFish, Shield, Magnet, Log, Rock, Vine };
 
 struct Entity {
     EntityType type;
@@ -16,12 +16,13 @@ struct Entity {
 
 const char* EntityName(EntityType type);
 bool IsObstacle(EntityType type);
+bool RequiresJump(EntityType type);
 bool IsFood(EntityType type);
 
 class Level {
 public:
     void Reset(std::uint32_t seed, bool procedural = true);
-    void GenerateAhead(double playerDistance);
+    void GenerateAhead(double playerDistance, double score = 0);
     void Spawn(EntityType type, double distance, double height = 0.0);
     // Retira eventos cruzados em ordem, incluindo a fronteira de colisao.
     std::vector<Entity> Crossed(double previousDistance, double currentDistance);

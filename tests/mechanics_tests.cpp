@@ -237,7 +237,7 @@ void SpeedAndFrameIndependence() {
     CHECK(Near(a.GetDistance(), b.GetDistance()));
     CHECK(Near(a.GetPlayer().GetPositionY(), b.GetPlayer().GetPositionY()));
     a.Update(200);
-    CHECK(Near(a.GetSpeed(), Balance::MaximumSpeed));
+    CHECK(std::abs(a.GetSpeed() - Balance::RunSpeed(a.GetDistance(), static_cast<double>(a.GetScore()))) < .01);
     const auto distance = a.GetDistance();
     a.Update(std::numeric_limits<double>::infinity());
     a.Update(-1);
@@ -325,9 +325,9 @@ void PlayableProceduralRuns() {
         for (int step = 0; step < 4000 && game.IsPlaying(); ++step) {
             if (game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding()) {
                 for (const auto& entity : game.GetLevel().GetEntities()) {
-                    if ((entity.distance - game.GetDistance()) / game.GetSpeed() > 0.3) break;
-                    if (entity.type == EntityType::High) { game.Slide(); break; }
-                    if (entity.type == EntityType::Ground || (IsFood(entity.type) && entity.height > 1)) {
+                    if ((entity.distance - game.GetDistance()) > 6.0) break;
+                    if (IsObstacle(entity.type) && !RequiresJump(entity.type)) { game.Slide(); break; }
+                    if (RequiresJump(entity.type) || (IsFood(entity.type) && entity.height > 1)) {
                         game.Jump();
                         break;
                     }
@@ -354,7 +354,7 @@ void ProgressiveEncounterSafety() {
             for (const auto& entity : level.Crossed(distance - 10, distance)) {
                 if (!IsObstacle(entity.type)) continue;
                 // At maximum speed, enough time to finish either action and react again.
-                const double seconds = (entity.distance - previous) / Balance::MaximumSpeed;
+                const double seconds = (entity.distance - previous) / Balance::ActionSpeed;
                 CHECK(seconds >= 1.35 - 1e-7);
                 CHECK(seconds > Balance::SlideSeconds + .4);
                 CHECK(seconds > 2 * Balance::JumpForce / -Balance::Gravity + .4);
@@ -374,7 +374,7 @@ void ProgressiveEncounterSafety() {
 
 void ActionsFollowTravel() {
     double referenceHeight = -1;
-    for (double speed : {10.0, 17.0, 24.0}) {
+    for (double speed : {10.0, 17.0, 24.0, 40.0, 60.0}) {
         Player jump, slide;
         CHECK(jump.Jump() && slide.Slide());
         jump.Update(12.0 / speed, speed);
@@ -413,7 +413,7 @@ void CollectibleSpacingAndArc() {
         if(e.type==EntityType::Coin && e.distance<45) arc.push_back(e);
     CHECK(arc.size()==4);
     CHECK(arc[0].height<arc[1].height && arc[2].height>arc[3].height);
-    for (double speed:{10.0,17.0,24.0}) {
+    for (double speed:{10.0,17.0,24.0,40.0,60.0}) {
         Player player; player.Jump();
         double previous=24;
         for(const auto& coin:arc) {
@@ -422,6 +422,62 @@ void CollectibleSpacingAndArc() {
             previous=coin.distance;
         }
     }
+}
+
+void NewObstaclesAndInsaneRuns() {
+    for(auto type:{EntityType::Log,EntityType::Rock,EntityType::Vine}) {
+        GameManager safe, hit;
+        safe.StartGame(1,false); hit.StartGame(1,false);
+        safe.Spawn(type,6); hit.Spawn(type,6);
+        CHECK(RequiresJump(type) ? safe.Jump() : safe.Slide());
+        safe.Update(.7); hit.Update(.7);
+        CHECK(safe.IsPlaying() && safe.GetObstaclesPassed()==1);
+        CHECK(hit.GetState()==GameState::GameOver);
+    }
+    CHECK(Near(Balance::RunSpeed(2000,100000),60));
+    CHECK(Near(Balance::RunSpeed(2000,200000),60));
+    CHECK(Balance::RunSpeed(2000,50000)>Balance::RunSpeed(2000,20000));
+    for(std::uint32_t seed=0;seed<20;++seed) {
+        GameManager game; game.StartGame(seed);
+        // Earn 100k through fixture pickups before the first obstacle.
+        for(int i=0;i<250;++i) game.Spawn(EntityType::RareFish,.1+i*.001,.5);
+        game.Update(.1);
+        CHECK(game.GetScore()>100000);
+        for(int step=0;step<12000;++step) {
+            if(game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding()) {
+                for(const auto& e:game.GetLevel().GetEntities()) {
+                    if(e.distance-game.GetDistance()>6) break;
+                    if(!IsObstacle(e.type)) continue;
+                    if(RequiresJump(e.type)) game.Jump(); else game.Slide();
+                    break;
+                }
+            }
+            game.Update(.01);
+            CHECK(game.IsPlaying());
+            for(const auto& result:game.GetFrameResolutions()) CHECK(result.outcome!=EntityOutcome::Shielded);
+            game.TakeMessages();
+        }
+        CHECK(game.GetSpeed()==60 && game.GetObstaclesPassed()>200);
+        game.EndRun(); game.StartGame(seed);
+        CHECK(game.GetSpeed()==Balance::InitialSpeed && game.GetScore()==0);
+    }
+    Level level; level.Reset(42);
+    double lastPickup=-100, lastObstacle=-100;
+    bool log=false, rock=false, vine=false;
+    for(int at=10;at<10000;at+=10) {
+        for(const auto& e:level.Crossed(at-10,at)) {
+            if(IsObstacle(e.type)) {
+                CHECK(e.distance-lastObstacle>=30-1e-7);
+                lastObstacle=e.distance;
+                log|=e.type==EntityType::Log; rock|=e.type==EntityType::Rock; vine|=e.type==EntityType::Vine;
+            } else {
+                CHECK(e.distance-lastPickup>=5.5-1e-7); lastPickup=e.distance;
+            }
+        }
+        level.GenerateAhead(at,100000);
+        CHECK(level.GetEntities().size()<100);
+    }
+    CHECK(log && rock && vine);
 }
 
 int main() {
@@ -436,7 +492,8 @@ int main() {
         {"100 percursos jogaveis", PlayableProceduralRuns},
         {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety},
         {"acoes acompanham distancia", ActionsFollowTravel},
-        {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc}
+        {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc},
+        {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns}
     };
     int failures = 0;
     for (const auto& test : tests) {

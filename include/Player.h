@@ -5,7 +5,7 @@
 class Player {
 public:
     void Reset();
-    void Update(double deltaTime, double speed = Balance::MaximumSpeed);
+    void Update(double deltaTime, double speed = Balance::ActionSpeed);
     bool Jump();
     bool Slide();
     double GetPositionY() const { return positionY; }

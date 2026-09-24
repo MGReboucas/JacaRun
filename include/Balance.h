@@ -4,7 +4,13 @@
 // Parametros experimentais do prototipo, sujeitos ao balanceamento do GDD.
 namespace Balance {
 inline constexpr double InitialSpeed = 10.0;
-inline constexpr double MaximumSpeed = 24.0;
+inline constexpr double ActionSpeed = 24.0; // Keeps jump/slide distance unchanged.
+inline constexpr double MaximumSpeed = 60.0;
+inline double ScorePressure(double score) { return score <= 0 ? 0 : score >= 100000 ? 1 : score / 100000.0; }
+inline double RunSpeed(double distance, double score) {
+    const double base = InitialSpeed + distance * .012;
+    return (base < ActionSpeed ? base : ActionSpeed) + 36.0 * ScorePressure(score);
+}
 inline constexpr double SpeedPerMeter = 0.012;
 inline constexpr double Gravity = -22.0;
 inline constexpr double JumpForce = 9.5;

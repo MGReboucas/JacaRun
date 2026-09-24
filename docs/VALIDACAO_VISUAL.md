@@ -1,5 +1,21 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.6 — novos obstáculos e modo Insano
+
+Troncos caídos e pedras exigem salto; cipós baixos exigem deslize. Os novos desenhos entram depois de 300 m. A pontuação aumenta a velocidade em até 36 m/s sobre a base por distância (máximo de 24 m/s), atingindo o teto de 60 m/s aos 100 mil pontos quando a base já está completa. Ações mantêm a distância percorrida da 0.5, sem alongar a trajetória ao aumentar esse teto.
+
+A partir de 5 mil pontos as sequências têm pelo menos três obstáculos; aos 20/40/60/80/100 mil, chegam a quatro/cinco/seis/sete/oito. O intervalo chega a 30 m, ou 0,5 s a 60 m/s. O trecho após um power-up preserva espaço adicional. A nova pressão só afeta trechos ainda não gerados; entidades existentes não mudam de posição. Ao reiniciar, pontuação e velocidade voltam ao início.
+
+**Testes:** 18/18 grupos do núcleo e 3/3 de apresentação aprovados. Além dos 100 percursos normais, 20 seeds rodaram por 120 s acima de 100 mil pontos, superando mais de 200 obstáculos por corrida sem derrota nem absorção por escudo. O teste usa alimentos adicionados como preparação para alcançar a pontuação, sem modificar o jogo entregue. Arcos e distância das ações foram verificados também a 40/60 m/s. Os três novos tipos foram testados com ação correta e com colisão; geração extrema manteve espaçamento de coletáveis e memória limitada.
+
+Prova visual aprovada na proporção 360 × 788 em `output/visual-smoke-20260924-134612`, com regressão de gestos, coleta, passagem, pausa/save/reinício e inspeção dos novos desenhos. A captura de catálogo abaixo é uma montagem para inspeção de arte, não uma sequência procedural jogável.
+
+![Novos obstáculos](images/novos-obstaculos.png)
+
+**APK:** `output/JacaRun-0.6.0-debug.apk`, versionCode 6, 24.010.889 bytes. Certificado original de atualização verificado; alinhamento ZIP de 16 KB aprovado. SHA-256: `2849e59ce5c96f001de78a4a4b23e8de385372c7c17a9dae4cfccd6f33c072b4`.
+
+Pendente: instalação e avaliação humana no S24+, especialmente legibilidade e reação no modo Insano. Possibilidade mecânica não significa que a dificuldade final já esteja balanceada.
+
 ## Revisão 0.5 — moedas, duração das ações e painel
 
 O vídeo mais recente tem aproximadamente 19 s. A inspeção dos quadros e da captura enviada confirmou moedas e alimentos na mesma posição e faixas escuras nas junções do painel. O código também usava duração fixa de ação, cobrindo menos distância quando o jogo estava lento.

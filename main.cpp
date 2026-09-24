@@ -126,10 +126,9 @@ int Demo(GameManager& game, const Options& options) {
     for (int step = 0; step < 1600 && game.IsPlaying(); ++step) {
         if (game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding()) {
             for (const auto& entity : game.GetLevel().GetEntities()) {
-                const double seconds = (entity.distance - game.GetDistance()) / game.GetSpeed();
-                if (seconds > 0.3) break;
-                if (entity.type == EntityType::High) { game.Slide(); break; }
-                if (entity.type == EntityType::Ground || (IsFood(entity.type) && entity.height > 1.0)) {
+                if (entity.distance - game.GetDistance() > 6) break;
+                if (IsObstacle(entity.type) && !RequiresJump(entity.type)) { game.Slide(); break; }
+                if (RequiresJump(entity.type) || (IsFood(entity.type) && entity.height > 1.0)) {
                     game.Jump();
                     break;
                 }

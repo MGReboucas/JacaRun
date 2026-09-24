@@ -1,4 +1,4 @@
-# JacaRun — protótipo visual 0.5
+# JacaRun — protótipo visual 0.6
 
 O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `Profile` da interface de terminal. Não existem regras de corrida separadas por plataforma. A cena cuida de desenho, input, menus e ciclo de vida; os diretórios nativos inicializam a aplicação e empacotam os recursos.
 
@@ -51,7 +51,7 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 17 grupos do núcleo incluem 100 corridas longas e 100 percursos com verificação de progressão e espaçamento; três grupos adicionais testam gestos, permanência dos objetos, coleta animada, descarte fora da tela e eventos sem duplicação.
+Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 18 grupos do núcleo incluem 100 corridas longas e 100 percursos com verificação de progressão e espaçamento; três grupos adicionais testam gestos, permanência dos objetos, coleta animada, descarte fora da tela e eventos sem duplicação.
 
 ## Android de desenvolvimento
 
@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-android.ps1
 
 O script procura as instalações convencionais. É possível informar `-AndroidSdk`, `-AndroidNdk` e `-JavaHome`. As dependências Gradle ficam em `.deps/gradle`. O helper cria uma vista local dos componentes já instalados em `.deps/android-sdk` e `local.properties`, ambos ignorados pelo Git. Ele não instala SDKs nem aceita licenças; componentes ausentes devem ser preparados no Android Studio.
 
-Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.5.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.5 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
+Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.6.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.6 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
 
 Para instalar em um Android próprio conectado e autorizado para depuração:
 

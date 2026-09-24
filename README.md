@@ -6,7 +6,7 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.5 separa os coletáveis, desenha trilhas de moedas em arco, adapta pulo/deslize à velocidade e corrige o painel de pontuação. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.6 adiciona troncos, pedras e cipós e uma progressão por pontuação até o modo Insano aos 100 mil pontos. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
 
 ![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
 
@@ -34,13 +34,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.5.0-debug.apk`. Transfira ao celular e instale como atualização da 0.3 ou 0.4.1; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.6.0-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador e o formato do save foram preservados. Não é uma versão de loja.
 
 ### Ritmo da corrida
 
-O percurso começa com raízes e galhos isolados. Após 180 m surgem duplas; após 550 m, combinações de três ações, incluindo saltos seguidos e alternância entre pulo e deslize. Seis padrões evitam repetir imediatamente a mesma sequência. A densidade cresce até 1.800 m, com trechos de recompensa entre combinações e moedas indicando a altura da ação. O HUD mostra cinco faixas de ritmo.
+O percurso começa com raízes e galhos. Duplas aparecem após 180 m; troncos caídos, pedras e cipós entram após 300 m; triplas após 550 m. Troncos/pedras exigem pulo e cipós exigem deslize. A pontuação amplia as combinações: pelo menos três obstáculos a partir de 5 mil, quatro aos 20 mil, cinco aos 40 mil, seis aos 60 mil, sete aos 80 mil e oito aos 100 mil pontos. A geração usa a pontuação ao preparar o próximo trecho, sem mover obstáculos que já existem.
 
-A velocidade continua limitada a 24 m/s. Os obstáculos mantêm pelo menos 1,35 s de separação nessa velocidade, permitindo terminar pulo ou deslize antes da próxima ação. Cada nova corrida recomeça suavemente, independentemente do nível salvo do perfil. Esses valores são experimentais e precisam de teste humano.
+A velocidade base cresce com a distância até 24 m/s e recebe até 36 m/s adicionais conforme a pontuação se aproxima de 100 mil. O limite final é 60 m/s. No modo Insano, a separação mínima é 30 m: um obstáculo a cada 0,5 s no limite. Pulo e deslize continuam cobrindo cerca de 20,7/21,6 m; moedas mantêm o arco e a separação mínima de 5,5 m. O HUD sinaliza as faixas. Cada tentativa reinicia suavemente; esses valores são experimentais e precisam de teste humano.
 
 ## Decisões confirmadas no GDD
 
@@ -113,7 +113,7 @@ O painel informa distância, velocidade, pontuação, moedas, combo, altura do p
 
 ### Corrida e dificuldade
 
-A distância resulta da velocidade multiplicada pelo tempo simulado. A velocidade começa em **10 m/s**, aumenta com a distância e tem limite de **24 m/s**.
+A distância resulta da velocidade multiplicada pelo tempo simulado. A velocidade começa em **10 m/s**, aumenta com distância e pontuação e tem limite de **60 m/s**.
 
 O percurso é gerado continuamente à frente do personagem. Os encontros ficam mais próximos conforme a corrida avança, respeitando um espaçamento mínimo. Objetos já atravessados são removidos, mantendo o tamanho do cenário em memória limitado.
 

@@ -7,6 +7,9 @@ const char* EntityName(EntityType type) {
     switch (type) {
         case EntityType::Ground: return "raiz (pule)";
         case EntityType::High: return "galho (agache)";
+        case EntityType::Log: return "tronco caido (pule)";
+        case EntityType::Rock: return "pedra (pule)";
+        case EntityType::Vine: return "cipo baixo (agache)";
         case EntityType::Coin: return "moeda";
         case EntityType::Crab: return "caranguejo";
         case EntityType::Fish: return "peixe";
@@ -18,7 +21,11 @@ const char* EntityName(EntityType type) {
 }
 
 bool IsObstacle(EntityType type) {
-    return type == EntityType::Ground || type == EntityType::High;
+    return RequiresJump(type) || type == EntityType::High || type == EntityType::Vine;
+}
+
+bool RequiresJump(EntityType type) {
+    return type == EntityType::Ground || type == EntityType::Log || type == EntityType::Rock;
 }
 
 bool IsFood(EntityType type) {
@@ -44,7 +51,7 @@ void Level::Spawn(EntityType type, double distance, double height) {
     });
 }
 
-void Level::GenerateAhead(double playerDistance) {
+void Level::GenerateAhead(double playerDistance, double score) {
     if (!generate) return;
     while (nextEncounter < playerDistance + Balance::LookAhead) {
         // Difficulty follows this run, never the saved profile: retries start gently.
@@ -62,19 +69,26 @@ void Level::GenerateAhead(double playerDistance) {
             {EntityType::Ground, EntityType::Ground, EntityType::High},
             {EntityType::High, EntityType::Ground, EntityType::High}
         };
-        const int count = pattern < 2 ? 1 : pattern < 4 ? 2 : 3;
-        // Using the maximum speed guarantees recovery time even while accelerating.
-        const double actionGap = Balance::MaximumSpeed * (1.65 - .30 * intensity);
+        const double pressure = Balance::ScorePressure(score);
+        const int baseCount = pattern < 2 ? 1 : pattern < 4 ? 2 : 3;
+        const int count = score >= 5000 ? std::max(baseCount, 3 + static_cast<int>(pressure * 5)) : baseCount;
+        // Fixed action travel leaves recovery distance even at extreme speed.
+        const double actionGap = Balance::ActionSpeed * (1.65 - .30 * intensity) - 2.4 * pressure;
         double at = nextEncounter;
         for (int action = 0; action < count; ++action) {
-            const auto type = patterns[pattern][action];
-            const bool jump = type == EntityType::Ground;
+            auto type = patterns[pattern][action % 3];
+            const bool jump = RequiresJump(type);
+            if (at >= 300) {
+                const auto variant = random() % (jump ? 3 : 2);
+                type = jump ? (variant == 0 ? EntityType::Ground : variant == 1 ? EntityType::Log : EntityType::Rock)
+                            : (variant == 0 ? EntityType::High : EntityType::Vine);
+            }
             Spawn(type, at);
             if (jump) {
                 // Sample the actual distance-based parabola, with takeoff 6 m before the root.
                 for (int coin = 0; coin < 4; ++coin) {
                     const double offset = -4.0 + coin * 5.5;
-                    const double t = (offset + 6.0) / Balance::MaximumSpeed;
+                    const double t = (offset + 6.0) / Balance::ActionSpeed;
                     const double y = Balance::JumpForce * t + .5 * Balance::Gravity * t * t;
                     Spawn(EntityType::Coin, at + offset, .5 + y);
                 }
@@ -93,7 +107,9 @@ void Level::GenerateAhead(double playerDistance) {
                   at + 29.0, 0.5);
         }
         // Espacamento permite terminar uma acao antes do proximo obstaculo.
-        nextEncounter = at + 58.0 - 18.0 * intensity + static_cast<double>(random() % 9);
+        const double recovery = 58.0 - 18.0 * intensity - 10.0 * pressure;
+        nextEncounter = at + std::max(encounterCount % 4 == 0 ? 40.0 : 30.0, recovery)
+                           + static_cast<double>(random() % 9) * (1.0 - pressure);
     }
 }
 

@@ -368,6 +368,30 @@ void MainScene::drawEntity(const VisualEntity& object) {
     };
     const Color4F wood(.47f,.27f,.15f,1), bark(.74f,.48f,.25f,1);
     switch(e.type) {
+    case EntityType::Log:
+        ellipse(world,{x+23,floorY+18},31,18,wood);
+        world->drawSegment({x+2,floorY+32},{x+43,floorY+32},3,bark);
+        ellipse(world,{x+48,floorY+18},12,18,Color4F(.85f,.66f,.36f,1));
+        world->drawCircle({x+48,floorY+18},8,0,20,false,wood);
+        break;
+    case EntityType::Rock: {
+        Vec2 rock[]={{x-5,floorY},{x+2,floorY+29},{x+19,floorY+46},
+                     {x+40,floorY+36},{x+57,floorY+4}};
+        world->drawSolidPoly(rock,5,Color4F(.43f,.51f,.52f,1));
+        Vec2 face[]={{x+2,floorY+29},{x+19,floorY+46},{x+29,floorY+17}};
+        world->drawSolidPoly(face,3,Color4F(.71f,.76f,.68f,1));
+        world->drawSegment({x+30,floorY+34},{x+44,floorY+10},2,Color4F(.24f,.34f,.35f,1));
+        break;
+    }
+    case EntityType::Vine:
+        for(int strand=0;strand<3;++strand) {
+            const float vx=x+strand*19;
+            world->drawSegment({vx+12,floorY+218},{vx,floorY+65},4,Color4F(.43f,.60f,.23f,1));
+            ellipse(world,{vx+8,floorY+130+strand*12.0f},10,17,Color4F(.64f,.75f,.28f,1));
+        }
+        world->drawSegment({x-5,floorY+62},{x+56,floorY+62},10,Color4F(.38f,.49f,.18f,1));
+        world->drawSegment({x-3,floorY+67},{x+53,floorY+67},2,Color4F(.82f,.83f,.38f,1));
+        break;
     case EntityType::Ground: {
         ellipse(world,{x+26,floorY+1},38,5,Color4F(.05f,.16f,.12f,.4f));
         Vec2 root[]={{x-3,floorY},{x+3,floorY+15},{x+9,floorY+45},{x+19,floorY+51},
@@ -557,7 +581,14 @@ void MainScene::update(float dt) {
     if (coins) coins->setString(whole(game.GetRunCoins()));
     if (pace) {
         const double meters = game.GetDistance();
-        pace->setString(meters < 180 ? "RITMO 1 / AQUECIMENTO" :
+        const auto points = game.GetScore();
+        pace->setString(points >= 100000 ? "INSANO / 100.000+ PONTOS" :
+                        points >= 80000 ? "LIMITE / SEQUENCIAS DE SETE" :
+                        points >= 60000 ? "BRUTAL / SEQUENCIAS DE SEIS" :
+                        points >= 40000 ? "EXTREMO / SEQUENCIAS DE CINCO" :
+                        points >= 20000 ? "FEROZ / SEQUENCIAS DE QUATRO" :
+                        points >= 5000 ? "PRESSAO / SEQUENCIAS LONGAS" :
+                        meters < 180 ? "RITMO 1 / AQUECIMENTO" :
                         meters < 550 ? "RITMO 2 / SEQUENCIAS DUPLAS" :
                         meters < 1100 ? "RITMO 3 / DESAFIOS TRIPLOS" :
                         meters < 1800 ? "RITMO 4 / MANGUE ACELERADO" :
@@ -711,7 +742,17 @@ void MainScene::smokeTick(float dt) {
             finishSmoke(false,"Distance-based jump or coin arc failed"); return;
         }
         capture("07-clearance.png");
-        finishSmoke(true,"Gestures, persistent objects, pause/resume, save/restart; slow-speed jump clearance and complete procedural coin arc; single-surface HUD.");
+        smokeStep=11;
+    } else if(smokeStep==11) {
+        // Art inspection fixture only; not a generated playable sequence.
+        game.EndRun(); start(false);
+        game.Spawn(EntityType::Log,10);
+        game.Spawn(EntityType::Rock,21);
+        game.Spawn(EntityType::Vine,32);
+        smokeStep=12;
+    } else if(smokeStep==12) {
+        capture("09-new-obstacles.png");
+        finishSmoke(true,"Gestures, persistence, pause/save/restart, coin arc, action clearance, HUD and three new obstacle drawings.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

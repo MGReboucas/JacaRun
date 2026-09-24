@@ -54,7 +54,7 @@ void GameManager::Update(double deltaTime) {
     while (deltaTime > 1e-9 && IsPlaying()) {
         const double dt = std::min(deltaTime, Balance::PhysicsStep);
         deltaTime -= dt;
-        speed = std::min(Balance::MaximumSpeed, Balance::InitialSpeed + distance * Balance::SpeedPerMeter);
+        speed = Balance::RunSpeed(distance, static_cast<double>(GetScore()));
         player.Update(dt, speed);
         shieldRemaining = std::max(0.0, shieldRemaining - dt);
         magnetRemaining = std::max(0.0, magnetRemaining - dt);
@@ -68,7 +68,7 @@ void GameManager::Update(double deltaTime) {
             Resolve(entity);
             if (!IsPlaying()) break;
         }
-        if (IsPlaying()) level.GenerateAhead(distance);
+        if (IsPlaying()) level.GenerateAhead(distance, static_cast<double>(GetScore()));
     }
 }
 
@@ -78,7 +78,7 @@ void GameManager::Spawn(EntityType type, double atDistance, double height) {
 
 void GameManager::Resolve(const Entity& entity) {
     if (IsObstacle(entity.type)) {
-        const bool safe = entity.type == EntityType::Ground
+        const bool safe = RequiresJump(entity.type)
             ? player.GetPositionY() >= Balance::GroundClearance
             : player.IsGrounded() && player.IsSliding();
         if (!safe) {
@@ -89,12 +89,12 @@ void GameManager::Resolve(const Entity& entity) {
                 messages.emplace_back("Escudo absorveu a batida!");
             } else {
                 frameResolutions.push_back({entity, EntityOutcome::Hit});
-                EndRun(entity.type == EntityType::Ground ? "O Jaca tropeçou na raiz!" : "O Jaca bateu no galho!");
+                EndRun(std::string("O Jaca bateu: ") + EntityName(entity.type));
             }
         } else {
             frameResolutions.push_back({entity, EntityOutcome::Passed});
             ++obstaclesPassed;
-            messages.emplace_back(entity.type == EntityType::Ground ? "Boa! Passou por cima da raiz." : "Boa! Deslizou sob o galho.");
+            messages.emplace_back(RequiresJump(entity.type) ? "Boa! Passou por cima." : "Boa! Deslizou por baixo.");
         }
         return;
     }

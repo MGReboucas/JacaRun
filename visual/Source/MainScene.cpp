@@ -49,10 +49,20 @@ void rect(DrawNode* d, Rect r, Color4F color) {
     d->drawSolidRect(r.origin, r.origin + Vec2(r.size.width, r.size.height), color);
 }
 void pill(DrawNode* d, Rect r, Color4F color) {
-    float radius = std::min(r.size.height / 2, 18.0f);
-    rect(d, Rect(r.origin.x + radius, r.origin.y, r.size.width - 2 * radius, r.size.height), color);
-    ellipse(d, {r.origin.x + radius, r.getMidY()}, radius, r.size.height / 2, color);
-    ellipse(d, {r.getMaxX() - radius, r.getMidY()}, radius, r.size.height / 2, color);
+    const float radius = std::min({r.size.height / 2, r.size.width / 2, 18.0f});
+    std::vector<Vec2> outline;
+    const Vec2 centers[] = {{r.getMaxX()-radius,r.getMaxY()-radius},
+                            {r.getMinX()+radius,r.getMaxY()-radius},
+                            {r.getMinX()+radius,r.getMinY()+radius},
+                            {r.getMaxX()-radius,r.getMinY()+radius}};
+    for (int corner=0; corner<4; ++corner) {
+        for (int step=0; step<=8; ++step) {
+            const float angle=(corner*90.0f+step*90.0f/8)*3.14159265f/180;
+            outline.push_back(centers[corner]+Vec2(std::cos(angle),std::sin(angle))*radius);
+        }
+    }
+    // One convex surface: translucent corners never overlap the center.
+    d->drawSolidPoly(outline.data(), static_cast<int>(outline.size()), color);
 }
 std::string whole(double value) { return std::to_string(static_cast<long long>(value)); }
 }
@@ -246,7 +256,7 @@ void MainScene::rebuildUI() {
         return;
     }
     // A compact HUD floats over the forest; there are no gameplay buttons or reserved panels.
-    pill(panels, {22, top - 62, 436, 65}, Color4F(.025f,.13f,.14f,.70f));
+    pill(panels, {22, top - 62, 436, 65}, Color4F(.035f,.16f,.17f,1));
     text("PONTOS", 11, {72, top - 10}, Muted);
     score = text(whole(game.GetScore()), 28, {73, top - 37}, Cream, true);
     distance = text(whole(game.GetDistance()) + " m", 24, {243, top - 30}, Cream, true);
@@ -336,6 +346,8 @@ void MainScene::drawCrocodile(Vec2 feet, float scale) {
 void MainScene::drawEntity(const VisualEntity& object) {
     const auto& e = object.entity;
     float x = Contact + static_cast<float>(e.distance - game.GetDistance()) * PixelsPerMeter;
+    // Place the dangerous part around the contact coordinate, not a full sprite ahead.
+    if (IsObstacle(e.type)) x -= 40;
     if (x < -120 || x > 570) return;
     float y = floorY + static_cast<float>(e.height) * HeightScale;
     float scale = 1, opacity = 1;
@@ -632,8 +644,8 @@ void MainScene::smokeTick(float dt) {
         game.Spawn(EntityType::Coin,2,0.5);
         game.Spawn(EntityType::Crab,4,0.5);
         game.Spawn(EntityType::Ground,12);
-        game.Spawn(EntityType::High,26);
-        game.Spawn(EntityType::Ground,50);
+        game.Spawn(EntityType::High,40);
+        game.Spawn(EntityType::Ground,72);
         game.Spawn(EntityType::Coin,12,0.5); // Must remain visible when missed in a jump.
         smokeStep=2;
     } else if(smokeStep==2) {
@@ -651,8 +663,8 @@ void MainScene::smokeTick(float dt) {
             if(!rootVisible || !missedCoinVisible) { finishSmoke(false,"Objects disappeared at the player"); return; }
             smokePersistence=true; capture("05-objects-behind.png");
         }
-        if(!smokeSlide && d>23.2) { smokeTouch({350,floorY+160},{350,floorY+95}); smokeSlide=true; }
-        if(d>26.5) {
+        if(!smokeSlide && d>37.2) { smokeTouch({350,floorY+160},{350,floorY+95}); smokeSlide=true; }
+        if(d>40.5) {
             if(!game.IsPlaying() || game.GetObstaclesPassed()!=2 || game.GetRunCoins()!=1 || game.GetFoods()!=1) {
                 finishSmoke(false,"Obstacle or collection integration failed"); return;
             }
@@ -666,7 +678,12 @@ void MainScene::smokeTick(float dt) {
         }
         suspend();
         smokeTouch({240,viewHeight*.52f+80},{240,viewHeight*.52f+150}); smokeStep=5;
-    } else if(smokeStep==5 && game.GetState()==GameState::GameOver) {
+    } else if(smokeStep==5 && d>56) {
+        if(!game.IsPlaying() || !game.GetPlayer().IsSliding()) {
+            finishSmoke(false,"Slow slide ended before visual clearance"); return;
+        }
+        capture("08-slide-clearance.png"); smokeStep=10;
+    } else if(smokeStep==10 && game.GetState()==GameState::GameOver) {
         capture("04-game-over.png");
         const auto bank=game.GetProfile().coins;
         save();
@@ -680,7 +697,21 @@ void MainScene::smokeTick(float dt) {
         if(!game.IsPlaying() || game.GetDistance()!=0 || game.GetProfile().coins!=1) {
             finishSmoke(false,"Restart failed"); return;
         }
-        finishSmoke(true,"Full-height menu; swipe jump/slide; persistent passed obstacle and missed coin; collection; two-finger pause; background pause; swipe resume/restart; collision; save/reload.");
+        game.EndRun(); start(false);
+        Level preview; preview.Reset(0);
+        for(const auto& entity:preview.GetEntities())
+            if(entity.distance<65) game.Spawn(entity.type,entity.distance,entity.height);
+        smokeStep=7;
+    } else if(smokeStep==7 && d>19) {
+        capture("06-coin-arc.png"); smokeStep=8;
+    } else if(smokeStep==8 && d>24) {
+        smokeTouch({350,floorY+140},{350,floorY+205}); smokeStep=9;
+    } else if(smokeStep==9 && d>43) {
+        if(!game.IsPlaying() || game.GetObstaclesPassed()!=1 || game.GetRunCoins()!=4) {
+            finishSmoke(false,"Distance-based jump or coin arc failed"); return;
+        }
+        capture("07-clearance.png");
+        finishSmoke(true,"Gestures, persistent objects, pause/resume, save/restart; slow-speed jump clearance and complete procedural coin arc; single-surface HUD.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

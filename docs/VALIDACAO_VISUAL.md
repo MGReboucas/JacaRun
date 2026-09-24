@@ -1,5 +1,23 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.5 — moedas, duração das ações e painel
+
+O vídeo mais recente tem aproximadamente 19 s. A inspeção dos quadros e da captura enviada confirmou moedas e alimentos na mesma posição e faixas escuras nas junções do painel. O código também usava duração fixa de ação, cobrindo menos distância quando o jogo estava lento.
+
+- Coletáveis separados por pelo menos 5,5 m, inclusive entre combinações; comida após a passagem, sem disputar a posição das moedas.
+- Arco de quatro moedas amostrado da parábola real para um salto iniciado 6 m antes da raiz. Moedas dos galhos ficam mais baixas; alimento e power-up têm posições separadas.
+- Física de pulo/deslize parametrizada pela distância: salto de aproximadamente 20,7 m e deslize de 21,6 m. A 10 m/s, as ações duram aproximadamente 2,07/2,16 s; a 24 m/s, 0,86/0,9 s. A aceleração continua gradual e a altura máxima foi preservada.
+- Desenhos de obstáculos alinhados ao ponto de encontro, com margem visual para finalizar as ações. Colisão ainda é resolvida uma única vez pelo núcleo.
+- Painéis arredondados formam uma única superfície; o painel de pontuação é opaco, eliminando tanto sobreposição de transparências quanto árvores aparecendo através dele.
+
+**Verificação:** 17/17 grupos de mecânicas e 3/3 de apresentação aprovados. Inclui 100 corridas de mais de 4 km, espaçamento de coletáveis em 100 percursos de 6 km, mesma trajetória a 10/17/24 m/s e coleta de todo o arco. Smoke visual final aprovado em 432 × 810 (`output/visual-smoke-20260924-131050`) e 360 × 788 (`output/visual-smoke-20260924-131111`), com capturas extras de arco e de passagem em pulo/deslize conferidas.
+
+![Arco de moedas e painel uniforme](images/arco-moedas.png)
+
+**APK:** `output/JacaRun-0.5.0-debug.apk`, versionCode 5, 24.010.893 bytes. Assinatura verificada e certificado idêntico ao da 0.3/0.4.1; alinhamento ZIP de 16 KB aprovado. SHA-256: `0d41a9070f1d154ce7684713171213316e0d9685801dbb2bd363a32039a1d93a`.
+
+Pendente: testar instalação, conforto dos novos tempos de ação e sessão de 15 minutos no Samsung S24+. A simulação e as capturas não substituem esse teste humano.
+
 ## Correção 0.4.1 — assinatura de atualização
 
 O usuário relatou “app não instalado” no Samsung S24+. A comparação dos APKs locais encontrou certificados diferentes: 0.3 com SHA-256 `345dc05f4830fdaa39d1d0de1ca2a4628755ff8728a9d9c4674e938b3d64c774` e 0.4.0 com `796f7fbb01e206c87235fe2cf348aeb05ca4cb4028d6aeb925b00e4a9caad795`. A assinatura válida registrada abaixo para a 0.4.0 não garantia atualização da 0.3. Não havia aparelho conectado via ADB para consultar o erro de instalação.

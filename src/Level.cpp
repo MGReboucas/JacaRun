@@ -70,20 +70,27 @@ void Level::GenerateAhead(double playerDistance) {
             const auto type = patterns[pattern][action];
             const bool jump = type == EntityType::Ground;
             Spawn(type, at);
-            Spawn(jump ? EntityType::Fish : EntityType::Crab, at, jump ? 2.0 : .5);
-            // Coin trails preview the required action; no optional jump before a branch.
-            for (int coin = -1; coin <= 1; ++coin)
-                Spawn(EntityType::Coin, at + coin * 2.0, jump ? 1.8 : .5);
+            if (jump) {
+                // Sample the actual distance-based parabola, with takeoff 6 m before the root.
+                for (int coin = 0; coin < 4; ++coin) {
+                    const double offset = -4.0 + coin * 5.5;
+                    const double t = (offset + 6.0) / Balance::MaximumSpeed;
+                    const double y = Balance::JumpForce * t + .5 * Balance::Gravity * t * t;
+                    Spawn(EntityType::Coin, at + offset, .5 + y);
+                }
+                Spawn(random() % 5 == 0 ? EntityType::RareFish : EntityType::Fish, at + 20.5, .5);
+            } else {
+                for (int coin = 0; coin < 3; ++coin)
+                    Spawn(EntityType::Coin, at - 4.0 + coin * 6.0, .3);
+                Spawn(EntityType::Crab, at + 14.5, .5);
+            }
             if (action + 1 < count) at += actionGap;
         }
         // A short reward/recovery lane separates combinations.
-        for (int coin = 0; coin < 3; ++coin)
-            Spawn(EntityType::Coin, at + 16 + coin * 3, .5);
-        Spawn(random() % 5 == 0 ? EntityType::RareFish : EntityType::Crab, at + 22, .5);
         ++encounterCount;
         if (encounterCount % 4 == 0) {
             Spawn(encounterCount % 8 == 0 ? EntityType::Magnet : EntityType::Shield,
-                  at + 25.0, 0.5);
+                  at + 29.0, 0.5);
         }
         // Espacamento permite terminar uma acao antes do proximo obstaculo.
         nextEncounter = at + 58.0 - 18.0 * intensity + static_cast<double>(random() % 9);

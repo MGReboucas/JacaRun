@@ -38,7 +38,7 @@ try {
             if (!(Test-Path $result)) { throw 'Teste nao produziu relatorio; confira se o sistema permitiu executar o aplicativo.' }
             $lines = Get-Content $result
             if ($process.ExitCode -ne 0 -or $lines[0] -ne 'PASS') { throw "Teste falhou: $($lines -join ' ')" }
-            foreach ($capture in @('01-menu.png','02-jump.png','03-pause.png','04-game-over.png','05-objects-behind.png')) {
+            foreach ($capture in @('01-menu.png','02-jump.png','03-pause.png','04-game-over.png','05-objects-behind.png','06-coin-arc.png','07-clearance.png','08-slide-clearance.png')) {
                 $imagePath = Join-Path $dir $capture
                 if (!(Test-Path $imagePath) -or (Get-Item $imagePath).Length -eq 0) {
                     throw "Captura ausente: $imagePath"

@@ -372,6 +372,58 @@ void ProgressiveEncounterSafety() {
     }
 }
 
+void ActionsFollowTravel() {
+    double referenceHeight = -1;
+    for (double speed : {10.0, 17.0, 24.0}) {
+        Player jump, slide;
+        CHECK(jump.Jump() && slide.Slide());
+        jump.Update(12.0 / speed, speed);
+        slide.Update(20.0 / speed, speed);
+        CHECK(jump.GetPositionY() > 1.9);
+        CHECK(slide.IsSliding());
+        if (referenceHeight >= 0) CHECK(Near(jump.GetPositionY(), referenceHeight));
+        referenceHeight = jump.GetPositionY();
+        jump.Update(9.0 / speed, speed);
+        slide.Update(2.0 / speed, speed);
+        CHECK(jump.IsGrounded() && !slide.IsSliding());
+    }
+    // Slow motion must still protect the player after the old fixed duration elapsed.
+    Player slowJump, slowSlide;
+    slowJump.Jump(); slowSlide.Slide();
+    slowJump.Update(1.5, 10); slowSlide.Update(1.5, 10);
+    CHECK(slowJump.GetPositionY() > Balance::GroundClearance && slowSlide.IsSliding());
+}
+
+void CollectibleSpacingAndArc() {
+    for (std::uint32_t seed=0; seed<100; ++seed) {
+        Level level; level.Reset(seed);
+        double previousPickup=-100;
+        for (int distance=10; distance<=6000; distance+=10) {
+            for (const auto& e:level.Crossed(distance-10,distance)) {
+                if (IsObstacle(e.type)) continue;
+                CHECK(e.distance-previousPickup >= 5.5-1e-7);
+                previousPickup=e.distance;
+            }
+            level.GenerateAhead(distance);
+        }
+    }
+    Level preview; preview.Reset(0);
+    std::vector<Entity> arc;
+    for (const auto& e:preview.GetEntities())
+        if(e.type==EntityType::Coin && e.distance<45) arc.push_back(e);
+    CHECK(arc.size()==4);
+    CHECK(arc[0].height<arc[1].height && arc[2].height>arc[3].height);
+    for (double speed:{10.0,17.0,24.0}) {
+        Player player; player.Jump();
+        double previous=24;
+        for(const auto& coin:arc) {
+            player.Update((coin.distance-previous)/speed,speed);
+            CHECK(std::abs(player.GetPositionY()+.5-coin.height)<1e-7);
+            previous=coin.distance;
+        }
+    }
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
         {"acoes do jogador", PlayerActions}, {"fisica por tempo", TimeBasedPhysics},
@@ -382,7 +434,9 @@ int main() {
         {"velocidade e passos de tempo", SpeedAndFrameIndependence}, {"geracao e seeds", SeedAndGeneration},
         {"persistencia e save invalido", PersistenceAndInvalidSave},
         {"100 percursos jogaveis", PlayableProceduralRuns},
-        {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety}
+        {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety},
+        {"acoes acompanham distancia", ActionsFollowTravel},
+        {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc}
     };
     int failures = 0;
     for (const auto& test : tests) {

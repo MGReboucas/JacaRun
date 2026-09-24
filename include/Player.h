@@ -1,10 +1,11 @@
 #ifndef PLAYER_H
 #define PLAYER_H
+#include "Balance.h"
 
 class Player {
 public:
     void Reset();
-    void Update(double deltaTime);
+    void Update(double deltaTime, double speed = Balance::MaximumSpeed);
     bool Jump();
     bool Slide();
     double GetPositionY() const { return positionY; }

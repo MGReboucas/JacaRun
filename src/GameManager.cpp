@@ -54,14 +54,14 @@ void GameManager::Update(double deltaTime) {
     while (deltaTime > 1e-9 && IsPlaying()) {
         const double dt = std::min(deltaTime, Balance::PhysicsStep);
         deltaTime -= dt;
-        player.Update(dt);
+        speed = std::min(Balance::MaximumSpeed, Balance::InitialSpeed + distance * Balance::SpeedPerMeter);
+        player.Update(dt, speed);
         shieldRemaining = std::max(0.0, shieldRemaining - dt);
         magnetRemaining = std::max(0.0, magnetRemaining - dt);
         if (combo > 0) {
             comboRemaining -= dt;
             if (comboRemaining <= 0.0) ResetCombo();
         }
-        speed = std::min(Balance::MaximumSpeed, Balance::InitialSpeed + distance * Balance::SpeedPerMeter);
         const double previous = distance;
         distance += speed * dt;
         for (const Entity& entity : level.Crossed(previous, distance)) {

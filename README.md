@@ -6,7 +6,7 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.4 destaca a ação mais perto do centro da tela e traz sequências progressivas de obstáculos. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.5 separa os coletáveis, desenha trilhas de moedas em arco, adapta pulo/deslize à velocidade e corrige o painel de pontuação. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
 
 ![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
 
@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.4.1-debug.apk`. Transfira ao celular e instale como atualização da 0.3; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.5.0-debug.apk`. Transfira ao celular e instale como atualização da 0.3 ou 0.4.1; o identificador e o formato do save foram preservados. Não é uma versão de loja.
 
 ### Ritmo da corrida
 
@@ -124,17 +124,17 @@ A simulação divide cada atualização em passos de até **1/120 segundo**. As 
 - **Raiz:** exige altura de pelo menos 0,7 unidade no momento do encontro.
 - **Galho:** exige estar no chão e deslizando.
 - **Pulo:** só começa no chão, fora de um deslize; não há pulo duplo.
-- **Deslize:** dura 0,9 segundo e não pode começar no ar nem ser renovado enquanto está ativo.
+- **Deslize:** cobre 21,6 metros; dura cerca de 2,16 s a 10 m/s e 0,9 s a 24 m/s. Não pode começar no ar nem ser renovado enquanto está ativo.
 - **Colisão:** encerra a corrida, exceto quando um escudo ativo absorve a batida.
 
-A gravidade e o movimento vertical usam tempo decorrido. A pausa congela movimento, combo, efeitos e geração do percurso.
+Pulo e deslize avançam conforme a distância percorrida. O salto cobre aproximadamente 20,7 m, com a mesma altura e duração maior na corrida lenta. Moedas formam um arco correspondente a um salto iniciado 6 m antes da raiz; os coletáveis ficam separados por pelo menos 5,5 m. A pausa congela movimento, combo, efeitos e geração do percurso.
 
 ### Alimentos, combos e recordes
 
 | Alimento | Pontos base | Posição no percurso |
 | --- | ---: | --- |
 | Caranguejo | 20 | Baixo |
-| Peixe | 30 | No ar, junto a raízes |
+| Peixe | 30 | Recompensa após a aterrissagem |
 | Peixe raro | 100 | No chão, em algumas recompensas entre sequências |
 
 A coleta considera a altura do personagem. Alimentos fora do alcance são perdidos.

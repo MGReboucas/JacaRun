@@ -8,13 +8,13 @@ void PersistenceAndCollection() {
     GameManager game;
     RunPresentation view;
     game.StartGame(1, false);
-    game.Spawn(EntityType::Ground, 2);
-    game.Spawn(EntityType::Coin, 2, 0.5); // Missed while airborne; same coordinate, distinct ID.
-    game.Spawn(EntityType::Fish, 2, 2);
+    game.Spawn(EntityType::Ground, 3);
+    game.Spawn(EntityType::Coin, 3, 0.5); // Missed while airborne; same coordinate, distinct ID.
+    game.Spawn(EntityType::Fish, 3, 2);
     view.Sync(game.GetLevel().GetEntities());
     CHECK(view.GetObjects().size() == 3);
     CHECK(game.Jump());
-    game.Update(0.3);
+    game.Update(0.4);
     CHECK(game.IsPlaying());
     CHECK(game.GetFrameResolutions().size() == 3);
     CHECK(game.GetFrameResolutions()[0].outcome == EntityOutcome::Passed);

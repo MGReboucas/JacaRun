@@ -25,6 +25,8 @@
 
 #include "AppDelegate.h"
 #include "MainScene.h"
+#include <cstdlib>
+#include <string_view>
 using namespace ax;
 AppDelegate::AppDelegate() = default;
 AppDelegate::~AppDelegate() = default;
@@ -37,7 +39,12 @@ bool AppDelegate::applicationDidFinishLaunching() {
     auto view = director->getRenderView();
     if (!view) {
 #if (AX_TARGET_PLATFORM != AX_PLATFORM_ANDROID) && (AX_TARGET_PLATFORM != AX_PLATFORM_IOS)
-        view = RenderViewImpl::createWithRect("JacaRun | Mangue em movimento", Rect(0, 0, 432, 810));
+        Rect frame(0, 0, 432, 810);
+#ifndef NDEBUG
+        if (const char* aspect = std::getenv("JACARUN_VISUAL_ASPECT"); aspect && std::string_view(aspect) == "Tall")
+            frame = Rect(0, 0, 360, 788);
+#endif
+        view = RenderViewImpl::createWithRect("JacaRun | Mangue em movimento", frame);
 #else
         view = RenderViewImpl::create("JacaRun");
 #endif
@@ -46,7 +53,7 @@ bool AppDelegate::applicationDidFinishLaunching() {
     director->setStatsDisplay(false);
     director->setAnimationInterval(1.0 / 60.0);
     director->setClearColor(Color4F(0.04f, 0.14f, 0.15f, 1));
-    view->setDesignResolutionSize(480, 900, ResolutionPolicy::SHOW_ALL);
+    view->setDesignResolutionSize(480, 900, ResolutionPolicy::FIXED_WIDTH);
     director->runWithScene(utils::createInstance<MainScene>());
     return true;
 }

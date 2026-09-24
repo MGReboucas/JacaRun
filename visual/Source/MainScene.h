@@ -26,6 +26,8 @@
 #pragma once
 #include "axmol.h"
 #include "GameManager.h"
+#include "RunPresentation.h"
+#include "GestureInput.h"
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -40,6 +42,11 @@ private:
     enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Item0, Item1, Item2, Item3 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
+    RunPresentation presentation;
+    GestureInput gestures;
+    float viewHeight = 900;
+    float floorY = 220;
+    float runTime = 0;
     ax::DrawNode* world = nullptr;
     ax::DrawNode* panels = nullptr;
     ax::Node* ui = nullptr;
@@ -47,6 +54,7 @@ private:
     ax::Label* distance = nullptr;
     ax::Label* coins = nullptr;
     ax::Label* status = nullptr;
+    ax::Label* gestureHint = nullptr;
     std::vector<Button> buttons;
     std::filesystem::path savePath;
     bool saveAllowed = true;
@@ -64,11 +72,14 @@ private:
     std::filesystem::path smokeDirectory;
     bool smokeJump = false;
     bool smokeSlide = false;
+    bool smokePersistence = false;
     void start(bool procedural = true);
     void act(Action action);
     Action hit(ax::Vec2 point) const;
     void rebuildUI();
     void drawWorld();
+    void drawEntity(const VisualEntity& entity);
+    void handleGesture(Gesture gesture);
     void drawCrocodile(ax::Vec2 feet, float scale = 1);
     ax::Label* text(const std::string& value, float size, ax::Vec2 point,
                     ax::Color4B color = ax::Color4B(247, 243, 219, 255), bool bold = false);
@@ -76,5 +87,6 @@ private:
     void smokeTick(float dt);
     void capture(const std::string& name);
     void smokeTouch(ax::Vec2 from, ax::Vec2 to);
+    void smokePauseGesture();
     void finishSmoke(bool success, const std::string& reason);
 };

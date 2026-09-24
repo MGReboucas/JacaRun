@@ -11,6 +11,7 @@ struct Entity {
     EntityType type;
     double distance; // Coordenada no mundo: o jogador avanca ate ela.
     double height;
+    std::uint64_t id = 0; // Stable within one run; presentation outlives collision resolution.
 };
 
 const char* EntityName(EntityType type);
@@ -31,6 +32,7 @@ private:
     std::vector<Entity> entities;
     double nextEncounter = 30.0;
     int encounterCount = 0;
+    std::uint64_t nextId = 1;
     bool generate = true;
 };
 

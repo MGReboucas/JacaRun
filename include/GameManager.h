@@ -9,6 +9,8 @@
 #include <vector>
 
 enum class GameState { Menu, Playing, Paused, GameOver };
+enum class EntityOutcome { Pending, Passed, Collected, Missed, Hit, Shielded };
+struct EntityResolution { Entity entity; EntityOutcome outcome; };
 
 class GameManager {
 public:
@@ -22,6 +24,8 @@ public:
     bool BuyAccessory(int id);
     bool EquipAccessory(int id);
     std::vector<std::string> TakeMessages();
+    // Results from the most recent Update only. Bounded even without a visual consumer.
+    const std::vector<EntityResolution>& GetFrameResolutions() const { return frameResolutions; }
 
     GameState GetState() const { return state; }
     bool IsPlaying() const { return state == GameState::Playing; }
@@ -60,6 +64,7 @@ private:
     double shieldRemaining = 0.0;
     double magnetRemaining = 0.0;
     std::vector<std::string> messages;
+    std::vector<EntityResolution> frameResolutions;
 };
 
 #endif

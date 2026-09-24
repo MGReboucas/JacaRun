@@ -1,4 +1,4 @@
-# JacaRun — protótipo visual 0.2
+# JacaRun — protótipo visual 0.3
 
 O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `Profile` da interface de terminal. Não existem regras de corrida separadas por plataforma. A cena cuida de desenho, input, menus e ciclo de vida; os diretórios nativos inicializam a aplicação e empacotam os recursos.
 
@@ -6,10 +6,12 @@ O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `
 
 ## Estado desta entrega
 
-- Janela vertical de referência 480 × 900, mangue com parallax e personagem desenhados com `DrawNode`.
+- Largura lógica de 480 pontos e altura adaptada ao aparelho: mangue em tela cheia, parallax, raízes, água, vegetação e personagem desenhados com `DrawNode`.
 - Corrida contínua, pulo, deslize, obstáculos, coletáveis, power-ups e combos ligados ao núcleo.
 - Menu, placar, pausa, resultado, reinício e loja de quatro aparências; acessórios equipados aparecem no jacaré.
-- Botões de toque, gestos e teclado. O aplicativo pausa ao ir para segundo plano e pede retomada explícita.
+- Corrida sem botões: gesto para cima pula, para baixo desliza, toque rápido com dois dedos pausa. Os gestos disparam durante o movimento; toque simples e movimento horizontal não pulam. Menus preservam suas ações e também aceitam gesto para cima para iniciar/retomar/reiniciar.
+- Obstáculos e itens não coletados continuam passando atrás do jacaré até sair da tela. Coletáveis obtidos têm animação curta com partículas; a colisão/recompensa não é repetida.
+- O aplicativo pausa ao ir para segundo plano e pede retomada explícita. Teclado continua disponível no computador.
 - Save no diretório gravável da plataforma. Arquivo inválido é preservado; o jogo permite uma sessão sem gravar por cima dele.
 - Bootstrap Windows e Android e arquivos de entrada iOS/macOS derivados do template oficial.
 
@@ -22,6 +24,7 @@ Instale Git e Visual Studio com C++ desktop, SDK Windows e CMake. Na raiz:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Run
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke -Aspect Tall
 ```
 
 O setup não altera PATH nem AX_ROOT permanentemente. O primeiro build precisa de rede para baixar a engine e dependências. A política de scripts é definida apenas para o processo. Builds posteriores podem usar `-SkipSetup`. `-Configuration Release` compila uma versão otimizada, mas não significa aprovação para distribuição.
@@ -29,15 +32,16 @@ O setup não altera PATH nem AX_ROOT permanentemente. O primeiro build precisa d
 O teste de interface é exclusivo de Debug e usa `JACARUN_VISUAL_SMOKE`, definido automaticamente pelo script, com perfil isolado. Ele verifica:
 
 1. Menu renderizado.
-2. Botão de pulo acionado por evento de toque e passagem por raiz.
+2. Gesto para cima e passagem por raiz.
 3. Gesto para baixo e passagem sob galho.
 4. Coleta de moeda e alimento.
-5. Pausa por ciclo de vida sem avançar a distância, e retomada por toque.
+5. Pausa com dois dedos e por ciclo de vida sem avançar a distância, e retomada por gesto.
 6. Colisão e game-over.
 7. Save/releitura e crédito único de moedas.
-8. Reinício por toque, preservando o saldo e zerando a distância.
+8. Reinício por gesto, preservando o saldo e zerando a distância.
+9. Raiz ultrapassada e moeda perdida ainda visíveis atrás do jacaré.
 
-O teste captura menu, salto, pausa e resultado, e grava `result.txt` em `output/visual-smoke-DATA-HORA`. Não substitui testes manuais de jogabilidade, multi-toque, recortes de tela e aparelhos físicos.
+O teste captura menu, salto, objetos ultrapassados, pausa e resultado, e grava `result.txt` em `output/visual-smoke-DATA-HORA`. `-Aspect Tall` usa uma janela 360 × 788, com a mesma proporção dos quadros extraídos do vídeo Android fornecido. Não substitui testes manuais de jogabilidade, multi-toque, recortes de tela e aparelhos físicos.
 
 Para testar o núcleo sem baixar a engine:
 
@@ -47,7 +51,7 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 14 grupos existentes incluem 100 percursos procedurais.
+Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 14 grupos do núcleo incluem 100 percursos procedurais; três grupos adicionais testam gestos, permanência dos objetos, coleta animada, descarte fora da tela e eventos sem duplicação.
 
 ## Android de desenvolvimento
 
@@ -61,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-android.ps1
 
 O script procura as instalações convencionais. É possível informar `-AndroidSdk`, `-AndroidNdk` e `-JavaHome`. As dependências Gradle ficam em `.deps/gradle`. O helper cria uma vista local dos componentes já instalados em `.deps/android-sdk` e `local.properties`, ambos ignorados pelo Git. Ele não instala SDKs nem aceita licenças; componentes ausentes devem ser preparados no Android Studio.
 
-Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O build foi concluído em 24/09/2026 e uma cópia está em `output/JacaRun-debug.apk`. É um APK de desenvolvimento; não é AAB de loja, não tem assinatura de produção e não deve ser enviado à Play Console. Assinatura Debug, manifesto, arquitetura e alinhamento ZIP/ELF de 16 KB foram inspecionados; execução física continua pendente. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
+Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.3.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. A 0.2 aparece no vídeo enviado pelo usuário; a 0.3 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
 
 Para instalar em um Android próprio conectado e autorizado para depuração:
 
@@ -81,7 +85,8 @@ O identificador provisório é `com.mgreboucas.jacarun` nas duas plataformas. N�
 ## Comportamento e limites
 
 - A simulação limita um frame a 100 ms para evitar saltos após travamentos; em dispositivo lento isso reduz o ritmo. Medir desempenho e ajustar antes de produção.
-- O layout usa `SHOW_ALL` e margens da safe area; proporções diferentes podem gerar faixas. Testar notch, navegação por gestos, fontes e aparelhos estreitos.
+- O layout usa `FIXED_WIDTH`, altura real e margens da safe area no HUD. O cenário cobre também as regiões antes reservadas aos controles. Testar notch, navegação por gestos e telas físicas com proporções diferentes.
+- `RunPresentation` preserva os objetos por ID após a colisão pontual; apenas coletáveis confirmados animam e somem antes da borda. `GestureInput` é independente da engine e possui testes próprios.
 - Colisões continuam sendo as regras pontuais do protótipo. O desenho usa o ponto de contato do focinho como referência; ajustar sensação de contato e caixas visuais após testes humanos.
 - Moedas de uma corrida são creditadas ao perder ou encerrar pelo menu. Segundo plano pausa e salva o perfil já consolidado, mas não restaura uma corrida se o sistema encerrar o processo.
 - O save visual é separado do terminal. Migração, recuperação guiada, nuvem e proteção contra adulteração ainda não foram implementadas.

@@ -73,11 +73,17 @@ try {
     $env:DEBUG = $null
     $env:PATH = (Join-Path $JavaHome 'bin') + ';' + (Split-Path $tools.CMake) + ';' +
                 (Split-Path $tools.Ninja) + ';' + $env:PATH
+    # Recreate only the generated APK: incremental ZIP updates can leave large unused gaps.
+    $apk = Join-Path $PSScriptRoot 'visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk'
+    if (Test-Path -LiteralPath $apk) { Remove-Item -LiteralPath $apk }
     & (Join-Path $PSScriptRoot 'visual/proj.android/gradlew.bat') -p (Join-Path $PSScriptRoot 'visual/proj.android') :JacaRun:assembleDebug --no-daemon --max-workers=4
     if ($LASTEXITCODE -ne 0) { throw 'Falha no build Android; consulte o erro do Gradle acima.' }
-    $apk = Join-Path $PSScriptRoot 'visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk'
     New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot 'output') -Force | Out-Null
     Copy-Item -LiteralPath $apk -Destination (Join-Path $PSScriptRoot 'output/JacaRun-debug.apk') -Force
+    $metadata = Get-Content (Join-Path (Split-Path $apk) 'output-metadata.json') -Raw | ConvertFrom-Json
+    $versioned = Join-Path $PSScriptRoot ('output/JacaRun-' + $metadata.elements[0].versionName + '-debug.apk')
+    Copy-Item -LiteralPath $apk -Destination $versioned -Force
+    Write-Host ('APK versionado: ' + $versioned)
     Write-Host ('APK: ' + (Join-Path $PSScriptRoot 'output/JacaRun-debug.apk'))
 } finally {
     foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }

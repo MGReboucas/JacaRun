@@ -15,6 +15,7 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     combo = runCoins = foods = obstaclesPassed = 0;
     comboRemaining = shieldRemaining = magnetRemaining = 0.0;
     messages.clear();
+    frameResolutions.clear();
     state = GameState::Playing;
     messages.emplace_back("Jaca no mangue! Pule as raizes e agache nos galhos.");
 }
@@ -47,6 +48,7 @@ void GameManager::ResetCombo() {
 }
 
 void GameManager::Update(double deltaTime) {
+    frameResolutions.clear();
     if (!IsPlaying() || !std::isfinite(deltaTime) || deltaTime <= 0.0) return;
     // Passos curtos mantem fisica e colisoes consistentes mesmo com frames longos.
     while (deltaTime > 1e-9 && IsPlaying()) {
@@ -81,13 +83,16 @@ void GameManager::Resolve(const Entity& entity) {
             : player.IsGrounded() && player.IsSliding();
         if (!safe) {
             if (shieldRemaining > 0.0) {
+                frameResolutions.push_back({entity, EntityOutcome::Shielded});
                 shieldRemaining = 0.0;
                 ResetCombo();
                 messages.emplace_back("Escudo absorveu a batida!");
             } else {
+                frameResolutions.push_back({entity, EntityOutcome::Hit});
                 EndRun(entity.type == EntityType::Ground ? "O Jaca tropeçou na raiz!" : "O Jaca bateu no galho!");
             }
         } else {
+            frameResolutions.push_back({entity, EntityOutcome::Passed});
             ++obstaclesPassed;
             messages.emplace_back(entity.type == EntityType::Ground ? "Boa! Passou por cima da raiz." : "Boa! Deslizou sob o galho.");
         }
@@ -96,10 +101,15 @@ void GameManager::Resolve(const Entity& entity) {
 
     const bool reachable = std::abs(player.GetPositionY() + 0.5 - entity.height) <= Balance::PickupReach;
     if (entity.type == EntityType::Coin && (reachable || magnetRemaining > 0.0)) {
+        frameResolutions.push_back({entity, EntityOutcome::Collected});
         ++runCoins;
         messages.emplace_back("+1 moeda");
     } else if (IsFood(entity.type)) {
-        if (!reachable) { ResetCombo(); messages.emplace_back("Alimento perdido."); return; }
+        if (!reachable) {
+            frameResolutions.push_back({entity, EntityOutcome::Missed});
+            ResetCombo(); messages.emplace_back("Alimento perdido."); return;
+        }
+        frameResolutions.push_back({entity, EntityOutcome::Collected});
         ++foods;
         ++combo;
         comboRemaining = Balance::ComboSeconds;
@@ -110,11 +120,15 @@ void GameManager::Resolve(const Entity& entity) {
         messages.emplace_back(std::string(EntityName(entity.type)) + ": +" + std::to_string(points) +
                               " pontos | combo " + std::to_string(combo) + " x" + std::to_string(GetMultiplier()));
     } else if (reachable && entity.type == EntityType::Shield) {
+        frameResolutions.push_back({entity, EntityOutcome::Collected});
         shieldRemaining = Balance::ShieldSeconds;
         messages.emplace_back("Escudo: protege de uma batida por ate 12 segundos.");
     } else if (reachable && entity.type == EntityType::Magnet) {
+        frameResolutions.push_back({entity, EntityOutcome::Collected});
         magnetRemaining = Balance::MagnetSeconds;
         messages.emplace_back("Ima: coleta moedas em qualquer altura por 10 segundos.");
+    } else {
+        frameResolutions.push_back({entity, EntityOutcome::Missed});
     }
 }
 

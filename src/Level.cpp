@@ -30,13 +30,14 @@ void Level::Reset(std::uint32_t seed, bool procedural) {
     entities.clear();
     nextEncounter = 30.0;
     encounterCount = 0;
+    nextId = 1;
     generate = procedural;
     GenerateAhead(0.0);
 }
 
 void Level::Spawn(EntityType type, double distance, double height) {
     if (!std::isfinite(distance) || distance < 0.0 || !std::isfinite(height) || height < 0.0) return;
-    entities.push_back({type, distance, height});
+    entities.push_back({type, distance, height, nextId++});
     std::stable_sort(entities.begin(), entities.end(), [](const Entity& a, const Entity& b) {
         return a.distance < b.distance;
     });

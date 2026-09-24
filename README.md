@@ -6,7 +6,7 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, controles por toque/gesto e teclado, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão visual foi compilada e testada no Windows; a validação em aparelhos ainda faz parte do cronograma.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.3 remove os botões da corrida e mantém obstáculos e itens perdidos visíveis até saírem da tela. O vídeo do primeiro teste Android orientou esses ajustes; a nova versão ainda precisa de reteste físico.
 
 ![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
 
@@ -18,9 +18,10 @@ Requisitos: Git e Visual Studio 2022/2026 com desenvolvimento desktop C++ e CMak
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Run
 ```
 
-- **Pular:** botão PULAR, toque no cenário, gesto para cima, Espaço ou seta para cima.
-- **Deslizar:** botão DESLIZAR, gesto para baixo ou seta para baixo.
-- **Pausar/retomar:** botão de pausa, P ou Esc. Enter inicia/reinicia ou retoma uma corrida.
+- **Pular:** arraste para cima em qualquer ponto da corrida.
+- **Deslizar:** arraste para baixo. O gesto responde durante o movimento do dedo.
+- **Pausar:** toque rápido com dois dedos. Para retomar, arraste para cima na tela de pausa.
+- **Computador:** Espaço/seta para cima pula; seta para baixo desliza; P/Esc pausa. Enter inicia/reinicia ou retoma.
 - **Loja:** SEU JACA no menu; acessórios usam apenas moedas coletadas no jogo.
 
 O executável fica em `visual/build-win32/bin/JacaRun/Debug/JacaRun.exe`. No Windows, o save visual fica em `%LOCALAPPDATA%/JacaRun/jacarun.save`; ele é separado do save do terminal. Sair para o menu ou perder contabiliza a corrida. Ir para segundo plano pausa; uma corrida interrompida pelo encerramento do processo não é restaurada.
@@ -31,7 +32,9 @@ Para reproduzir a validação automática da interface:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 ```
 
-O teste usa perfil isolado, envia eventos de toque/gesto e verifica coleta, obstáculos, pausa, save e reinício. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
+O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
+
+**APK atual:** `output/JacaRun-0.3.0-debug.apk`. Transfira ao celular e instale como atualização da 0.2; o identificador e o formato do save foram preservados. Não é uma versão de loja.
 
 ## Decisões confirmadas no GDD
 

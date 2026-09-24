@@ -1,5 +1,13 @@
 # Registro de validação — protótipo visual
 
+## Correção 0.4.1 — assinatura de atualização
+
+O usuário relatou “app não instalado” no Samsung S24+. A comparação dos APKs locais encontrou certificados diferentes: 0.3 com SHA-256 `345dc05f4830fdaa39d1d0de1ca2a4628755ff8728a9d9c4674e938b3d64c774` e 0.4.0 com `796f7fbb01e206c87235fe2cf348aeb05ca4cb4028d6aeb925b00e4a9caad795`. A assinatura válida registrada abaixo para a 0.4.0 não garantia atualização da 0.3. Não havia aparelho conectado via ADB para consultar o erro de instalação.
+
+A 0.4.1/versionCode 4 restaura o certificado da 0.3. A chave original foi preservada em `.deps/signing/debug.keystore`, ignorada pelo Git; o Gradle usa esse caminho explicitamente. O helper verifica a assinatura e a impressão do certificado antes de entregar os APKs em `output`. Isso evita que uma mudança do usuário efetivo do Gradle altere silenciosamente a chave.
+
+APK corrigido: `output/JacaRun-0.4.1-debug.apk`. Certificado comparado com a 0.3 e alinhamento ZIP de 16 KB aprovado. A confirmação de instalação por cima da versão anterior e de preservação do save no S24+ continua pendente. Não orientar desinstalação como primeira solução.
+
 ## Revisão 0.4 — enquadramento e percurso progressivo
 
 Em 24/09/2026, o segundo vídeo Android (aproximadamente 54 s, até 692 m) orientou esta revisão. Os quadros mostram a 0.3 com objetos persistentes, gestos sem botões de corrida e power-ups. Não houve medição de latência, áudio ou desempenho por essa inspeção.

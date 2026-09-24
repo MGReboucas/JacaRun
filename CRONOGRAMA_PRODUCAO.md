@@ -297,7 +297,7 @@ Execução técnica antecipada, autorizada para iniciar a versão visual. As dat
 
 **Evidências locais:** `build/Testing/Temporary/LastTest.log`, `output/visual-smoke-20260924-113351/result.txt` e capturas na mesma pasta. O repositório inclui [menu](docs/images/prototipo-menu.png) e [corrida](docs/images/prototipo-corrida.png). O comando `build-visual.ps1 -Smoke` reproduz a prova com outro diretório e perfil isolado. Logs e binários não são versionados.
 
-**Android atual:** `output/JacaRun-0.4.0-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
+**Android atual:** `output/JacaRun-0.4.1-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
 
 ### Revisão 0.3 — feedback do vídeo Android, 24/09/2026
 
@@ -365,3 +365,11 @@ Esforços acima são estimativas de trabalho, não tempo de espera por aparelhos
 - [ ] Retestar a 0.4 no Android por 15 minutos, incluindo sequências após 550 m e ritmo máximo após 1.800 m; avaliar conforto, clareza e reação humana. MOB-01/VIS-02 continuam abertos.
 
 O nível de experiência salvo não aumenta a dificuldade inicial: cada tentativa recomeça no aquecimento. Publicidade, iOS e aprovação nas lojas continuam pendentes.
+
+### Correção de instalação — 0.4.1, 24/09/2026
+
+- [x] Investigar o relato de “app não instalado” no Samsung S24+: certificados locais da 0.3 e da 0.4.0 eram diferentes.
+- [x] Recuperar a chave original da 0.3, fixar seu caminho no build e bloquear a entrega de APK com outro certificado.
+- [ ] Confirmar a instalação da 0.4.1 por cima da versão anterior no S24+, sem desinstalar e sem perder progresso. Versão do Android ainda não informada.
+
+A verificação anterior de assinatura válida da 0.4.0 não demonstrava compatibilidade de atualização. O diagnóstico adicionou a comparação com o certificado da versão instalada anteriormente.

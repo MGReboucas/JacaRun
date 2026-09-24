@@ -60,6 +60,19 @@ $properties = 'sdk.dir=' + $overlay.Replace('\','/') + [Environment]::NewLine +
               'cmake.dir=' + $cmakeDir.Replace('\','/') + [Environment]::NewLine
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'visual/proj.android/local.properties'), $properties)
 
+# Preserve the original developer certificate independently of Gradle's user.home.
+# Never commit this key or silently replace it with a freshly generated key.
+$signingDirectory = Join-Path $PSScriptRoot '.deps/signing'
+$debugKeystore = Join-Path $signingDirectory 'debug.keystore'
+if (!(Test-Path -LiteralPath $debugKeystore)) {
+    $originalKeystore = Join-Path $env:USERPROFILE '.android/debug.keystore'
+    if (!(Test-Path -LiteralPath $originalKeystore)) {
+        throw 'Chave Debug ausente. Restaure a chave original em .deps/signing/debug.keystore antes de gerar atualizacoes.'
+    }
+    New-Item -ItemType Directory -Path $signingDirectory -Force | Out-Null
+    Copy-Item -LiteralPath $originalKeystore -Destination $debugKeystore
+}
+
 $previous = @{}
 foreach ($name in @('AX_ROOT','JAVA_HOME','ANDROID_HOME','GRADLE_USER_HOME','PATH','PSExecutionPolicyPreference','DEBUG')) {
     $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -78,6 +91,13 @@ try {
     if (Test-Path -LiteralPath $apk) { Remove-Item -LiteralPath $apk }
     & (Join-Path $PSScriptRoot 'visual/proj.android/gradlew.bat') -p (Join-Path $PSScriptRoot 'visual/proj.android') :JacaRun:assembleDebug --no-daemon --max-workers=4
     if ($LASTEXITCODE -ne 0) { throw 'Falha no build Android; consulte o erro do Gradle acima.' }
+    $verification = & (Join-Path $AndroidSdk 'build-tools/36.0.0/apksigner.bat') verify --print-certs $apk
+    if ($LASTEXITCODE -ne 0) { throw 'Assinatura do APK invalida; nenhum APK foi publicado em output.' }
+    # Public certificate fingerprint of the installed 0.3 build, not a secret.
+    $expectedCertificate = '345dc05f4830fdaa39d1d0de1ca2a4628755ff8728a9d9c4674e938b3d64c774'
+    if (!(($verification -join "`n").Contains("certificate SHA-256 digest: $expectedCertificate"))) {
+        throw 'Chave diferente da versao 0.3 instalada. Restaure a chave original; nenhum APK foi publicado em output.'
+    }
     New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot 'output') -Force | Out-Null
     Copy-Item -LiteralPath $apk -Destination (Join-Path $PSScriptRoot 'output/JacaRun-debug.apk') -Force
     $metadata = Get-Content (Join-Path (Split-Path $apk) 'output-metadata.json') -Raw | ConvertFrom-Json

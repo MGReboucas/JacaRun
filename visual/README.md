@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-android.ps1
 
 O script procura as instalações convencionais. É possível informar `-AndroidSdk`, `-AndroidNdk` e `-JavaHome`. As dependências Gradle ficam em `.deps/gradle`. O helper cria uma vista local dos componentes já instalados em `.deps/android-sdk` e `local.properties`, ambos ignorados pelo Git. Ele não instala SDKs nem aceita licenças; componentes ausentes devem ser preparados no Android Studio.
 
-Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.4.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.4 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
+Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.4.1-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.4 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
 
 Para instalar em um Android próprio conectado e autorizado para depuração:
 
@@ -106,3 +106,9 @@ O identificador provisório é `com.mgreboucas.jacarun` nas duas plataformas. N�
 O bootstrap valida o commit da engine e o SHA256 do pacote Windows do axslcc. As fontes são versionadas no repositório. Os ícones e a launch screen originais do template devem ser substituídos pela identidade final. As dependências transitivas da engine têm licenças próprias em `.deps/axmol/3rdparty`; concluir inventário/avisos de distribuição antes de publicar.
 
 Progresso e critérios de conclusão: [cronograma](../CRONOGRAMA_PRODUCAO.md).
+
+### Chave Debug e atualizações no aparelho
+
+A 0.4.0 foi gerada com um certificado diferente da 0.3, impedindo a atualização por cima. A 0.4.1 restaura o certificado original. O helper preserva a chave em `.deps/signing/debug.keystore` (ignorada pelo Git), inicialmente copiada de `%USERPROFILE%/.android/debug.keystore`. O Gradle usa esse caminho explicitamente, sem depender do usuário da execução. Antes de copiar o APK para `output`, o helper verifica a assinatura e exige a impressão SHA-256 do certificado original da 0.3.
+
+Em outro computador, restaure a mesma chave em `.deps/signing/debug.keystore`; não gere uma substituta para atualizar instalações existentes. Guarde uma cópia privada da chave fora do repositório. Essa chave é apenas de desenvolvimento, não de produção.

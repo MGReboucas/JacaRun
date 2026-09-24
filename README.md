@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.4.0-debug.apk`. Transfira ao celular e instale como atualização da 0.3; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.4.1-debug.apk`. Transfira ao celular e instale como atualização da 0.3; o identificador e o formato do save foram preservados. Não é uma versão de loja.
 
 ### Ritmo da corrida
 

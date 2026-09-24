@@ -582,12 +582,11 @@ void MainScene::update(float dt) {
     if (pace) {
         const double meters = game.GetDistance();
         const auto points = game.GetScore();
-        pace->setString(points >= 100000 ? "INSANO / 100.000+ PONTOS" :
-                        points >= 80000 ? "LIMITE / SEQUENCIAS DE SETE" :
-                        points >= 60000 ? "BRUTAL / SEQUENCIAS DE SEIS" :
-                        points >= 40000 ? "EXTREMO / SEQUENCIAS DE CINCO" :
-                        points >= 20000 ? "FEROZ / SEQUENCIAS DE QUATRO" :
-                        points >= 5000 ? "PRESSAO / SEQUENCIAS LONGAS" :
+        pace->setString(points >= 100000 ? "DOMINIO / 100.000+ PONTOS" :
+                        points >= 75000 ? "ELITE / RUMO AOS 100 MIL" :
+                        points >= 50000 ? "MUITO DIFICIL / 50.000+" :
+                        points >= 35000 ? "DIFICIL / PRESSAO CRESCENTE" :
+                        points >= 20000 ? "PRESSAO / 20.000+ PONTOS" :
                         meters < 180 ? "RITMO 1 / AQUECIMENTO" :
                         meters < 550 ? "RITMO 2 / SEQUENCIAS DUPLAS" :
                         meters < 1100 ? "RITMO 3 / DESAFIOS TRIPLOS" :

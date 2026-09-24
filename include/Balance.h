@@ -6,7 +6,12 @@ namespace Balance {
 inline constexpr double InitialSpeed = 10.0;
 inline constexpr double ActionSpeed = 24.0; // Keeps jump/slide distance unchanged.
 inline constexpr double MaximumSpeed = 60.0;
-inline double ScorePressure(double score) { return score <= 0 ? 0 : score >= 100000 ? 1 : score / 100000.0; }
+inline double ScorePressure(double score) {
+    if (score <= 20000) return 0;
+    if (score < 50000) return (score - 20000) / 45000.0;
+    if (score < 100000) return 2.0 / 3.0 + (score - 50000) / 150000.0;
+    return 1;
+}
 inline double RunSpeed(double distance, double score) {
     const double base = InitialSpeed + distance * .012;
     return (base < ActionSpeed ? base : ActionSpeed) + 36.0 * ScorePressure(score);

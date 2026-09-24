@@ -71,7 +71,7 @@ void Level::GenerateAhead(double playerDistance, double score) {
         };
         const double pressure = Balance::ScorePressure(score);
         const int baseCount = pattern < 2 ? 1 : pattern < 4 ? 2 : 3;
-        const int count = score >= 5000 ? std::max(baseCount, 3 + static_cast<int>(pressure * 5)) : baseCount;
+        const int count = score >= 20000 ? std::max(baseCount, 3 + static_cast<int>(pressure * 5)) : baseCount;
         // Fixed action travel leaves recovery distance even at extreme speed.
         const double actionGap = Balance::ActionSpeed * (1.65 - .30 * intensity) - 2.4 * pressure;
         double at = nextEncounter;

@@ -425,6 +425,16 @@ void CollectibleSpacingAndArc() {
 }
 
 void NewObstaclesAndInsaneRuns() {
+    CHECK(Near(Balance::RunSpeed(2000,0),24));
+    CHECK(Near(Balance::RunSpeed(2000,19999),24));
+    CHECK(Near(Balance::RunSpeed(2000,20000),24));
+    CHECK(Near(Balance::RunSpeed(2000,35000),36));
+    CHECK(Near(Balance::RunSpeed(2000,50000),48));
+    CHECK(Near(Balance::RunSpeed(2000,75000),54));
+    for(int points=1;points<=110000;++points) {
+        const double change=Balance::ScorePressure(points)-Balance::ScorePressure(points-1);
+        CHECK(change>=0 && change<.000023); // Continuous, including both breakpoints.
+    }
     for(auto type:{EntityType::Log,EntityType::Rock,EntityType::Vine}) {
         GameManager safe, hit;
         safe.StartGame(1,false); hit.StartGame(1,false);

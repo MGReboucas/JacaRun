@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-android.ps1
 
 O script procura as instalações convencionais. É possível informar `-AndroidSdk`, `-AndroidNdk` e `-JavaHome`. As dependências Gradle ficam em `.deps/gradle`. O helper cria uma vista local dos componentes já instalados em `.deps/android-sdk` e `local.properties`, ambos ignorados pelo Git. Ele não instala SDKs nem aceita licenças; componentes ausentes devem ser preparados no Android Studio.
 
-Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.6.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.6 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
+Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.6.1-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.6 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
 
 Para instalar em um Android próprio conectado e autorizado para depuração:
 

@@ -1,5 +1,13 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.6.1 — progressão 20/50/100 mil
+
+A pressão por pontuação permanece em zero até 20.000 pontos. Entre 20 e 50 mil, cresce linearmente até dois terços; de 50 a 100 mil, aumenta continuamente até o máximo. Com a base por distância completa, isso corresponde a 24/36/48/54/60 m/s aos 20/35/50/75/100 mil pontos. As sequências chegam a seis obstáculos aos 50 mil, sete aos 75 mil e oito aos 100 mil. A geração existente não é reposicionada. HUD atualizado para Pressão, Difícil, Muito difícil, Elite e Domínio.
+
+18/18 grupos de mecânicas e 3/3 de apresentação aprovados, incluindo valores exatos dos marcos, monotonicidade/continuidade de 0 a 110 mil e as 20 corridas extremas sem absorção por escudo. Prova visual aprovada em `output/visual-smoke-20260924-135434` (360 × 788).
+
+APK `output/JacaRun-0.6.1-debug.apk`, versionCode 7, 24.010.889 bytes; certificado original de atualização e alinhamento ZIP de 16 KB conferidos. SHA-256: `f7a199f28e9d316e15b7a07a07780ab01aaef51e9c0918c0831e5c0b3da62a76`. Reteste humano no S24+ pendente: os nomes das faixas descrevem a intenção de balanceamento, não uma avaliação já comprovada com jogadores.
+
 ## Revisão 0.6 — novos obstáculos e modo Insano
 
 Troncos caídos e pedras exigem salto; cipós baixos exigem deslize. Os novos desenhos entram depois de 300 m. A pontuação aumenta a velocidade em até 36 m/s sobre a base por distância (máximo de 24 m/s), atingindo o teto de 60 m/s aos 100 mil pontos quando a base já está completa. Ações mantêm a distância percorrida da 0.5, sem alongar a trajetória ao aumentar esse teto.

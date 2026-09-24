@@ -1,6 +1,6 @@
 # JacaRun — Cronograma de produção e monetização
 
-**Versão:** 1.5 · **Atualizado em:** 24/09/2026 · **Status:** revisão 0.6 com novos obstáculos e modo Insano; reteste mobile em andamento
+**Versão:** 1.6 · **Atualizado em:** 24/09/2026 · **Status:** revisão 0.6.1 com progressão 20/50/100 mil; reteste mobile em andamento
 
 **Objetivo:** publicar um jogo mobile estável na Google Play e na App Store, com monetização por anúncios e acompanhamento de retenção, custos e receita.
 
@@ -14,7 +14,7 @@ A rota proposta é **Android primeiro, lançamento inicial no Brasil e iOS na se
 | Progressão | Loja visual, acessórios visíveis, XP, níveis, recordes e save no diretório gravável da plataforma | Teste mobile, balanceamento, migração e recuperação guiada de save |
 | Testes | 18 grupos do núcleo + 3 de apresentação/gestos aprovados; prova visual em duas proporções; vídeos Android da 0.2/0.3 | Reteste físico da 0.6, integração dos SDKs, anúncios e atualização de versão |
 | Visual e áudio | Mangue, parallax, personagem e UI provisórios desenhados em código; fonte com OFL | Arte e animações finais, tutorial, música, efeitos e inventário de licenças |
-| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.6.0; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
+| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.6.1; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
 | Anúncios | Não integrados | Contas, SDKs, política etária, consentimento, rewarded, validação e relatórios |
 | Serviços online | Não implementados | O primeiro lançamento não depende de login, nuvem ou ranking |
 | Ambiente local | Windows validado; primeiro teste Android recebido em vídeo | Nova versão precisa ser instalada/retestada pelo usuário; Mac/iPhone ainda não validados |
@@ -297,7 +297,7 @@ Execução técnica antecipada, autorizada para iniciar a versão visual. As dat
 
 **Evidências locais:** `build/Testing/Temporary/LastTest.log`, `output/visual-smoke-20260924-113351/result.txt` e capturas na mesma pasta. O repositório inclui [menu](docs/images/prototipo-menu.png) e [corrida](docs/images/prototipo-corrida.png). O comando `build-visual.ps1 -Smoke` reproduz a prova com outro diretório e perfil isolado. Logs e binários não são versionados.
 
-**Android atual:** `output/JacaRun-0.6.0-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
+**Android atual:** `output/JacaRun-0.6.1-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
 
 ### Revisão 0.3 — feedback do vídeo Android, 24/09/2026
 
@@ -397,3 +397,12 @@ A verificação anterior de assinatura válida da 0.4.0 não demonstrava compati
 - [ ] Validar dificuldade humana no S24+, sobretudo legibilidade e reação nos ritmos extremos. Uma simulação possível não garante conforto para o jogador.
 - [x] Conferir os novos desenhos e aprovar a regressão visual na proporção do vídeo.
 - [x] Gerar APK 0.6.0/versionCode 6, conferir certificado original e alinhamento ZIP de 16 KB; evidências no registro de validação.
+
+### Ajuste 0.6.1 — curva 20/50/100 mil, 24/09/2026
+
+- [x] Começar a pressão adicional por pontuação apenas aos 20 mil; preservar aquecimento por distância.
+- [x] Interpolar continuamente até 48 m/s aos 50 mil e 60 m/s aos 100 mil, considerando a base de 24 m/s já atingida.
+- [x] Combinar maior densidade com sequências de seis obstáculos aos 50 mil, sete aos 75 mil e oito aos 100 mil.
+- [x] Atualizar HUD com Pressão, Difícil, Muito difícil, Elite e Domínio.
+- [ ] Validar a curva no S24+ com jogadores; “muito difícil” e “domínio” são metas de balanceamento, ainda não resultados de teste humano.
+- [x] Aprovar regressão (18 grupos + 3), continuidade nos marcos e prova visual; gerar APK 0.6.1/versionCode 7 com certificado original e alinhamento ZIP conferidos.

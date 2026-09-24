@@ -1,32 +1,155 @@
 #include "../include/GameManager.h"
-#include <iostream>
+#include "../include/Balance.h"
+#include <algorithm>
+#include <cmath>
+#include <utility>
 
-GameManager::GameManager() {
-    currentState = MENU;
-    currentSpeed = 10.0f;
-    score = 0;
+void GameManager::StartGame(std::uint32_t seed, bool procedural) {
+    // Uma corrida ativa precisa ser encerrada para contabilizar suas recompensas.
+    if (state == GameState::Playing || state == GameState::Paused) return;
+    player.Reset();
+    level.Reset(seed, procedural);
+    distance = 0.0;
+    speed = Balance::InitialSpeed;
+    foodScore = 0;
+    combo = runCoins = foods = obstaclesPassed = 0;
+    comboRemaining = shieldRemaining = magnetRemaining = 0.0;
+    messages.clear();
+    state = GameState::Playing;
+    messages.emplace_back("Jaca no mangue! Pule as raizes e agache nos galhos.");
 }
 
-void GameManager::StartGame() {
-    currentState = PLAYING;
-    score = 0;
-    std::cout << "Jogo Iniciado! O Jaca comecou a correr!\n";
+std::int64_t GameManager::GetScore() const {
+    return static_cast<std::int64_t>(distance) + foodScore;
 }
 
-void GameManager::GameOver() {
-    currentState = GAMEOVER;
-    std::cout << "Game Over! Bateu num obstaculo do mangue.\n";
+int GameManager::GetMultiplier() const {
+    return std::min(Balance::MaximumMultiplier, 1 + combo / Balance::FoodsPerMultiplier);
 }
 
-void GameManager::Update() {
-    if (currentState == PLAYING) {
-        // Aumenta a pontuação e a velocidade aos poucos
-        score += 1;
-        currentSpeed += 0.01f;
-        std::cout << "Correndo... Distancia: " << score << "m | Velocidade: " << currentSpeed << "\n";
+bool GameManager::Jump() {
+    return IsPlaying() && player.Jump();
+}
+
+bool GameManager::Slide() {
+    return IsPlaying() && player.Slide();
+}
+
+void GameManager::TogglePause() {
+    if (state == GameState::Playing) state = GameState::Paused;
+    else if (state == GameState::Paused) state = GameState::Playing;
+}
+
+void GameManager::ResetCombo() {
+    if (combo > 0) messages.emplace_back("Combo encerrado.");
+    combo = 0;
+    comboRemaining = 0.0;
+}
+
+void GameManager::Update(double deltaTime) {
+    if (!IsPlaying() || !std::isfinite(deltaTime) || deltaTime <= 0.0) return;
+    // Passos curtos mantem fisica e colisoes consistentes mesmo com frames longos.
+    while (deltaTime > 1e-9 && IsPlaying()) {
+        const double dt = std::min(deltaTime, Balance::PhysicsStep);
+        deltaTime -= dt;
+        player.Update(dt);
+        shieldRemaining = std::max(0.0, shieldRemaining - dt);
+        magnetRemaining = std::max(0.0, magnetRemaining - dt);
+        if (combo > 0) {
+            comboRemaining -= dt;
+            if (comboRemaining <= 0.0) ResetCombo();
+        }
+        speed = std::min(Balance::MaximumSpeed, Balance::InitialSpeed + distance * Balance::SpeedPerMeter);
+        const double previous = distance;
+        distance += speed * dt;
+        for (const Entity& entity : level.Crossed(previous, distance)) {
+            Resolve(entity);
+            if (!IsPlaying()) break;
+        }
+        if (IsPlaying()) level.GenerateAhead(distance);
     }
 }
 
-bool GameManager::IsPlaying() {
-    return currentState == PLAYING;
+void GameManager::Spawn(EntityType type, double atDistance, double height) {
+    if (IsPlaying() && atDistance >= distance) level.Spawn(type, atDistance, height);
+}
+
+void GameManager::Resolve(const Entity& entity) {
+    if (IsObstacle(entity.type)) {
+        const bool safe = entity.type == EntityType::Ground
+            ? player.GetPositionY() >= Balance::GroundClearance
+            : player.IsGrounded() && player.IsSliding();
+        if (!safe) {
+            if (shieldRemaining > 0.0) {
+                shieldRemaining = 0.0;
+                ResetCombo();
+                messages.emplace_back("Escudo absorveu a batida!");
+            } else {
+                EndRun(entity.type == EntityType::Ground ? "O Jaca tropeçou na raiz!" : "O Jaca bateu no galho!");
+            }
+        } else {
+            ++obstaclesPassed;
+            messages.emplace_back(entity.type == EntityType::Ground ? "Boa! Passou por cima da raiz." : "Boa! Deslizou sob o galho.");
+        }
+        return;
+    }
+
+    const bool reachable = std::abs(player.GetPositionY() + 0.5 - entity.height) <= Balance::PickupReach;
+    if (entity.type == EntityType::Coin && (reachable || magnetRemaining > 0.0)) {
+        ++runCoins;
+        messages.emplace_back("+1 moeda");
+    } else if (IsFood(entity.type)) {
+        if (!reachable) { ResetCombo(); messages.emplace_back("Alimento perdido."); return; }
+        ++foods;
+        ++combo;
+        comboRemaining = Balance::ComboSeconds;
+        const int base = entity.type == EntityType::Crab ? Balance::CrabPoints
+                       : entity.type == EntityType::Fish ? Balance::FishPoints : Balance::RareFishPoints;
+        const int points = base * GetMultiplier();
+        foodScore += points;
+        messages.emplace_back(std::string(EntityName(entity.type)) + ": +" + std::to_string(points) +
+                              " pontos | combo " + std::to_string(combo) + " x" + std::to_string(GetMultiplier()));
+    } else if (reachable && entity.type == EntityType::Shield) {
+        shieldRemaining = Balance::ShieldSeconds;
+        messages.emplace_back("Escudo: protege de uma batida por ate 12 segundos.");
+    } else if (reachable && entity.type == EntityType::Magnet) {
+        magnetRemaining = Balance::MagnetSeconds;
+        messages.emplace_back("Ima: coleta moedas em qualquer altura por 10 segundos.");
+    }
+}
+
+void GameManager::EndRun(const std::string& reason) {
+    if (state != GameState::Playing && state != GameState::Paused) return;
+    state = GameState::GameOver; // Garante que a recompensa seja creditada uma unica vez.
+    const auto xp = static_cast<std::int64_t>(distance / 10.0) + foods * 3LL + obstaclesPassed * 5LL;
+    const auto oldLevel = profile.GetLevel();
+    profile.coins += runCoins;
+    profile.experience += xp;
+    if (GetScore() > profile.bestScore) {
+        profile.bestScore = GetScore();
+        messages.emplace_back("NOVO RECORDE!");
+    }
+    profile.bestDistance = std::max(profile.bestDistance, distance);
+    messages.push_back(reason);
+    messages.emplace_back("Recompensas: " + std::to_string(runCoins) + " moedas e " + std::to_string(xp) + " XP.");
+    if (profile.GetLevel() > oldLevel) messages.emplace_back("SUBIU DE NIVEL! Nivel " + std::to_string(profile.GetLevel()));
+}
+
+void GameManager::ReturnToMenu() {
+    if (state == GameState::Playing || state == GameState::Paused) EndRun();
+    state = GameState::Menu;
+}
+
+bool GameManager::BuyAccessory(int id) {
+    return (state == GameState::Menu || state == GameState::GameOver) && profile.Buy(id);
+}
+
+bool GameManager::EquipAccessory(int id) {
+    return (state == GameState::Menu || state == GameState::GameOver) && profile.Equip(id);
+}
+
+std::vector<std::string> GameManager::TakeMessages() {
+    auto result = std::move(messages);
+    messages.clear();
+    return result;
 }

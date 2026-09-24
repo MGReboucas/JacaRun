@@ -1,0 +1,6 @@
+# Executaveis e arquivos locais gerados pelo prototipo.
+/output/*.exe
+/output/*.save
+/output/*.save.tmp
+/output/*.log
+/build/

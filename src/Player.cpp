@@ -1,61 +1,35 @@
 #include "../include/Player.h"
-#include <iostream>
+#include "../include/Balance.h"
+#include <algorithm>
+#include <cmath>
 
-Player::Player() {
-    positionY = 0.0f;
-    velocityY = 0.0f;
-    gravity = -2.0f;  
-    jumpForce = 8.0f; 
-    isGrounded = true;
-    
-    isSliding = false;
-    slideDuration = 0;
+void Player::Reset() {
+    positionY = velocityY = slideRemaining = 0.0;
+    grounded = true;
 }
 
-void Player::Update() {
-    // Física da Gravidade
-    if (!isGrounded) {
-        velocityY += gravity;
-        positionY += velocityY;
-    }
-
-    if (positionY <= 0.0f) {
-        positionY = 0.0f;
-        velocityY = 0.0f;
-        isGrounded = true;
-    }
-
-    // Lógica do Slide (Agachar)
-    if (isSliding) {
-        slideDuration--; // Diminui o tempo restante do deslize
-        if (slideDuration <= 0) {
-            isSliding = false;
-            std::cout << "[Jaca] O Jaca levantou e voltou a correr normalmente.\n";
+void Player::Update(double deltaTime) {
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0) return;
+    slideRemaining = std::max(0.0, slideRemaining - deltaTime);
+    if (!grounded) {
+        positionY += velocityY * deltaTime + 0.5 * Balance::Gravity * deltaTime * deltaTime;
+        velocityY += Balance::Gravity * deltaTime;
+        if (positionY <= 0.0) {
+            positionY = velocityY = 0.0;
+            grounded = true;
         }
     }
 }
 
-void Player::Jump() {
-    // Só salta se estiver no chão e NÃO estiver agachado
-    if (isGrounded && !isSliding) {
-        velocityY = jumpForce;
-        isGrounded = false;
-        std::cout << "[Acao] O Jaca SALTOU! BOING!\n";
-    }
+bool Player::Jump() {
+    if (!grounded || IsSliding()) return false;
+    velocityY = Balance::JumpForce;
+    grounded = false;
+    return true;
 }
 
-void Player::Slide() {
-    if (isGrounded && !isSliding) {
-        isSliding = true;
-        slideDuration = 3; // O deslize dura 3 frames nesta simulação
-        std::cout << "[Acao] O Jaca AGACHOU! VRAUU!\n";
-    }
-}
-
-float Player::GetPositionY() {
-    return positionY;
-}
-
-bool Player::IsSliding() {
-    return isSliding;
+bool Player::Slide() {
+    if (!grounded || IsSliding()) return false;
+    slideRemaining = Balance::SlideSeconds;
+    return true;
 }

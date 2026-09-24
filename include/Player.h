@@ -2,24 +2,20 @@
 #define PLAYER_H
 
 class Player {
-private:
-    float positionY;
-    float velocityY;
-    float gravity;
-    float jumpForce;
-    bool isGrounded;
-    
-    // Novas variáveis para o Slide
-    bool isSliding;
-    int slideDuration; // Quantos frames o Jaca fica agachado
-
 public:
-    Player();
-    void Update();
-    void Jump();
-    void Slide(); // Nova ação
-    float GetPositionY();
-    bool IsSliding(); // Para sabermos a hitbox dele na colisão
+    void Reset();
+    void Update(double deltaTime);
+    bool Jump();
+    bool Slide();
+    double GetPositionY() const { return positionY; }
+    bool IsSliding() const { return slideRemaining > 0.0; }
+    bool IsGrounded() const { return grounded; }
+
+private:
+    double positionY = 0.0;
+    double velocityY = 0.0;
+    double slideRemaining = 0.0;
+    bool grounded = true;
 };
 
 #endif

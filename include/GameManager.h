@@ -1,25 +1,65 @@
 #ifndef GAMEMANAGER_H
 #define GAMEMANAGER_H
 
-// Estados possíveis do jogo
-enum GameState {
-    MENU,
-    PLAYING,
-    GAMEOVER
-};
+#include "Level.h"
+#include "Player.h"
+#include "Profile.h"
+#include <cstdint>
+#include <string>
+#include <vector>
+
+enum class GameState { Menu, Playing, Paused, GameOver };
 
 class GameManager {
-private:
-    GameState currentState;
-    float currentSpeed; // Velocidade em que o cenário rola
-    int score;          // Pontuação do jogador
-
 public:
-    GameManager();
-    void Update();      // Atualiza a lógica do jogo
-    void StartGame();
-    void GameOver();
-    bool IsPlaying();
+    void StartGame(std::uint32_t seed, bool procedural = true);
+    void Update(double deltaTime);
+    bool Jump();
+    bool Slide();
+    void TogglePause();
+    void EndRun(const std::string& reason = "Corrida encerrada.");
+    void ReturnToMenu();
+    bool BuyAccessory(int id);
+    bool EquipAccessory(int id);
+    std::vector<std::string> TakeMessages();
+
+    GameState GetState() const { return state; }
+    bool IsPlaying() const { return state == GameState::Playing; }
+    const Player& GetPlayer() const { return player; }
+    const Level& GetLevel() const { return level; }
+    const Profile& GetProfile() const { return profile; }
+    Profile& GetProfile() { return profile; }
+    double GetDistance() const { return distance; }
+    double GetSpeed() const { return speed; }
+    std::int64_t GetScore() const;
+    int GetCombo() const { return combo; }
+    int GetMultiplier() const;
+    int GetRunCoins() const { return runCoins; }
+    int GetFoods() const { return foods; }
+    int GetObstaclesPassed() const { return obstaclesPassed; }
+    double GetShieldSeconds() const { return shieldRemaining; }
+    double GetMagnetSeconds() const { return magnetRemaining; }
+    // Permite cenarios deterministas e futuros editores de percurso.
+    void Spawn(EntityType type, double atDistance, double height = 0.0);
+
+private:
+    void Resolve(const Entity& entity);
+    void ResetCombo();
+    GameState state = GameState::Menu;
+    Player player;
+    Level level;
+    Profile profile;
+    double distance = 0.0;
+    double speed = 0.0;
+    std::int64_t foodScore = 0;
+    int combo = 0;
+    double comboRemaining = 0.0;
+    int runCoins = 0;
+    int foods = 0;
+    int obstaclesPassed = 0;
+    double shieldRemaining = 0.0;
+    double magnetRemaining = 0.0;
+    std::vector<std::string> messages;
 };
 
 #endif

@@ -2,134 +2,205 @@
 
 **Corra. Coma. Compita.**
 
-JacaRun é um jogo em desenvolvimento do gênero **endless runner 2D**, pensado para celulares em orientação vertical. O jogador acompanha um jacaré em uma corrida automática por ambientes inspirados na natureza brasileira, começando pelo mangue. O objetivo é chegar cada vez mais longe, superar obstáculos, coletar moedas e capturar alimentos para aumentar a pontuação.
+Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) para as etapas de Android, iOS, publicação nas lojas e integração com AdMob.
 
-O projeto utiliza **C++** e está na etapa de planejamento e prototipagem. Atualmente, este repositório contém uma simulação de lógica no terminal, com pulo, gravidade e evolução de pontuação e velocidade.
+JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-## Proposta do jogo
+Este repositório contém um **protótipo jogável em C++ no terminal**, com as regras da corrida, economia local e o ciclo de jogar novamente. Os comandos avançam a simulação em turnos de 0,2 segundo; ainda não há janela gráfica, controles por toque ou aplicativo mobile.
 
-Partidas curtas, comandos simples e dificuldade crescente formam a base do JacaRun. A corrida não tem uma linha de chegada tradicional: o jogador tenta sobreviver, melhorar seu desempenho e iniciar uma nova tentativa após perder.
-
-O mangue participa da identidade e da proposta de jogabilidade. O GDD apresenta raízes, troncos, galhos, peixes e caranguejos como exemplos de elementos que podem se transformar em obstáculos e oportunidades de pontuação. Esses exemplos ainda não constituem uma lista final de conteúdo.
-
-A direção visual definida é cartoon 2D, tropical, colorida e bem-humorada, com um jacaré expressivo como personagem principal.
-
-## Decisões confirmadas
-
-As decisões registradas como fechadas no GDD são:
+## Decisões confirmadas no GDD
 
 | Aspecto | Definição |
 | --- | --- |
-| Plataforma | Mobile |
-| Orientação da tela | Vertical |
-| Gênero | Endless runner |
-| Visual da primeira versão | 2D |
+| Plataforma e orientação | Mobile, vertical |
+| Gênero e visual | Endless runner, primeira versão em 2D |
 | Linguagem | C++ |
-| Personagem principal | Jacaré |
-| Cenário inicial | Mangue |
+| Personagem e cenário inicial | Jacaré no mangue |
 | Movimento | Corrida automática |
-| Pontuação | Sistema de pontos, com pontuação adicional por alimentos |
-| Coletáveis | Moedas |
-| Uso das moedas | Personalização do personagem |
+| Pontuação | Pontos por desempenho, com bônus por alimentos |
+| Moedas | Coleta durante a corrida e uso na personalização |
 | Loja | Acessórios |
 
-Essas definições orientam o desenvolvimento. Nem todas estão implementadas no protótipo atual.
+A identidade proposta é brasileira, tropical, cartoon e bem-humorada. O GDD também descreve competição semanal e progressão de longo prazo.
 
-## Mecânicas do jogo
+**Os valores, preços, tipos de power-ups e regras detalhadas abaixo são decisões experimentais deste protótipo.** Eles não substituem a aprovação e o balanceamento das seções ainda abertas no GDD.
 
-### Corrida e dificuldade
+## Compilar e jogar
 
-O jacaré corre automaticamente, enquanto o jogador reage aos desafios do percurso. A proposta do GDD é aumentar a velocidade e a dificuldade conforme a distância percorrida, exigindo mais precisão nas ações.
+É necessário um compilador com suporte a **C++17**. Não há dependências externas à biblioteca padrão; no Windows, o salvamento usa também a API do sistema para substituir o arquivo com segurança.
 
-No código atual, a corrida é representada por atualizações no terminal. Durante o estado `PLAYING`, cada atualização acrescenta um ponto e aumenta a variável de velocidade em `0.01`, a partir do valor inicial `10.0`. Ainda não há deslocamento visual, geração de obstáculos ou cenário infinito.
-
-### Pulo e gravidade
-
-O protótipo já permite iniciar um pulo quando o personagem está no chão. A gravidade altera sua velocidade vertical a cada atualização até ele retornar à altura zero. Novos pulos são bloqueados enquanto está no ar.
-
-Os parâmetros atuais são força de pulo `8.0` e gravidade `-2.0` por atualização. São valores do protótipo, sem ajuste por tempo decorrido (`deltaTime`), e não representam o balanceamento final.
-
-O GDD prevê controles por toque e gesto, mas o mapeamento ainda está em aberto. Na simulação, o pulo acontece automaticamente no terceiro quadro, sem entrada do jogador.
-
-### Obstáculos e fim de partida
-
-A proposta é pular, abaixar e desviar para continuar correndo. Um erro que encerre a corrida leva ao fim da partida, seguido de uma nova tentativa.
-
-O código já declara os estados `MENU`, `PLAYING` e `GAMEOVER`, além de um método `GameOver()`. Ainda não existem obstáculos, detecção de colisões, ação de abaixar ou telas para esses estados. A simulação atual termina após dez quadros, sem acionar uma derrota.
-
-### Alimentos e pontuação
-
-Está confirmado que alimentos geram pontuação adicional. O GDD também descreve combos, multiplicadores e decisões de risco para que o desempenho não dependa apenas da distância.
-
-Tipos de alimentos, valores, regras de captura, combos e multiplicadores ainda precisam ser definidos. Nenhum desses sistemas está implementado. Hoje, a pontuação aumenta uma unidade por atualização e aparece no terminal como distância em metros, sem cálculo físico de distância.
-
-### Moedas e personalização
-
-A coleta de moedas, seu uso na personalização e uma loja de acessórios são decisões fechadas. A intenção é que as corridas contribuam para desbloquear opções de aparência para o personagem.
-
-Coleta, saldo, compras e equipamentos ainda não estão implementados. Preços, catálogo e balanceamento da economia permanecem em aberto.
-
-## Ciclo de uma partida
-
-O GDD descreve o seguinte ciclo para o jogo completo:
-
-**Correr → Desviar → Pular → Coletar → Comer → Pontuar → Sobreviver → Game Over → Evoluir/Comprar → Jogar novamente.**
-
-No protótipo atual, o fluxo executado é:
-
-1. Criar o gerenciador da partida e o personagem.
-2. Iniciar a partida no estado `PLAYING`.
-3. Simular dez quadros, acionando um pulo no terceiro.
-4. Atualizar a física vertical, a pontuação e a velocidade.
-5. Exibir os valores no terminal e encerrar a simulação.
-
-## Sistemas descritos no GDD
-
-O documento apresenta uma visão de longo prazo com ranking online semanal, recompensas por colocação, experiência, níveis, desafios, conquistas e desbloqueio de novas regiões. A experiência de corrida é descrita como single-player, com competição por pontuação.
-
-Esses sistemas ainda não estão implementados e precisam de detalhamento. Power-ups, novas regiões e exemplos de acessórios também aparecem no planejamento, sem especificações finais. O escopo obrigatório da versão 1.0 ainda está em aberto.
-
-## Como compilar e executar o protótipo
-
-É necessário um compilador C++ disponível no terminal. O código atual utiliza apenas a biblioteca padrão, sem engine ou biblioteca gráfica integrada.
-
-No Windows, com `g++` instalado e disponível no `PATH`, execute na raiz do projeto:
+Na raiz do projeto, usando PowerShell com `g++` disponível no `PATH`:
 
 ```powershell
-g++ -std=c++17 -Wall -Wextra -Iinclude main.cpp src/GameManager.cpp src/Player.cpp src/Level.cpp -o output/jacarun.exe
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\output\jacarun.exe
 ```
 
-A pasta `output/` já existe no repositório. O comando gera uma nova compilação do protótipo. A execução mostra dez quadros no terminal, incluindo o salto, o retorno ao chão, a pontuação e a velocidade. Não há janela gráfica nem controles interativos nesta etapa.
+A opção de execução de scripts vale apenas para esse processo do PowerShell. Como alternativa, compile diretamente:
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic -Iinclude main.cpp src/GameManager.cpp src/Player.cpp src/Level.cpp src/Profile.cpp -o output/jacarun.exe
+.\output\jacarun.exe
+```
+
+O executável atualizado é **`output/jacarun.exe`**. O antigo `output/main.exe`, já versionado no projeto, não é atualizado pelo script.
+
+Para assistir a uma corrida automática de demonstração:
+
+```powershell
+.\output\jacarun.exe --demo --seed 42
+```
+
+A demonstração não lê nem grava o progresso do jogador. A seed permite repetir o mesmo percurso.
+
+## Controles
+
+Digite o comando e pressione Enter.
+
+| Onde | Comando | Ação |
+| --- | --- | --- |
+| Menu ou fim de partida | `jogar` ou `j` | Inicia uma nova corrida |
+| Menu ou fim de partida | `loja` | Mostra saldo, acessórios e IDs |
+| Menu ou fim de partida | `comprar ID` | Compra um acessório |
+| Menu ou fim de partida | `equipar ID` | Equipa um acessório adquirido |
+| Corrida | Enter ou `correr` | Avança a corrida por 0,2 segundo |
+| Corrida | `pular` ou `p` | Tenta pular e avança 0,2 segundo |
+| Corrida | `agachar` ou `a` | Tenta deslizar e avança 0,2 segundo |
+| Corrida ou pausa | `pausa` | Pausa ou retoma a partida |
+| Qualquer tela | `menu` | Encerra a corrida, contabiliza recompensas e volta ao menu |
+| Qualquer tela | `ajuda` | Exibe os comandos |
+| Qualquer tela | `sair` | Encerra a corrida, salva e sai |
+
+Pulo e deslize precisam aguardar o fim da ação anterior. Tentar uma ação indisponível ainda consome o turno. Comandos desconhecidos não avançam o tempo.
+
+O painel informa distância, velocidade, pontuação, moedas, combo, altura do personagem, efeitos ativos e os próximos objetos. Use o tempo estimado até o obstáculo para reagir: iniciar um pulo ou deslize cerca de **0,3 segundo antes** da chegada é uma referência útil com o balanceamento atual.
+
+## Mecânicas implementadas
+
+### Corrida e dificuldade
+
+A distância resulta da velocidade multiplicada pelo tempo simulado. A velocidade começa em **10 m/s**, aumenta com a distância e tem limite de **24 m/s**.
+
+O percurso é gerado continuamente à frente do personagem. Os encontros ficam mais próximos conforme a corrida avança, respeitando um espaçamento mínimo. Objetos já atravessados são removidos, mantendo o tamanho do cenário em memória limitado.
+
+A simulação divide cada atualização em passos de até **1/120 segundo**. As colisões consideram os objetos cruzados no deslocamento, inclusive quando o personagem ultrapassa a posição de um obstáculo entre duas atualizações.
+
+### Pulo, deslize e obstáculos
+
+- **Raiz:** exige altura de pelo menos 0,7 unidade no momento do encontro.
+- **Galho:** exige estar no chão e deslizando.
+- **Pulo:** só começa no chão, fora de um deslize; não há pulo duplo.
+- **Deslize:** dura 0,9 segundo e não pode começar no ar nem ser renovado enquanto está ativo.
+- **Colisão:** encerra a corrida, exceto quando um escudo ativo absorve a batida.
+
+A gravidade e o movimento vertical usam tempo decorrido. A pausa congela movimento, combo, efeitos e geração do percurso.
+
+### Alimentos, combos e recordes
+
+| Alimento | Pontos base | Posição no percurso |
+| --- | ---: | --- |
+| Caranguejo | 20 | Baixo |
+| Peixe | 30 | No ar, junto a raízes |
+| Peixe raro | 100 | No ar, em algumas recompensas entre obstáculos |
+
+A coleta considera a altura do personagem. Alimentos fora do alcance são perdidos.
+
+Cada alimento capturado aumenta a sequência do combo. A cada três alimentos, o multiplicador sobe um nível, até **x5**. Ele vale para os pontos dos alimentos. A sequência termina ao perder um alimento, ficar oito segundos sem capturar outro ou sofrer uma colisão absorvida pelo escudo.
+
+**Pontuação = parte inteira da distância percorrida + pontos dos alimentos com multiplicador.**
+
+Os recordes de pontuação e distância são atualizados ao encerrar a corrida.
+
+### Moedas, loja e personalização
+
+Moedas coletadas ficam no saldo da corrida e são creditadas na carteira quando ela termina, inclusive ao voltar ao menu ou sair. Cada corrida credita suas recompensas apenas uma vez.
+
+| ID | Acessório | Preço |
+| --- | --- | ---: |
+| 0 | Jaca original | Gratuito, já adquirido |
+| 1 | Boné do mangue | 15 moedas |
+| 2 | Óculos tropicais | 35 moedas |
+| 3 | Chapéu de pescador | 60 moedas |
+
+O jogo bloqueia compras repetidas, saldo insuficiente e equipamentos não adquiridos. Os acessórios são cosméticos: nesta versão, o item equipado aparece pelo nome no painel do perfil e não altera a física ou a pontuação.
+
+### Power-ups experimentais
+
+- **Escudo:** protege de uma colisão e é consumido ao absorvê-la; expira após 12 segundos se não for utilizado.
+- **Ímã:** durante 10 segundos, permite coletar moedas em qualquer altura quando elas cruzam o personagem.
+
+Os efeitos são encontrados no percurso. Recolher o mesmo tipo renova sua duração. Ambos são removidos ao iniciar uma nova corrida.
+
+### Experiência e níveis
+
+Cada corrida concede:
+
+- 1 XP a cada 10 metros completos;
+- 3 XP por alimento capturado;
+- 5 XP por obstáculo superado sem depender de escudo.
+
+O jogador ganha um nível a cada **200 XP**. Os níveis registram a progressão local; ainda não desbloqueiam biomas ou missões.
+
+## Salvamento
+
+O perfil é salvo automaticamente ao encerrar a corrida, comprar ou equipar um acessório, voltar ao menu e sair. Ele inclui carteira, XP, recordes, acessórios adquiridos e equipamento atual.
+
+O caminho padrão é `output/jacarun.save`, relativo à pasta de execução. Os arquivos de progresso e os novos executáveis são ignorados pelo Git.
+
+```powershell
+# Jogar sem ler nem gravar progresso
+.\output\jacarun.exe --no-save
+
+# Usar outro perfil e um percurso reproduzível
+.\output\jacarun.exe --save output/outro-perfil.save --seed 42
+```
+
+A gravação usa um arquivo temporário antes de substituir o save anterior. Arquivos inválidos ou incompatíveis interrompem o carregamento e são preservados; nesse caso, é possível jogar com `--no-save` ou escolher outro caminho. Erros de gravação são exibidos no terminal.
+
+A partida em andamento não é restaurada após fechar o programa. O salvamento é local e não possui sincronização online.
+
+## Testes
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test
+```
+
+A suíte verifica física, restrições das ações, colisões, consumo único de objetos, pontuação, combos, coleta por altura, power-ups, pausa, reinício, recompensas, compras e salvamento. Também executa **100 percursos com seeds diferentes**, alcançando a velocidade máxima, para verificar que as sequências geradas podem ser atravessadas.
 
 ## Estrutura do projeto
 
 ```text
 .
-├── README.md
-├── main.cpp                 # Ponto de entrada e simulação de dez quadros
+├── main.cpp                  # Interface do terminal, comandos e demonstracao
+├── build.ps1                 # Compilacao do jogo e testes
 ├── include/
-│   ├── GameManager.h        # Estados e interface de gerenciamento da partida
-│   ├── Player.h             # Interface do personagem e atributos do pulo
-│   └── Level.h              # Arquivo ainda vazio
+│   ├── Balance.h             # Parametros de fisica, dificuldade e recompensas
+│   ├── GameManager.h         # Estados e regras da partida
+│   ├── Level.h               # Objetos e geracao do percurso
+│   ├── Player.h              # Pulo e deslize
+│   └── Profile.h             # Progresso e acessorios
 ├── src/
-│   ├── GameManager.cpp      # Início, fim, pontuação e velocidade
-│   ├── Player.cpp           # Pulo, gravidade e retorno ao chão
-│   └── Level.cpp            # Arquivo ainda vazio
-└── output/
-    └── main.exe             # Executável já presente no repositório
+│   ├── GameManager.cpp       # Colisoes, coleta, combos e recompensas
+│   ├── Level.cpp             # Geracao procedural e objetos atravessados
+│   ├── Player.cpp            # Fisica por tempo decorrido
+│   └── Profile.cpp           # Catalogo, compras e persistencia
+├── tests/
+│   └── mechanics_tests.cpp   # Testes automatizados
+└── output/                   # Executaveis e saves locais
 ```
 
-## Definições pendentes
+Os principais parâmetros estão em `include/Balance.h`; os acessórios e seus preços estão no catálogo de `src/Profile.cpp`.
 
-- Controles finais de toque e gesto, movimento de abaixar e regras de colisão.
-- Alimentos, valores de pontuação, combos e multiplicadores.
-- Obstáculos, geração do percurso e curva de dificuldade.
-- Economia, acessórios, preços e funcionamento da loja.
-- Regras detalhadas de progressão, ranking e recompensas.
-- Engine ou framework, salvamento e integração com Android e iOS.
-- Interface, animações, áudio, monetização e escopo da versão 1.0.
+## Etapas ainda abertas
+
+O ciclo local do protótipo está implementado. A visão completa do GDD ainda depende de:
+
+- Engine ou framework gráfico, animações, áudio e arte do mangue.
+- Interface mobile, controles por toque e builds para Android/iOS.
+- Ranking online semanal, contas, validação de pontuações e recompensas competitivas.
+- Novos biomas, fases, missões, conquistas e regras de desbloqueio.
+- Balanceamento final, monetização e fechamento do escopo da versão 1.0.
 
 ## Referência
 
-Este README se baseia no **JACARUN — Game Design Document (GDD), versão 0.1**, com status **Em planejamento**, e no código disponível neste repositório. A seção **22. Decisões fechadas** do GDD registra as definições aprovadas; as demais propostas são apresentadas aqui conforme seu estágio de planejamento e implementação.
+Baseado no **JACARUN — Game Design Document, versão 0.1**, com status **Em planejamento**, e no código deste repositório. As decisões aprovadas estão registradas na seção **22. Decisões fechadas** do GDD. As regras experimentais documentadas acima servem para testar o jogo enquanto os detalhes de design são consolidados.

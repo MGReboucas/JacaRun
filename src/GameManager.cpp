@@ -12,6 +12,8 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     distance = 0.0;
     speed = Balance::InitialSpeed;
     foodScore = 0;
+    distanceScore = frenzyRemaining = 0;
+    frenzyMultiplier = 1;
     combo = runCoins = foods = obstaclesPassed = 0;
     comboRemaining = shieldRemaining = magnetRemaining = 0.0;
     messages.clear();
@@ -21,7 +23,7 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
 }
 
 std::int64_t GameManager::GetScore() const {
-    return static_cast<std::int64_t>(distance) + foodScore;
+    return static_cast<std::int64_t>(distanceScore) + foodScore;
 }
 
 int GameManager::GetMultiplier() const {
@@ -64,6 +66,10 @@ void GameManager::Update(double deltaTime) {
         }
         const double previous = distance;
         distance += speed * dt;
+        const double boosted = std::min(dt, frenzyRemaining);
+        distanceScore += speed * (dt + boosted * (frenzyMultiplier - 1));
+        frenzyRemaining = std::max(0.0, frenzyRemaining - dt);
+        if (frenzyRemaining == 0) frenzyMultiplier = 1;
         for (const Entity& entity : level.Crossed(previous, distance)) {
             Resolve(entity);
             if (!IsPlaying()) break;
@@ -85,6 +91,8 @@ void GameManager::Resolve(const Entity& entity) {
             if (shieldRemaining > 0.0) {
                 frameResolutions.push_back({entity, EntityOutcome::Shielded});
                 shieldRemaining = 0.0;
+                frenzyRemaining = 0;
+                frenzyMultiplier = 1;
                 ResetCombo();
                 messages.emplace_back("Escudo absorveu a batida!");
             } else {
@@ -99,7 +107,9 @@ void GameManager::Resolve(const Entity& entity) {
         return;
     }
 
-    const bool reachable = std::abs(player.GetPositionY() + 0.5 - entity.height) <= Balance::PickupReach;
+    const double reach = entity.type == EntityType::RareFish ? .10 :
+                         entity.type == EntityType::Fish ? .22 : Balance::PickupReach;
+    const bool reachable = std::abs(player.GetPositionY() + 0.5 - entity.height) <= reach;
     if (entity.type == EntityType::Coin && (reachable || magnetRemaining > 0.0)) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         ++runCoins;
@@ -112,11 +122,18 @@ void GameManager::Resolve(const Entity& entity) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         ++foods;
         ++combo;
-        comboRemaining = Balance::ComboSeconds;
+        comboRemaining = Balance::ComboSeconds + (profile.owned[ComboUpgrade] ? 2.0 : 0.0);
         const int base = entity.type == EntityType::Crab ? Balance::CrabPoints
                        : entity.type == EntityType::Fish ? Balance::FishPoints : Balance::RareFishPoints;
         const int points = base * GetMultiplier();
         foodScore += points;
+        if (entity.type == EntityType::Fish || entity.type == EntityType::RareFish) {
+            const bool rare = entity.type == EntityType::RareFish;
+            frenzyMultiplier = std::max(GetFrenzyMultiplier(), rare ? 3 : 2);
+            frenzyRemaining = std::max(frenzyRemaining, (rare ? 10.0 : 6.0) +
+                                      (profile.owned[FrenzyUpgrade] ? 3.0 : 0.0));
+            messages.emplace_back("FRENESI: pontos de distancia x" + std::to_string(frenzyMultiplier));
+        }
         messages.emplace_back(std::string(EntityName(entity.type)) + ": +" + std::to_string(points) +
                               " pontos | combo " + std::to_string(combo) + " x" + std::to_string(GetMultiplier()));
     } else if (reachable && entity.type == EntityType::Shield) {
@@ -125,8 +142,8 @@ void GameManager::Resolve(const Entity& entity) {
         messages.emplace_back("Escudo: protege de uma batida por ate 12 segundos.");
     } else if (reachable && entity.type == EntityType::Magnet) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
-        magnetRemaining = Balance::MagnetSeconds;
-        messages.emplace_back("Ima: coleta moedas em qualquer altura por 10 segundos.");
+        magnetRemaining = Balance::MagnetSeconds + (profile.owned[MagnetUpgrade] ? 4.0 : 0.0);
+        messages.emplace_back("Ima ativado!");
     } else {
         frameResolutions.push_back({entity, EntityOutcome::Missed});
     }

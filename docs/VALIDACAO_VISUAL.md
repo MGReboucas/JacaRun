@@ -1,5 +1,24 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.7 — loja, esforço e frenesi dos peixes
+
+A loja agora tem sete visuais (original, boné, óculos, chapéu, bandana, coroa e capacete lunar) e três melhorias permanentes, com abas e paginação. Itens pagos custam 2.000–50.000 moedas. Melhorias: +2 s para manter o combo (12.000), +4 s de ímã (20.000), +3 s no frenesi (35.000). Compras duplicadas e saldo insuficiente são bloqueados; melhorias não substituem o visual equipado nem precisam ser recompradas por corrida.
+
+Peixes ocupam uma posição própria no alto do salto, entre três moedas espaçadas. Precisão vertical exigida: 0,22 unidade no peixe comum e 0,10 no raro. Comum ativa pontos de distância ×2 por 6 s; raro ×3 por 10 s. O benefício não multiplica moedas ou pontos de alimentos. Novas coletas renovam a duração sem acumular segundos e mantêm o multiplicador mais forte ainda ativo. Pausa congela o efeito; escudo usado em colisão e reinício encerram o bônus. A pontuação maior pode antecipar as faixas de dificuldade 20/50/100 mil.
+
+O save v2 armazena os dez itens. Carregar v1 mantém saldo, recordes, visuais adquiridos e equipamento; compras antigas não são cobradas novamente. Os testes também confirmam rejeição de máscaras/equipamento inválidos sem alterar o perfil em memória. Não foi feito downgrade para APK antigo.
+
+**Testes:** 20/20 grupos de mecânicas e 3/3 de apresentação aprovados, incluindo migração v1→v2, compra insuficiente/duplicada, efeitos observáveis das melhorias, coleta precisa, pontuação ×2, raro ×3, pausa, expiração e reinício. Permanecem aprovadas as 100 corridas longas e 20 corridas extremas. Benchmark sem melhorias: 100 corridas de 200 s, média 321,73 moedas (312–336). O boné equivale a cerca de 7 corridas completas e o capacete a 156 nesse controlador automático; tempo humano e retenção continuam sem validação.
+
+Smoke visual final aprovado em 432 × 810 (`output/visual-smoke-20260924-144058`) e 360 × 788 (`output/visual-smoke-20260924-144118`). Fluxo real de toque comprou/equipou bandana, abriu melhorias, comprou Fôlego do combo e releu o save v2. As capturas usam perfil isolado com saldo de teste; não alteram o perfil real do usuário.
+
+![Loja de visuais](images/loja-visuais.png)
+![Melhorias permanentes](images/loja-melhorias.png)
+
+**APK:** `output/JacaRun-0.7.0-debug.apk`, versionCode 8, 24.010.894 bytes. Certificado original de atualização e alinhamento ZIP de 16 KB conferidos. SHA-256: `33a5107c30b449311359fed2eea62c565c28ba94d760027ae63ff677892ea728`.
+
+Pendente para a próxima sessão: instalação sobre o app existente no S24+, confirmação do perfil real e feedback humano sobre esforço da loja, salto preciso dos peixes e progressão de pontuação. Publicidade e iOS permanecem pendentes.
+
 ## Revisão 0.6.1 — progressão 20/50/100 mil
 
 A pressão por pontuação permanece em zero até 20.000 pontos. Entre 20 e 50 mil, cresce linearmente até dois terços; de 50 a 100 mil, aumenta continuamente até o máximo. Com a base por distância completa, isso corresponde a 24/36/48/54/60 m/s aos 20/35/50/75/100 mil pontos. As sequências chegam a seis obstáculos aos 50 mil, sete aos 75 mil e oito aos 100 mil. A geração existente não é reposicionada. HUD atualizado para Pressão, Difícil, Muito difícil, Elite e Domínio.

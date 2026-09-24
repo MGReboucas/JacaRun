@@ -10,7 +10,7 @@ void PersistenceAndCollection() {
     game.StartGame(1, false);
     game.Spawn(EntityType::Ground, 3);
     game.Spawn(EntityType::Coin, 3, 0.5); // Missed while airborne; same coordinate, distinct ID.
-    game.Spawn(EntityType::Fish, 3, 2);
+    game.Spawn(EntityType::Fish, 3, 1.5);
     view.Sync(game.GetLevel().GetEntities());
     CHECK(view.GetObjects().size() == 3);
     CHECK(game.Jump());

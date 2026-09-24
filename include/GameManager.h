@@ -43,6 +43,8 @@ public:
     int GetObstaclesPassed() const { return obstaclesPassed; }
     double GetShieldSeconds() const { return shieldRemaining; }
     double GetMagnetSeconds() const { return magnetRemaining; }
+    double GetFrenzySeconds() const { return frenzyRemaining; }
+    int GetFrenzyMultiplier() const { return frenzyRemaining > 0 ? frenzyMultiplier : 1; }
     // Permite cenarios deterministas e futuros editores de percurso.
     void Spawn(EntityType type, double atDistance, double height = 0.0);
 
@@ -56,6 +58,9 @@ private:
     double distance = 0.0;
     double speed = 0.0;
     std::int64_t foodScore = 0;
+    double distanceScore = 0;
+    double frenzyRemaining = 0;
+    int frenzyMultiplier = 1;
     int combo = 0;
     double comboRemaining = 0.0;
     int runCoins = 0;

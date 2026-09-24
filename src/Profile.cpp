@@ -12,10 +12,18 @@
 #include <windows.h>
 #endif
 
-const std::array<Accessory, 4>& AccessoryCatalog() {
-    static const std::array<Accessory, 4> catalog{{
-        {"Jaca original", 0}, {"Bone do mangue", 15},
-        {"Oculos tropicais", 35}, {"Chapeu de pescador", 60}
+const std::array<Accessory, ShopItemCount>& AccessoryCatalog() {
+    static const std::array<Accessory, ShopItemCount> catalog{{
+        {"Jaca original", 0, "O classico do mangue. Visual."},
+        {"Bone do mangue", 2000, "Estilo de quem corre todo dia. Visual."},
+        {"Oculos tropicais", 5000, "Lentes escuras, sangue frio. Visual."},
+        {"Chapeu de pescador", 9000, "Para veteranos do mangue. Visual."},
+        {"Bandana vermelha", 15000, "Uma marca de persistencia. Visual."},
+        {"Coroa do mangue", 30000, "Conquiste seu reinado. Visual."},
+        {"Capacete lunar", 50000, "Para quem foi longe demais. Visual."},
+        {"Folego do combo", 12000, "Combo dura +2 s sem comer."},
+        {"Ima duradouro", 20000, "Cada ima coletado dura +4 s."},
+        {"Frenesi prolongado", 35000, "Bonus dos peixes dura +3 s."}
     }};
     return catalog;
 }
@@ -34,7 +42,7 @@ bool Profile::Buy(int accessory) {
 }
 
 bool Profile::Equip(int accessory) {
-    if (accessory < 0 || accessory >= static_cast<int>(owned.size()) || !owned[accessory]) return false;
+    if (accessory < 0 || accessory >= CosmeticCount || !owned[accessory]) return false;
     equipped = accessory;
     return true;
 }
@@ -57,11 +65,13 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
     }
     std::string extra;
     constexpr std::int64_t limit = 1000000000000LL;
-    if (magic != "JACARUN" || version != 1 || (input >> extra) ||
+    const unsigned int allowedMask = version == 1 ? 15u : (1u << ShopItemCount) - 1;
+    const int allowedEquipped = version == 1 ? 4 : CosmeticCount;
+    if (magic != "JACARUN" || (version != 1 && version != 2) || (input >> extra) ||
         candidate.coins < 0 || candidate.coins > limit || candidate.experience < 0 ||
         candidate.experience > limit || candidate.bestScore < 0 || candidate.bestScore > limit ||
         !std::isfinite(candidate.bestDistance) || candidate.bestDistance < 0 || candidate.bestDistance > limit ||
-        mask > 15 || !(mask & 1) || candidate.equipped < 0 || candidate.equipped >= 4 ||
+        mask > allowedMask || !(mask & 1) || candidate.equipped < 0 || candidate.equipped >= allowedEquipped ||
         !(mask & (1u << candidate.equipped))) {
         error = "Save invalido ou de versao incompativel. O arquivo foi preservado.";
         return false;
@@ -81,7 +91,7 @@ bool Profile::Save(const std::filesystem::path& path, std::string& error) const 
     std::ofstream output(temporary, std::ios::trunc);
     unsigned int mask = 0;
     for (std::size_t i = 0; i < owned.size(); ++i) if (owned[i]) mask |= 1u << i;
-    output << "JACARUN 1\n" << coins << ' ' << experience << ' ' << bestScore << ' '
+    output << "JACARUN 2\n" << coins << ' ' << experience << ' ' << bestScore << ' '
            << std::setprecision(17) << bestDistance << ' ' << mask << ' ' << equipped << '\n';
     output.flush();
     const bool written = output.good();

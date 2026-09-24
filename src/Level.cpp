@@ -87,12 +87,13 @@ void Level::GenerateAhead(double playerDistance, double score) {
             if (jump) {
                 // Sample the actual distance-based parabola, with takeoff 6 m before the root.
                 for (int coin = 0; coin < 4; ++coin) {
+                    if (coin == 2) continue; // This slot is a precise fish catch, not overlapping coins.
                     const double offset = -4.0 + coin * 5.5;
                     const double t = (offset + 6.0) / Balance::ActionSpeed;
                     const double y = Balance::JumpForce * t + .5 * Balance::Gravity * t * t;
                     Spawn(EntityType::Coin, at + offset, .5 + y);
                 }
-                Spawn(random() % 5 == 0 ? EntityType::RareFish : EntityType::Fish, at + 20.5, .5);
+                Spawn(random() % 5 == 0 ? EntityType::RareFish : EntityType::Fish, at + 7.0, 2.5);
             } else {
                 for (int coin = 0; coin < 3; ++coin)
                     Spawn(EntityType::Coin, at - 4.0 + coin * 6.0, .3);

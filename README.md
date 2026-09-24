@@ -6,7 +6,7 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.6.1 inicia a pressão por pontuação aos 20 mil, fica muito difícil aos 50 mil e chega ao modo Domínio aos 100 mil pontos. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.7 reformula a loja com sete visuais e três melhorias permanentes, preços de longo prazo e peixes difíceis que aceleram a pontuação. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
 
 ![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
 
@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.6.1-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.7.0-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 
@@ -134,14 +134,14 @@ Pulo e deslize avançam conforme a distância percorrida. O salto cobre aproxima
 | Alimento | Pontos base | Posição no percurso |
 | --- | ---: | --- |
 | Caranguejo | 20 | Baixo |
-| Peixe | 30 | Recompensa após a aterrissagem |
-| Peixe raro | 100 | No chão, em algumas recompensas entre sequências |
+| Peixe | 30 | No alto do salto; ativa pontos de distância ×2 por 6 s |
+| Peixe raro | 100 | No alto do salto, coleta mais precisa; distância ×3 por 10 s |
 
-A coleta considera a altura do personagem. Alimentos fora do alcance são perdidos.
+A coleta considera a altura do personagem. Peixes exigem precisão vertical: tolerância de 0,22 unidade no comum e 0,10 no raro, contra 0,85 nos demais coletáveis. O peixe ocupa uma posição própria no arco, sem sobrepor as três moedas. Ímã não coleta peixe. Alimentos fora do alcance são perdidos.
 
-Cada alimento capturado aumenta a sequência do combo. A cada três alimentos, o multiplicador sobe um nível, até **x5**. Ele vale para os pontos dos alimentos. A sequência termina ao perder um alimento, ficar oito segundos sem capturar outro ou sofrer uma colisão absorvida pelo escudo.
+Cada alimento capturado aumenta a sequência do combo. A cada três alimentos, o multiplicador sobe um nível, até **x5**. Ele vale para os pontos dos alimentos. A sequência termina ao perder um alimento, ficar oito segundos sem capturar outro (dez com a melhoria Fôlego do combo) ou sofrer uma colisão absorvida pelo escudo.
 
-**Pontuação = parte inteira da distância percorrida + pontos dos alimentos com multiplicador.**
+**Pontuação = pontos de distância acumulados (×1, ×2 ou ×3 durante o frenesi) + pontos dos alimentos com multiplicador de combo.** O bônus do peixe não multiplica moedas nem altera diretamente a física. Ele ajuda a atingir as faixas difíceis de pontuação mais cedo. Novos peixes renovam a duração sem somar segundos e preservam o maior multiplicador ainda ativo. Pausa congela o efeito; colisão absorvida pelo escudo e nova corrida encerram o frenesi.
 
 Os recordes de pontuação e distância são atualizados ao encerrar a corrida.
 
@@ -152,16 +152,24 @@ Moedas coletadas ficam no saldo da corrida e são creditadas na carteira quando 
 | ID | Acessório | Preço |
 | --- | --- | ---: |
 | 0 | Jaca original | Gratuito, já adquirido |
-| 1 | Boné do mangue | 15 moedas |
-| 2 | Óculos tropicais | 35 moedas |
-| 3 | Chapéu de pescador | 60 moedas |
+| 1 | Boné do mangue | 2.000 moedas |
+| 2 | Óculos tropicais | 5.000 moedas |
+| 3 | Chapéu de pescador | 9.000 moedas |
+| 4 | Bandana vermelha | 15.000 moedas |
+| 5 | Coroa do mangue | 30.000 moedas |
+| 6 | Capacete lunar | 50.000 moedas |
+| 7 | Fôlego do combo: +2 s para manter a sequência | 12.000 moedas |
+| 8 | Ímã duradouro: +4 s em cada ímã coletado | 20.000 moedas |
+| 9 | Frenesi prolongado: +3 s no bônus dos peixes | 35.000 moedas |
 
-O jogo bloqueia compras repetidas, saldo insuficiente e equipamentos não adquiridos. Os acessórios são cosméticos: nesta versão, o item equipado aparece pelo nome no painel do perfil e não altera a física ou a pontuação.
+A loja tem abas de visuais e melhorias, páginas, descrição de efeitos, saldo e feedback de compra. Visuais 0–6 são equipáveis e aparecem no jacaré. Melhorias 7–9 são permanentes e ficam ativas automaticamente: não precisam ser equipadas nem recompradas. O jogo bloqueia compras repetidas e saldo insuficiente. Não há compra com dinheiro real.
+
+Os preços são metas experimentais de esforço: em 100 corridas automatizadas de 200 s, sem melhorias, a média foi 321,73 moedas (312–336). Nesse desempenho, o boné exige aproximadamente 7 corridas completas; o capacete, 156. Isso não é previsão de desempenho humano: derrotas e coletas perdidas aumentam o tempo. Revisar retenção e preços após testes reais, sem retirar compras já conquistadas.
 
 ### Power-ups experimentais
 
 - **Escudo:** protege de uma colisão e é consumido ao absorvê-la; expira após 12 segundos se não for utilizado.
-- **Ímã:** durante 10 segundos, permite coletar moedas em qualquer altura quando elas cruzam o personagem.
+- **Ímã:** durante 10 segundos (14 com melhoria), permite coletar moedas em qualquer altura quando elas cruzam o personagem.
 
 Os efeitos são encontrados no percurso. Recolher o mesmo tipo renova sua duração. Ambos são removidos ao iniciar uma nova corrida.
 
@@ -177,7 +185,7 @@ O jogador ganha um nível a cada **200 XP**. Os níveis registram a progressão 
 
 ## Salvamento
 
-O perfil é salvo automaticamente ao encerrar a corrida, comprar ou equipar um acessório, voltar ao menu e sair. Ele inclui carteira, XP, recordes, acessórios adquiridos e equipamento atual.
+O perfil é salvo automaticamente ao encerrar a corrida, comprar ou equipar um acessório, voltar ao menu e sair. Ele inclui carteira, XP, recordes, visuais, melhorias e equipamento atual. A versão 0.7 lê saves antigos e grava o formato v2, preservando moedas e compras anteriores, sem cobrar diferenças de preço. Versões antigas do app não leem o formato novo.
 
 O caminho padrão é `output/jacarun.save`, relativo à pasta de execução. Os arquivos de progresso e os novos executáveis são ignorados pelo Git.
 

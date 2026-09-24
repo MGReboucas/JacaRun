@@ -192,10 +192,19 @@ void MainScene::act(Action action) {
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; rebuildUI(); }
         break;
     case Action::Back: shop = false; rebuildUI(); break;
-    case Action::Item0: case Action::Item1: case Action::Item2: case Action::Item3: {
+    case Action::Looks: upgradeShop=false; shopPage=0; rebuildUI(); break;
+    case Action::Upgrades: upgradeShop=true; shopPage=0; rebuildUI(); break;
+    case Action::Previous: shopPage=std::max(0,shopPage-1); rebuildUI(); break;
+    case Action::Next: shopPage=std::min(2,shopPage+1); rebuildUI(); break;
+    case Action::Item0: case Action::Item1: case Action::Item2: {
         if (!shop) break;
-        const int id = static_cast<int>(action) - static_cast<int>(Action::Item0);
-        if (game.GetProfile().owned[id] || game.BuyAccessory(id)) game.EquipAccessory(id);
+        const int id = (upgradeShop ? CosmeticCount : shopPage*3) +
+                       static_cast<int>(action) - static_cast<int>(Action::Item0);
+        if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
+        if (game.GetProfile().owned[id] || game.BuyAccessory(id)) {
+            if(id<CosmeticCount) { game.EquipAccessory(id); shopNotice="Visual equipado!"; }
+            else shopNotice="Melhoria permanente ativa nas suas corridas.";
+        } else shopNotice="Faltam "+whole(AccessoryCatalog()[id].price-game.GetProfile().coins)+" moedas. Continue correndo!";
         save(); rebuildUI(); break;
     }
     default: break;
@@ -224,21 +233,33 @@ void MainScene::rebuildUI() {
     const float bottom = std::max(26.0f, safe.getMinY() + 18.0f);
     const float center = viewHeight * .52f;
     if (shop) {
-        pill(panels, {20, center - 290, 440, 606}, Color4F(.035f,.17f,.18f,.95f));
-        text("SEU ESTILO NO MANGUE", 16, {240, center + 270}, Muted);
-        text("Escolha seu Jaca", 32, {240, center + 224}, Cream, true);
-        text(whole(game.GetProfile().coins) + " moedas disponiveis", 20, {240, center + 180}, Muted);
-        const char* titles[] = {"Original", "Bone do mangue", "Oculos tropicais", "Chapeu de pescador"};
-        for (int i = 0; i < 4; ++i) {
-            std::string caption = titles[i];
-            if (game.GetProfile().equipped == i) caption += "  /  equipado";
-            else if (game.GetProfile().owned[i]) caption += "  /  usar";
-            else caption += "  /  " + whole(AccessoryCatalog()[i].price) + " moedas";
-            button(caption, {44, center + 77 - i * 77, 392, 58},
-                   static_cast<Action>(static_cast<int>(Action::Item0) + i), game.GetProfile().equipped == i);
+        pill(panels, {20, center - 320, 440, 650}, Color4F(.035f,.17f,.18f,1));
+        text("CONQUISTAS DO MANGUE", 16, {240, center + 290}, Muted);
+        text("Sua corrida vale mais", 30, {240, center + 254}, Cream, true);
+        text(whole(game.GetProfile().coins) + " MOEDAS", 22, {240, center + 215}, Color4B(255,219,122,255),true);
+        button("VISUAIS", {40,center+145,192,44}, Action::Looks,!upgradeShop);
+        button("MELHORIAS", {248,center+145,192,44}, Action::Upgrades,upgradeShop);
+        for (int row=0;row<3;++row) {
+            const int id=(upgradeShop?CosmeticCount:shopPage*3)+row;
+            if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
+            const auto& item=AccessoryCatalog()[id];
+            const auto& profile=game.GetProfile();
+            const float y=center+22-row*110.0f;
+            pill(panels,{36,y,408,101},Color4F(.08f,.25f,.24f,1));
+            text(item.name,21,{51,y+77},Cream,true)->setAnchorPoint({0,.5f});
+            text(item.description,14,{51,y+52},Muted)->setAnchorPoint({0,.5f});
+            const bool owned=profile.owned[id], equipped=id<CosmeticCount && profile.equipped==id;
+            std::string caption=owned ? (upgradeShop?"ATIVA":equipped?"EM USO":"EQUIPAR") : "COMPRAR";
+            text(owned?"ADQUIRIDO":whole(item.price)+" moedas",16,{51,y+25},Cream)->setAnchorPoint({0,.5f});
+            button(caption,{290,y+10,140,31},static_cast<Action>(static_cast<int>(Action::Item0)+row),owned || profile.coins>=item.price);
         }
-        button("VOLTAR", {110, center - 250, 260, 55}, Action::Back);
-        status = text("Cosmeticos comprados com moedas do jogo.", 15, {240, center - 320}, Cream);
+        if(!upgradeShop) {
+            button("<",{40,center-253,55,35},Action::Previous);
+            text(whole(shopPage+1)+" / 3",15,{240,center-235},Muted);
+            button(">",{385,center-253,55,35},Action::Next);
+        }
+        button("VOLTAR", {150, center - 293, 180, 34}, Action::Back);
+        status = text(shopNotice,13,{240,center-309},Muted);
         return;
     }
     if (state == GameState::Menu) {
@@ -266,7 +287,7 @@ void MainScene::rebuildUI() {
         status = text("", 17, {240, top - 93}, Cream);
         pace = text("", 14, {240, top - 121}, Muted);
         pace->enableOutline(Color4B(13,47,42,210), 1);
-        gestureHint = text("ARRASTE PARA CIMA: PULO\nPARA BAIXO: DESLIZE  /  2 DEDOS: PAUSA",
+        gestureHint = text("ARRASTE PARA CIMA: PULO\nPARA BAIXO: DESLIZE  /  2 DEDOS: PAUSA\nPEIXES NO ALTO: PONTOS MAIS RAPIDOS",
                            17, {240, bottom + 49}, Cream);
         gestureHint->setAlignment(TextHAlignment::CENTER);
         gestureHint->enableOutline(Color4B(13,47,42,210), 1);
@@ -338,6 +359,18 @@ void MainScene::drawCrocodile(Vec2 feet, float scale) {
     } else if (accessory == 3) {
         world->drawSegment(point(-2,57),point(29,57),4*scale,Color4F(0.85f,0.71f,0.40f,1));
         world->drawSegment(point(8,62),point(18,62),7*scale,Color4F(0.94f,0.83f,0.54f,1));
+    } else if (accessory == 4) {
+        world->drawSegment(point(2,55),point(28,55),5*scale,Color4F(.94f,.25f,.22f,1));
+        Vec2 knot[]={point(3,55),point(-20,65),point(-14,44)};
+        world->drawSolidPoly(knot,3,Color4F(.94f,.25f,.22f,1));
+    } else if (accessory == 5) {
+        Vec2 crown[]={point(-1,56),point(-3,76),point(8,66),point(16,82),point(23,66),point(34,76),point(30,56)};
+        world->drawSolidPoly(crown,7,Color4F(1,.79f,.24f,1));
+        oval(15,61,3,4,Color4F(.97f,.3f,.22f,1));
+    } else if (accessory == 6) {
+        world->drawCircle(point(20,41),32*scale,0,40,false,Color4F(.72f,.92f,1,1));
+        world->drawSegment(point(-8,14),point(40,14),4*scale,Color4F(.83f,.88f,.89f,1));
+        oval(37,59,4,7,Color4F(.78f,.95f,1,.8f));
     }
     if (game.GetShieldSeconds() > 0)
         world->drawCircle(point(-3,24), 67*scale, 0, 48, false, Color4F(0.56f,0.92f,0.96f,0.8f));
@@ -595,11 +628,12 @@ void MainScene::update(float dt) {
     }
     if (status) {
         std::string info;
+        if (!shop && game.GetFrenzySeconds()>0) info+="DIST x"+whole(game.GetFrenzyMultiplier())+" "+whole(std::ceil(game.GetFrenzySeconds()))+"s  ";
         if (!shop && game.GetShieldSeconds()>0) info+="ESCUDO "+whole(std::ceil(game.GetShieldSeconds()))+"s  ";
         if (!shop && game.GetMagnetSeconds()>0) info+="IMA "+whole(std::ceil(game.GetMagnetSeconds()))+"s  ";
         if (!shop && game.GetCombo()>0) info+="COMBO "+whole(game.GetCombo())+" / x"+whole(game.GetMultiplier());
         if(info.empty() && feedbackTime>0) info=feedback;
-        if(info.empty() && shop) info="Cosmeticos comprados com moedas do jogo.";
+        if(shop) info=saveWarning.empty()?shopNotice:saveWarning;
         status->setString(info);
         if(status->getContentSize().width>440) status->setScale(440/status->getContentSize().width);
         else status->setScale(1);
@@ -737,7 +771,7 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==8 && d>24) {
         smokeTouch({350,floorY+140},{350,floorY+205}); smokeStep=9;
     } else if(smokeStep==9 && d>43) {
-        if(!game.IsPlaying() || game.GetObstaclesPassed()!=1 || game.GetRunCoins()!=4) {
+        if(!game.IsPlaying() || game.GetObstaclesPassed()!=1 || game.GetRunCoins()!=3 || game.GetFoods()!=1) {
             finishSmoke(false,"Distance-based jump or coin arc failed"); return;
         }
         capture("07-clearance.png");
@@ -751,7 +785,40 @@ void MainScene::smokeTick(float dt) {
         smokeStep=12;
     } else if(smokeStep==12) {
         capture("09-new-obstacles.png");
-        finishSmoke(true,"Gestures, persistence, pause/save/restart, coin arc, action clearance, HUD and three new obstacle drawings.");
+        smokeStep=13;
+    } else if(smokeStep==13) {
+        game.EndRun(); game.ReturnToMenu(); game.GetProfile().coins=45000;
+        act(Action::Shop); smokeStep=14;
+    } else if(smokeStep==14) {
+        capture("10-shop-looks.png"); smokeStep=19;
+    } else if(smokeStep==19) {
+        act(Action::Next); smokeStep=15;
+    } else if(smokeStep==15) {
+        const float center=viewHeight*.52f;
+        smokeTouch({360,center-63},{360,center-63}); // Buy/equip the bandana from page two.
+        if(game.GetProfile().coins!=30000 || game.GetProfile().equipped!=4) {
+            finishSmoke(false,"Shop cosmetic purchase failed"); return;
+        }
+        smokeStep=16;
+    } else if(smokeStep==16) {
+        capture("11-shop-cosmetics.png"); smokeStep=20;
+    } else if(smokeStep==20) {
+        const float center=viewHeight*.52f;
+        smokeTouch({344,center+167},{344,center+167}); smokeStep=17;
+    } else if(smokeStep==17) {
+        const float center=viewHeight*.52f;
+        smokeTouch({360,center+47},{360,center+47});
+        if(!game.GetProfile().owned[ComboUpgrade] || game.GetProfile().coins!=18000) {
+            finishSmoke(false,"Shop upgrade purchase failed"); return;
+        }
+        Profile restored; std::string error;
+        if(!restored.Load(savePath,error) || !restored.owned[ComboUpgrade] || restored.equipped!=4) {
+            finishSmoke(false,"Shop v2 save failed"); return;
+        }
+        smokeStep=18;
+    } else if(smokeStep==18) {
+        capture("12-shop-upgrades.png");
+        finishSmoke(true,"Gameplay regression; precise fish and coin arc; shop pages/touch purchases, permanent upgrade and v2 save.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

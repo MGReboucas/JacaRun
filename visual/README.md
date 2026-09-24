@@ -1,4 +1,4 @@
-# JacaRun — protótipo visual 0.6
+# JacaRun — protótipo visual 0.7
 
 O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `Profile` da interface de terminal. Não existem regras de corrida separadas por plataforma. A cena cuida de desenho, input, menus e ciclo de vida; os diretórios nativos inicializam a aplicação e empacotam os recursos.
 
@@ -8,7 +8,7 @@ O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `
 
 - Largura lógica de 480 pontos e altura adaptada ao aparelho: mangue em tela cheia, parallax, raízes, água, vegetação e personagem desenhados com `DrawNode`.
 - Corrida contínua, pulo, deslize, obstáculos, coletáveis, power-ups e combos ligados ao núcleo.
-- Menu, placar, pausa, resultado, reinício e loja de quatro aparências; acessórios equipados aparecem no jacaré.
+- Menu, placar, pausa, resultado, reinício e loja paginada com sete aparências e três melhorias permanentes; acessórios equipados aparecem no jacaré.
 - Corrida sem botões: gesto para cima pula, para baixo desliza, toque rápido com dois dedos pausa. Os gestos disparam durante o movimento; toque simples e movimento horizontal não pulam. Menus preservam suas ações e também aceitam gesto para cima para iniciar/retomar/reiniciar.
 - Obstáculos e itens não coletados continuam passando atrás do jacaré até sair da tela. Coletáveis obtidos têm animação curta com partículas; a colisão/recompensa não é repetida.
 - O aplicativo pausa ao ir para segundo plano e pede retomada explícita. Teclado continua disponível no computador.
@@ -51,7 +51,7 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 18 grupos do núcleo incluem 100 corridas longas e 100 percursos com verificação de progressão e espaçamento; três grupos adicionais testam gestos, permanência dos objetos, coleta animada, descarte fora da tela e eventos sem duplicação.
+Execute em um Developer PowerShell, com CMake no PATH. O projeto raiz também gera `jacarun_cli`. Os 20 grupos do núcleo incluem 100 corridas longas e 100 percursos com verificação de progressão e espaçamento; três grupos adicionais testam gestos, permanência dos objetos, coleta animada, descarte fora da tela e eventos sem duplicação.
 
 ## Android de desenvolvimento
 
@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-android.ps1
 
 O script procura as instalações convencionais. É possível informar `-AndroidSdk`, `-AndroidNdk` e `-JavaHome`. As dependências Gradle ficam em `.deps/gradle`. O helper cria uma vista local dos componentes já instalados em `.deps/android-sdk` e `local.properties`, ambos ignorados pelo Git. Ele não instala SDKs nem aceita licenças; componentes ausentes devem ser preparados no Android Studio.
 
-Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.6.1-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.6 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
+Saída: `visual/proj.android/app/build/outputs/apk/debug/JacaRun-debug.apk`. O helper copia para `output/JacaRun-debug.apk` e `output/JacaRun-0.7.0-debug.apk` (versão obtida do metadata do build). É um APK de desenvolvimento; não é AAB de loja e não tem assinatura de produção. O segundo vídeo mostra a 0.3; a 0.7 precisa de reteste físico. Veja o [registro de validação](../docs/VALIDACAO_VISUAL.md).
 
 Para instalar em um Android próprio conectado e autorizado para depuração:
 

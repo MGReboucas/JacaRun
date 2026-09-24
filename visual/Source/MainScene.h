@@ -39,7 +39,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Item0, Item1, Item2, Item3 };
+    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -60,6 +60,9 @@ private:
     std::filesystem::path savePath;
     bool saveAllowed = true;
     bool shop = false;
+    bool upgradeShop = false;
+    int shopPage = 0;
+    std::string shopNotice = "Compras permanentes com moedas da corrida.";
     std::string saveWarning;
     ax::Vec2 touchStart;
     Action touchAction = Action::None;

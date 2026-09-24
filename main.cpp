@@ -72,9 +72,9 @@ void ShowShop(const GameManager& game) {
     const auto& catalog = AccessoryCatalog();
     for (std::size_t i = 0; i < catalog.size(); ++i) {
         std::cout << i << " - " << catalog[i].name << " | " << catalog[i].price << " moedas"
-                  << (game.GetProfile().owned[i] ? " | adquirido" : "") << '\n';
+                  << (game.GetProfile().owned[i] ? " | adquirido" : "") << " | " << catalog[i].description << '\n';
     }
-    std::cout << "Use comprar ID ou equipar ID. Acessorios sao cosmeticos e aparecem no painel.\n";
+    std::cout << "Use comprar ID; equipar ID para visuais 0-6. Melhorias 7-9 ficam ativas automaticamente.\n";
 }
 
 void ShowRun(const GameManager& game) {

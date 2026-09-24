@@ -1,5 +1,6 @@
 #include "../include/Balance.h"
 #include "../include/GameManager.h"
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -140,9 +141,9 @@ void AirPickupsAndMagnet() {
     game.Spawn(EntityType::Coin, game.GetDistance() + 0.1, 2.0);
     game.Update(0.02);
     CHECK(game.GetRunCoins() == 1);
-    game.Spawn(EntityType::RareFish, game.GetDistance() + 3.0, 2.0);
+    game.Spawn(EntityType::RareFish, game.GetDistance() + 10.0, 2.5);
     game.Jump();
-    game.Update(0.4); // Cruza o peixe enquanto o personagem ainda esta no ar.
+    game.Update(1.0); // Cross the narrow fish window near the jump apex.
     CHECK(game.GetFoods() == 1);
 }
 
@@ -215,11 +216,11 @@ void RewardsAndShop() {
     CHECK(game.GetProfile().coins == 1 && game.GetProfile().experience == 3);
     CHECK(game.GetProfile().bestScore == record);
     CHECK(!game.BuyAccessory(1) && !game.EquipAccessory(1));
-    game.GetProfile().coins = 50;
+    game.GetProfile().coins = 2500;
     CHECK(game.BuyAccessory(1));
-    CHECK(game.GetProfile().coins == 35);
+    CHECK(game.GetProfile().coins == 500);
     CHECK(!game.BuyAccessory(1));
-    CHECK(game.GetProfile().coins == 35);
+    CHECK(game.GetProfile().coins == 500);
     CHECK(game.EquipAccessory(1) && game.GetProfile().equipped == 1);
     CHECK(!game.BuyAccessory(-1) && !game.EquipAccessory(4));
     game.GetProfile().experience = Balance::ExperiencePerLevel;
@@ -289,7 +290,7 @@ void PersistenceAndInvalidSave() {
     Profile profile;
     std::string error;
     CHECK(profile.Load(path, error));
-    profile.coins = 80;
+    profile.coins = 6000;
     profile.experience = 650;
     profile.bestScore = 1234;
     profile.bestDistance = 123.45;
@@ -319,6 +320,7 @@ void PersistenceAndInvalidSave() {
 }
 
 void PlayableProceduralRuns() {
+    int totalCoins=0, lowestCoins=1000000, highestCoins=0;
     for (std::uint32_t seed = 0; seed < 100; ++seed) {
         GameManager game;
         game.StartGame(seed);
@@ -340,7 +342,12 @@ void PlayableProceduralRuns() {
         CHECK(game.GetDistance() > 4000 && game.GetObstaclesPassed() >= 90);
         CHECK(game.GetFoods() > 20 && game.GetRunCoins() > 40);
         CHECK(game.GetScore() > static_cast<std::int64_t>(game.GetDistance()));
+        totalCoins+=game.GetRunCoins();
+        lowestCoins=std::min(lowestCoins,game.GetRunCoins());
+        highestCoins=std::max(highestCoins,game.GetRunCoins());
     }
+    std::cout<<"[ECONOMIA] 100 corridas simuladas de 200 s: media "<<totalCoins/100.0
+             <<" moedas; intervalo "<<lowestCoins<<"-"<<highestCoins<<".\n";
 }
 
 void ProgressiveEncounterSafety() {
@@ -411,8 +418,8 @@ void CollectibleSpacingAndArc() {
     std::vector<Entity> arc;
     for (const auto& e:preview.GetEntities())
         if(e.type==EntityType::Coin && e.distance<45) arc.push_back(e);
-    CHECK(arc.size()==4);
-    CHECK(arc[0].height<arc[1].height && arc[2].height>arc[3].height);
+    CHECK(arc.size()==3);
+    CHECK(arc[0].height<arc[1].height && arc[1].height>arc[2].height);
     for (double speed:{10.0,17.0,24.0,40.0,60.0}) {
         Player player; player.Jump();
         double previous=24;
@@ -490,6 +497,70 @@ void NewObstaclesAndInsaneRuns() {
     CHECK(log && rock && vine);
 }
 
+void ShopMigrationAndUpgrades() {
+    Profile profile;
+    profile.coins=11999;
+    CHECK(!profile.Buy(ComboUpgrade));
+    CHECK(profile.coins==11999 && !profile.owned[ComboUpgrade]);
+    profile.coins=100000;
+    CHECK(profile.Buy(ComboUpgrade) && profile.Buy(MagnetUpgrade) && profile.Buy(FrenzyUpgrade));
+    CHECK(profile.coins==33000);
+    CHECK(!profile.Buy(ComboUpgrade) && !profile.Equip(ComboUpgrade));
+    CHECK(profile.Buy(5) && profile.Equip(5) && profile.coins==3000);
+    TempFiles files; std::string error;
+    const auto path=files.folder/"profile.save";
+    CHECK(profile.Save(path,error));
+    Profile restored;
+    CHECK(restored.Load(path,error));
+    CHECK(restored.coins==3000 && restored.equipped==5 && restored.owned[FrenzyUpgrade]);
+    { std::ofstream out(path); out<<"JACARUN 1\n99 650 9000 600 15 3\n"; }
+    CHECK(restored.Load(path,error));
+    CHECK(restored.coins==99 && restored.equipped==3 && restored.owned[1] && restored.owned[2]);
+    CHECK(!restored.owned[ComboUpgrade]);
+    CHECK(restored.Save(path,error));
+    Profile migrated; CHECK(migrated.Load(path,error));
+    CHECK(migrated.equipped==3 && migrated.coins==99);
+    for(const auto invalid:{"JACARUN 2\n0 0 0 0 1024 0\n", "JACARUN 2\n0 0 0 0 1023 9\n"}) {
+        { std::ofstream out(path); out<<invalid; }
+        CHECK(!migrated.Load(path,error) && migrated.coins==99);
+    }
+}
+
+void FishFrenzyAndBenefits() {
+    GameManager game;
+    game.StartGame(1,false);
+    game.Spawn(EntityType::Fish,.1,2.5);
+    game.Update(.02);
+    CHECK(game.GetFoods()==0 && game.GetFrenzyMultiplier()==1);
+    game.Spawn(EntityType::Fish,game.GetDistance()+10,2.5);
+    CHECK(game.Jump()); game.Update(1.1);
+    CHECK(game.GetFoods()==1 && game.GetFrenzyMultiplier()==2);
+    const auto startScore=game.GetScore(); const auto startDistance=game.GetDistance();
+    game.Update(1);
+    CHECK(std::abs((game.GetScore()-startScore)-2*(game.GetDistance()-startDistance))<2);
+    const auto time=game.GetFrenzySeconds();
+    game.TogglePause(); game.Update(100);
+    CHECK(game.GetFrenzySeconds()==time); game.TogglePause();
+    game.Update(7); CHECK(game.GetFrenzyMultiplier()==1);
+    game.EndRun();
+    game.GetProfile().coins=100000;
+    CHECK(game.BuyAccessory(ComboUpgrade) && game.BuyAccessory(MagnetUpgrade) && game.BuyAccessory(FrenzyUpgrade));
+    game.StartGame(2,false);
+    game.Spawn(EntityType::RareFish,.1,.5); // Isolated bonus fixture; procedural fish are airborne.
+    game.Spawn(EntityType::Magnet,.2,.5);
+    game.Update(.04);
+    CHECK(game.GetFrenzyMultiplier()==3 && game.GetFrenzySeconds()>12.9);
+    CHECK(game.GetMagnetSeconds()>13.9);
+    game.Update(8.5);
+    CHECK(game.GetCombo()==1); // Upgrade preserves combo beyond the normal eight seconds.
+    game.Spawn(EntityType::Shield,game.GetDistance()+.1,.5);
+    game.Spawn(EntityType::Ground,game.GetDistance()+.5);
+    game.Update(.1);
+    CHECK(game.IsPlaying() && game.GetFrenzyMultiplier()==1);
+    game.EndRun(); game.StartGame(3,false);
+    CHECK(game.GetFrenzySeconds()==0 && game.GetFrenzyMultiplier()==1);
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
         {"acoes do jogador", PlayerActions}, {"fisica por tempo", TimeBasedPhysics},
@@ -503,7 +574,9 @@ int main() {
         {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety},
         {"acoes acompanham distancia", ActionsFollowTravel},
         {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc},
-        {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns}
+        {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns},
+        {"loja cara, melhorias e migracao de save", ShopMigrationAndUpgrades},
+        {"peixe preciso, frenesi e melhorias", FishFrenzyAndBenefits}
     };
     int failures = 0;
     for (const auto& test : tests) {

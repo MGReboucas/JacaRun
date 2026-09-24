@@ -1,6 +1,6 @@
 # JacaRun — Cronograma de produção e monetização
 
-**Versão:** 1.6 · **Atualizado em:** 24/09/2026 · **Status:** revisão 0.6.1 com progressão 20/50/100 mil; reteste mobile em andamento
+**Versão:** 1.7 · **Atualizado em:** 24/09/2026 · **Status:** revisão 0.7 com loja, melhorias e frenesi dos peixes; reteste mobile em andamento
 
 **Objetivo:** publicar um jogo mobile estável na Google Play e na App Store, com monetização por anúncios e acompanhamento de retenção, custos e receita.
 
@@ -12,9 +12,9 @@ A rota proposta é **Android primeiro, lançamento inicial no Brasil e iOS na se
 | --- | --- | --- |
 | Regras do jogo | Núcleo C++ ligado à cena Axmol: corrida contínua, pulo, deslize, obstáculos, alimentos, moedas, combos e power-ups | Validar sensação de jogo e colisões em aparelho |
 | Progressão | Loja visual, acessórios visíveis, XP, níveis, recordes e save no diretório gravável da plataforma | Teste mobile, balanceamento, migração e recuperação guiada de save |
-| Testes | 18 grupos do núcleo + 3 de apresentação/gestos aprovados; prova visual em duas proporções; vídeos Android da 0.2/0.3 | Reteste físico da 0.6, integração dos SDKs, anúncios e atualização de versão |
+| Testes | 20 grupos do núcleo + 3 de apresentação/gestos aprovados; prova visual em duas proporções; vídeos Android da 0.2/0.3 | Reteste físico da 0.7, integração dos SDKs, anúncios e atualização de versão |
 | Visual e áudio | Mangue, parallax, personagem e UI provisórios desenhados em código; fonte com OFL | Arte e animações finais, tutorial, música, efeitos e inventário de licenças |
-| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.6.1; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
+| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.7.0; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
 | Anúncios | Não integrados | Contas, SDKs, política etária, consentimento, rewarded, validação e relatórios |
 | Serviços online | Não implementados | O primeiro lançamento não depende de login, nuvem ou ranking |
 | Ambiente local | Windows validado; primeiro teste Android recebido em vídeo | Nova versão precisa ser instalada/retestada pelo usuário; Mac/iPhone ainda não validados |
@@ -34,7 +34,7 @@ A suíte atual valida regras do protótipo; ela não comprova qualidade mobile n
 | Privacidade/jurídico e contabilidade | Público menor de idade, dados, publicidade, termos e recebimentos | Consultas em S1 e validação antes do beta monetizado |
 | Operação do produto | Suporte, painel de métricas, anúncios e incidentes | Acompanhamento diário após publicar; reservar parte da capacidade do projeto |
 
-**Versão 1.0 proposta:** um mangue bem acabado; um personagem; corrida infinita; pulo e deslize; obstáculos e coletáveis; combos; escudo e ímã; loja cosmética; recordes; progressão local; tutorial; pausa; configurações de áudio; privacidade; suporte; anúncios opcionais para usuários elegíveis.
+**Versão 1.0 proposta:** um mangue bem acabado; um personagem; corrida infinita; pulo e deslize; obstáculos e coletáveis; combos; escudo e ímã; loja de cosméticos e melhorias compradas com moedas do jogo; recordes; progressão local; tutorial; pausa; configurações de áudio; privacidade; suporte; anúncios opcionais para usuários elegíveis.
 
 **Após a primeira versão:** ranking semanal, conta e nuvem, novos biomas, missões e conquistas, eventos, mediação com outras redes e eventual compra para remover publicidade. As moedas da loja inicial são ganhas jogando ou por recompensa de anúncio; não há venda de moeda por dinheiro real no escopo-base.
 
@@ -213,7 +213,7 @@ Os números abaixo são **metas internas propostas**, não requisitos oficiais d
 | A publicidade prejudica o jogo? | Retenção, duração de sessão e reclamações por frequência de ads | Reduzir pressão publicitária quando piorar a experiência |
 | Vale comprar divulgação? | Custo por instalação e valor acumulado por usuário/coorte | Investir apenas com hipótese de retorno e limite de perda definido |
 
-Instrumentar eventos como início/fim de corrida, motivo de derrota, compra cosmética, oferta de recompensa, anúncio carregado/exibido, recompensa e erro. Separar ambientes de teste/produção e limitar dados por idade, consentimento e finalidade. Não incluir nome, e-mail ou data de nascimento em eventos de gameplay.
+Instrumentar eventos como início/fim de corrida, motivo de derrota, compra cosmética/melhoria, oferta de recompensa, anúncio carregado/exibido, recompensa e erro. Separar ambientes de teste/produção e limitar dados por idade, consentimento e finalidade. Não incluir nome, e-mail ou data de nascimento em eventos de gameplay.
 
 ### Modelo simples de receita
 
@@ -297,7 +297,7 @@ Execução técnica antecipada, autorizada para iniciar a versão visual. As dat
 
 **Evidências locais:** `build/Testing/Temporary/LastTest.log`, `output/visual-smoke-20260924-113351/result.txt` e capturas na mesma pasta. O repositório inclui [menu](docs/images/prototipo-menu.png) e [corrida](docs/images/prototipo-corrida.png). O comando `build-visual.ps1 -Smoke` reproduz a prova com outro diretório e perfil isolado. Logs e binários não são versionados.
 
-**Android atual:** `output/JacaRun-0.6.1-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
+**Android atual:** `output/JacaRun-0.7.0-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
 
 ### Revisão 0.3 — feedback do vídeo Android, 24/09/2026
 
@@ -321,7 +321,7 @@ O usuário enviou `example-android.mp4`, com aproximadamente 33,5 segundos. A gr
 
 | ID | Tarefa | Responsável | Estimativa de esforço | Dependência | Aceite |
 | --- | --- | --- | --- | --- | --- |
-| MOB-01 | Retestar o APK 0.6 no Samsung S24+ | Desenvolvimento + titular do aparelho | 4–8 h | APK atualizado e aparelho autorizado | Gestos, retomada e save conferidos; modelo/Android/evidências registrados |
+| MOB-01 | Retestar o APK 0.7 no Samsung S24+ | Desenvolvimento + titular do aparelho | 4–8 h | APK atualizado e aparelho autorizado | Gestos, retomada e save conferidos; modelo/Android/evidências registrados |
 | VIS-02 | Validar ajustes de tela cheia, permanência dos objetos e gestos | Desenvolvimento | 8–16 h | Reteste MOB-01 | Sessão de 15 min e duas proporções de tela sem defeito crítico |
 | IOS-01 | Gerar build e validar em iPhone | Desenvolvimento + titular da conta | 8–16 h, além da obtenção de acesso | Mac, Xcode e iPhone | Mesmo ciclo jogável instalado e save/ciclo de vida conferidos |
 | ADS-01 | Definir público, elegibilidade e contas; provar callback nativo de teste | Produto + Desenvolvimento | 12–24 h após decisões | Decisões etárias, conta AdMob e builds mobile | Anúncio de teste não bloqueia o jogo e callback é entregue uma vez |
@@ -348,12 +348,12 @@ Esforços acima são estimativas de trabalho, não tempo de espera por aparelhos
 | Marco em andamento | M2/M3 parcialmente executados; M1 aguarda decisões de produto/contas |
 | Entregas demonstradas | Vídeos Android da 0.2/0.3; revisão 0.4 em duas proporções; 15 grupos de regras + 3 de apresentação/gestos; APK arm64 e capturas |
 | Horas previstas/realizadas | A preencher |
-| Impedimentos e responsáveis | Titular: retestar 0.6 e informar versão Android; acesso a Mac/iPhone pendente; Produto: público, orçamento e contas; Desenvolvimento: fechar prova mobile |
+| Impedimentos e responsáveis | Titular: retestar 0.7 e informar versão Android; acesso a Mac/iPhone pendente; Produto: público, orçamento e contas; Desenvolvimento: fechar prova mobile |
 | Custo acumulado e saldo de orçamento | A preencher |
 | Métricas disponíveis | Amostra, período e plataforma |
 | Próxima decisão | Titular/Produto: confirmar a nova interação no Android e decisões de M1 antes da prova de publicidade |
 
-**Próxima entrega concreta:** atualizar para o APK 0.6 no Android e retestar enquadramento, sequências, gestos, pausa e save; completar MOB-01 com evidências. Em paralelo, fechar decisões de M1 e organizar a compilação iOS em Mac remoto para concluir a prova multiplataforma e de anúncios do M2.
+**Próxima entrega concreta:** atualizar para o APK 0.7 no Android e retestar enquadramento, sequências, gestos, pausa e save; completar MOB-01 com evidências. Em paralelo, fechar decisões de M1 e organizar a compilação iOS em Mac remoto para concluir a prova multiplataforma e de anúncios do M2.
 
 ### Atualização de jogabilidade — 24/09/2026, versão 0.4
 
@@ -406,3 +406,19 @@ A verificação anterior de assinatura válida da 0.4.0 não demonstrava compati
 - [x] Atualizar HUD com Pressão, Difícil, Muito difícil, Elite e Domínio.
 - [ ] Validar a curva no S24+ com jogadores; “muito difícil” e “domínio” são metas de balanceamento, ainda não resultados de teste humano.
 - [x] Aprovar regressão (18 grupos + 3), continuidade nos marcos e prova visual; gerar APK 0.6.1/versionCode 7 com certificado original e alinhamento ZIP conferidos.
+
+### Revisão 0.7 — esforço de compra e peixes úteis, 24/09/2026
+
+- [x] Reformular loja em abas Visuais/Melhorias, páginas e cards com preço, descrição e estado.
+- [x] Expandir para sete visuais (incluindo original) e três melhorias permanentes; preços entre 2.000 e 50.000 moedas para itens pagos.
+- [x] Implementar +2 s de combo, +4 s de ímã e +3 s de frenesi, comprados uma vez e ativados automaticamente.
+- [x] Levar peixes ao alto do salto, com coleta precisa, separados das moedas; peixe comum dá distância ×2/6 s e raro ×3/10 s.
+- [x] Migrar save v1 para v2 mantendo saldo, recordes, equipamento e todas as compras anteriores, sem cobrança retroativa.
+- [x] Aprovar 20 grupos de mecânicas e 3 de apresentação, incluindo compra insuficiente/duplicada, benefícios, pausa/expiração do frenesi e migração de save.
+- [x] Medir economia automatizada: 100 corridas de 200 s, média 321,73 moedas; boné de 2.000 exige cerca de 7 corridas completas nesse desempenho. Não é previsão de tempo para jogadores reais.
+- [ ] Retestar instalação, save antigo, loja, coleta precisa dos peixes e conforto da progressão no S24+.
+- [ ] Validar se o esforço dos itens de topo retém jogadores; ajustar preços a partir de sessões humanas e, futuramente, telemetria consentida.
+
+**Para a próxima sessão:** testar a 0.7 no aparelho e trazer feedback sobre loja, tempo para juntar moedas e janela de coleta dos peixes. Depois, retomar MOB-01/VIS-02 e a compilação iOS remota. Anúncios continuam pendentes.
+- [x] Aprovar compra/equipamento/melhoria/save por toque em duas proporções e conferir visualmente as capturas.
+- [x] Gerar APK 0.7.0/versionCode 8 com certificado original e alinhamento ZIP de 16 KB conferidos; validação física pendente.

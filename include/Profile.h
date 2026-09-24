@@ -9,16 +9,20 @@
 struct Accessory {
     const char* name;
     std::int64_t price;
+    const char* description;
 };
 
-const std::array<Accessory, 4>& AccessoryCatalog();
+inline constexpr int CosmeticCount = 7;
+inline constexpr int ShopItemCount = 10;
+inline constexpr int ComboUpgrade = 7, MagnetUpgrade = 8, FrenzyUpgrade = 9;
+const std::array<Accessory, ShopItemCount>& AccessoryCatalog();
 
 struct Profile {
     std::int64_t coins = 0;
     std::int64_t experience = 0;
     std::int64_t bestScore = 0;
     double bestDistance = 0.0;
-    std::array<bool, 4> owned{{true, false, false, false}};
+    std::array<bool, ShopItemCount> owned{{true}};
     int equipped = 0;
 
     std::int64_t GetLevel() const;

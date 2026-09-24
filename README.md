@@ -6,7 +6,32 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo jogável em C++ no terminal**, com as regras da corrida, economia local e o ciclo de jogar novamente. Os comandos avançam a simulação em turnos de 0,2 segundo; ainda não há janela gráfica, controles por toque ou aplicativo mobile.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, controles por toque/gesto e teclado, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão visual foi compilada e testada no Windows; a validação em aparelhos ainda faz parte do cronograma.
+
+![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
+
+## Jogar a versão visual no Windows
+
+Requisitos: Git e Visual Studio 2022/2026 com desenvolvimento desktop C++ e CMake. O primeiro build baixa o Axmol **2.11.4**, fixado por commit, e suas dependências.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Run
+```
+
+- **Pular:** botão PULAR, toque no cenário, gesto para cima, Espaço ou seta para cima.
+- **Deslizar:** botão DESLIZAR, gesto para baixo ou seta para baixo.
+- **Pausar/retomar:** botão de pausa, P ou Esc. Enter inicia/reinicia ou retoma uma corrida.
+- **Loja:** SEU JACA no menu; acessórios usam apenas moedas coletadas no jogo.
+
+O executável fica em `visual/build-win32/bin/JacaRun/Debug/JacaRun.exe`. No Windows, o save visual fica em `%LOCALAPPDATA%/JacaRun/jacarun.save`; ele é separado do save do terminal. Sair para o menu ou perder contabiliza a corrida. Ir para segundo plano pausa; uma corrida interrompida pelo encerramento do processo não é restaurada.
+
+Para reproduzir a validação automática da interface:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
+```
+
+O teste usa perfil isolado, envia eventos de toque/gesto e verifica coleta, obstáculos, pausa, save e reinício. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
 ## Decisões confirmadas no GDD
 
@@ -25,9 +50,9 @@ A identidade proposta é brasileira, tropical, cartoon e bem-humorada. O GDD tam
 
 **Os valores, preços, tipos de power-ups e regras detalhadas abaixo são decisões experimentais deste protótipo.** Eles não substituem a aprovação e o balanceamento das seções ainda abertas no GDD.
 
-## Compilar e jogar
+## Compilar e jogar no terminal
 
-É necessário um compilador com suporte a **C++17**. Não há dependências externas à biblioteca padrão; no Windows, o salvamento usa também a API do sistema para substituir o arquivo com segurança.
+Para a interface de terminal, é necessário um compilador com suporte a **C++17**. O núcleo não depende da engine; no Windows, o salvamento usa também a API do sistema para substituir o arquivo com segurança.
 
 Na raiz do projeto, usando PowerShell com `g++` disponível no `PATH`:
 
@@ -53,7 +78,7 @@ Para assistir a uma corrida automática de demonstração:
 
 A demonstração não lê nem grava o progresso do jogador. A seed permite repetir o mesmo percurso.
 
-## Controles
+## Controles do terminal
 
 Digite o comando e pressione Enter.
 
@@ -173,6 +198,10 @@ A suíte verifica física, restrições das ações, colisões, consumo único d
 .
 ├── main.cpp                  # Interface do terminal, comandos e demonstracao
 ├── build.ps1                 # Compilacao do jogo e testes
+├── build-visual.ps1          # Protótipo Axmol no Windows e teste visual
+├── build-android.ps1         # APK Android de desenvolvimento
+├── CMakeLists.txt            # Núcleo, terminal e testes sem a engine
+├── visual/                   # Cena Axmol e adaptadores de plataforma
 ├── include/
 │   ├── Balance.h             # Parametros de fisica, dificuldade e recompensas
 │   ├── GameManager.h         # Estados e regras da partida
@@ -195,8 +224,8 @@ Os principais parâmetros estão em `include/Balance.h`; os acessórios e seus p
 
 O ciclo local do protótipo está implementado. A visão completa do GDD ainda depende de:
 
-- Engine ou framework gráfico, animações, áudio e arte do mangue.
-- Interface mobile, controles por toque e builds para Android/iOS.
+- Arte e animações finais, áudio, tutorial e acessibilidade.
+- Validação da interface/toque em aparelhos Android/iOS e builds para as lojas.
 - Ranking online semanal, contas, validação de pontuações e recompensas competitivas.
 - Novos biomas, fases, missões, conquistas e regras de desbloqueio.
 - Balanceamento final, monetização e fechamento do escopo da versão 1.0.

@@ -1,6 +1,6 @@
 # JacaRun — Cronograma de produção e monetização
 
-**Versão:** 1.0 · **Atualizado em:** 24/09/2026 · **Status:** plano proposto para execução
+**Versão:** 1.1 · **Atualizado em:** 24/09/2026 · **Status:** execução iniciada — prova visual desktop validada; prova mobile em andamento
 
 **Objetivo:** publicar um jogo mobile estável na Google Play e na App Store, com monetização por anúncios e acompanhamento de retenção, custos e receita.
 
@@ -10,14 +10,14 @@ A rota proposta é **Android primeiro, lançamento inicial no Brasil e iOS na se
 
 | Área | Situação em 24/09/2026 | O que falta para produção |
 | --- | --- | --- |
-| Regras do jogo | Protótipo C++ com corrida, pulo, deslize, obstáculos, alimentos, moedas, combos e power-ups | Transformar simulação por comandos em jogo visual com atualização contínua e toque |
-| Progressão | Loja cosmética, XP, níveis, recordes e save local | Interface, balanceamento, diretório de dados mobile, migração e recuperação de save |
-| Testes | 14 grupos aprovados, incluindo 100 percursos simulados | Testes em aparelhos, integração dos SDKs, anúncios, ciclo de vida e atualização de versão |
-| Visual e áudio | Identidade descrita no GDD | Arte final, animações, cenários, UI, música, efeitos e licenças comerciais |
-| Android e iOS | Sem projetos mobile ou pacotes das lojas | Engine, toolchains, assinaturas, builds, beta e submissão |
+| Regras do jogo | Núcleo C++ ligado à cena Axmol: corrida contínua, pulo, deslize, obstáculos, alimentos, moedas, combos e power-ups | Validar sensação de jogo e colisões em aparelho |
+| Progressão | Loja visual, acessórios visíveis, XP, níveis, recordes e save no diretório gravável da plataforma | Teste mobile, balanceamento, migração e recuperação guiada de save |
+| Testes | 14 grupos/100 percursos aprovados no MSVC; teste visual com toque/gesto, pausa, save e reinício aprovado no Windows | Testes em aparelhos, integração dos SDKs, anúncios e atualização de versão |
+| Visual e áudio | Mangue, parallax, personagem e UI provisórios desenhados em código; fonte com OFL | Arte e animações finais, tutorial, música, efeitos e inventário de licenças |
+| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 0.2.0 compilado/inspecionado; entradas iOS preparadas | Instalação e testes físicos; build iOS em Mac, assinaturas de produção, beta e submissão |
 | Anúncios | Não integrados | Contas, SDKs, política etária, consentimento, rewarded, validação e relatórios |
 | Serviços online | Não implementados | O primeiro lançamento não depende de login, nuvem ou ranking |
-| Ambiente local | Compilação realizada; execução final bloqueada pelo Smart App Control do Windows | Regularizar execução no ambiente de desenvolvimento ou usar ambiente autorizado de testes |
+| Ambiente local | Compilação e execução do novo alvo Axmol/MSVC e dos testes do núcleo concluídas no Windows, sem alterar proteções do sistema | Android físico não conectado; Mac/iPhone ainda não validados |
 
 A suíte atual valida regras do protótipo; ela não comprova qualidade mobile nem prontidão para as lojas. O ranking semanal continua na visão do GDD, mas é proposto para uma atualização posterior, evitando colocar backend e antifraude no caminho da primeira receita.
 
@@ -68,7 +68,7 @@ Esta divisão é uma proposta de priorização. Incluir ranking, múltiplas fase
 
 ## 4. Arquitetura e trabalho técnico
 
-A recomendação inicial é avaliar **Axmol na linha estável/LTS** para manter C++ e compartilhar o jogo entre Android e iOS. Na consulta atual, o projeto apresenta a linha 2.11.x como LTS e a 3.0 como beta; a versão exata deve ser fixada após a prova de compatibilidade, sem assumir uma beta para produção. [Axmol oficial](https://axmol.dev/).
+**Axmol 2.11.4 foi adotado para a prova visual**, fixado no commit `b14941e6f50a0ce12489bd8f57041e093fb58819`. O núcleo C++ é compartilhado com o terminal e não depende da engine. A escolha definitiva para produção continua condicionada à prova em Android/iPhone e à ponte de anúncios. Build, versões e limitações estão no [guia visual](visual/README.md). [Revisão da engine](https://github.com/axmolengine/axmol/tree/b14941e6f50a0ce12489bd8f57041e093fb58819).
 
 O **Google Mobile Ads C++ SDK foi descontinuado em 2024 e deixou de receber manutenção em 2025**. Para este projeto novo, integrar SDKs nativos suportados, por uma ponte Android e outra iOS. Validar a versão escolhida, suas dependências e eventuais requisitos Families antes de adotá-la. [Descontinuação oficial](https://developers.google.com/admob/cpp/deprecation).
 
@@ -274,6 +274,45 @@ Uma versão instalada não pode ser simplesmente desfeita em todos os aparelhos:
 
 ## 12. Primeiras ações e acompanhamento
 
+### Entrega inicial — 24/09/2026
+
+Execução técnica antecipada, autorizada para iniciar a versão visual. As datas do cronograma-base permanecem como referência. **Nenhum marco M1–M9 foi encerrado**: tarefas de M2/M3 já avançaram, mas seus critérios completos ainda não foram cumpridos.
+
+- [x] Fixar Axmol 2.11.4 e preparar bootstrap local reproduzível para Windows.
+- [x] Reutilizar o núcleo C++ existente na cena visual, sem duplicar regras por plataforma.
+- [x] Implementar janela vertical, cenário de mangue/parallax e jacaré com arte provisória.
+- [x] Ligar corrida, pulo, deslize, obstáculos, moedas, alimentos, combos e power-ups à interface.
+- [x] Implementar botões, gestos, teclado, placar, pausa, resultado e reinício.
+- [x] Exibir loja e acessórios equipados; usar diretório gravável da plataforma para o perfil.
+- [x] Pausar no segundo plano e exigir retomada explícita.
+- [x] Compilar e executar o protótipo no Windows; conferir capturas de menu e corrida.
+- [x] Aprovar os 14 grupos de testes do núcleo no MSVC, incluindo 100 percursos procedurais.
+- [x] Aprovar teste visual com eventos de toque/gesto: pulo, deslize, coleta, pausa, colisão, save/releitura e reinício.
+- [x] Preparar entradas nativas Android e iOS com o mesmo código C++ e orientação vertical.
+- [x] Gerar APK Android arm64 0.2.0; verificar assinatura Debug, manifesto, alinhamento ZIP de 16 KB e segmentos ELF de ambas as bibliotecas nativas.
+- [ ] Instalar no Android físico e validar toque, safe area, retorno do segundo plano e save após reabrir.
+- [ ] Cumprir sessão de 15 minutos em aparelho e registrar desempenho/problemas (critério M3).
+- [ ] Compilar em Mac e instalar em iPhone (parte do critério M2).
+- [ ] Provar ponte nativa de anúncios com IDs de teste e retorno de callback (parte do critério M2).
+
+**Evidências locais:** `build/Testing/Temporary/LastTest.log`, `output/visual-smoke-20260924-113351/result.txt` e capturas na mesma pasta. O repositório inclui [menu](docs/images/prototipo-menu.png) e [corrida](docs/images/prototipo-corrida.png). O comando `build-visual.ps1 -Smoke` reproduz a prova com outro diretório e perfil isolado. Logs e binários não são versionados.
+
+**Android:** APK de teste em `output/JacaRun-debug.apk` (aproximadamente 23,9 MB); build reproduzível por `build-android.ps1`. As verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
+
+### Próximas tarefas executáveis
+
+| ID | Tarefa | Responsável | Estimativa de esforço | Dependência | Aceite |
+| --- | --- | --- | --- | --- | --- |
+| MOB-01 | Instalar e jogar o APK em Android físico | Desenvolvimento + titular do aparelho | 4–8 h | APK compilado e aparelho autorizado | Controles, retomada e save conferidos; modelo/Android/evidências registrados |
+| VIS-02 | Ajustar enquadramento, colisões e controles a partir do teste físico | Desenvolvimento | 8–16 h | MOB-01 | Sessão de 15 min e duas proporções de tela sem defeito crítico |
+| IOS-01 | Gerar build e validar em iPhone | Desenvolvimento + titular da conta | 8–16 h, além da obtenção de acesso | Mac, Xcode e iPhone | Mesmo ciclo jogável instalado e save/ciclo de vida conferidos |
+| ADS-01 | Definir público, elegibilidade e contas; provar callback nativo de teste | Produto + Desenvolvimento | 12–24 h após decisões | Decisões etárias, conta AdMob e builds mobile | Anúncio de teste não bloqueia o jogo e callback é entregue uma vez |
+| ART-01 | Fechar direção visual e inventário dos assets finais | Produto + Arte | 8–16 h iniciais | Feedback sobre o protótipo | Guia visual e backlog de arte/áudio aprovados |
+
+Esforços acima são estimativas de trabalho, não tempo de espera por aparelhos, contas ou análise de terceiros. **Próxima tarefa prioritária: MOB-01**, seguida de VIS-02. A receita com AdMob continua planejada nas etapas 2/5/9; ainda não há anúncios ativos.
+
+### Decisões e acompanhamento recorrente
+
 - [ ] Confirmar dedicação semanal, orçamento e responsável por cada papel.
 - [ ] Aprovar escopo 1.0 e adiar formalmente ranking/backend para outra versão.
 - [ ] Decidir o tratamento etário e validar a proposta de ads apenas para adultos elegíveis.
@@ -287,13 +326,13 @@ Uma versão instalada não pode ser simplesmente desfeita em todos os aparelhos:
 
 | Registro semanal | Preenchimento |
 | --- | --- |
-| Semana/data | A preencher |
-| Marco em andamento | M1 a M9 |
-| Entregas demonstradas | Links para build, commit e evidência de teste |
+| Semana/data | Preparação antecipada · 24/09/2026 |
+| Marco em andamento | M2/M3 parcialmente executados; M1 aguarda decisões de produto/contas |
+| Entregas demonstradas | Protótipo visual Windows; 14 grupos de regras; teste visual de toque/gesto e save; APK Android arm64 compilado/inspecionado; capturas acima |
 | Horas previstas/realizadas | A preencher |
-| Impedimentos e responsáveis | A preencher |
+| Impedimentos e responsáveis | Titular: disponibilizar Android físico e acesso a Mac/iPhone; Produto: público, orçamento e contas; Desenvolvimento: fechar prova mobile |
 | Custo acumulado e saldo de orçamento | A preencher |
 | Métricas disponíveis | Amostra, período e plataforma |
-| Próxima decisão | Responsável e prazo |
+| Próxima decisão | Titular/Produto: organizar aparelho Android para MOB-01 e decisões de M1, antes de iniciar a prova de publicidade |
 
-**Próxima entrega concreta:** M1 e M2 — fechar público/escopo e colocar uma prova visual em Android e iPhone, preservando o núcleo C++ e validando a integração nativa de anúncios de teste.
+**Próxima entrega concreta:** instalar e validar o APK em Android físico, marcar MOB-01 com evidências e corrigir os problemas encontrados. Em paralelo, fechar decisões de M1 e organizar Mac/iPhone para concluir a prova multiplataforma e de anúncios do M2.

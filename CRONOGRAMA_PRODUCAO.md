@@ -1,6 +1,6 @@
 # JacaRun — Cronograma de produção e monetização
 
-**Versão:** 1.2 · **Atualizado em:** 24/09/2026 · **Status:** revisão visual 0.3 após vídeo do primeiro teste Android; reteste mobile em andamento
+**Versão:** 1.3 · **Atualizado em:** 24/09/2026 · **Status:** revisão 0.4 de enquadramento e percurso; reteste mobile em andamento
 
 **Objetivo:** publicar um jogo mobile estável na Google Play e na App Store, com monetização por anúncios e acompanhamento de retenção, custos e receita.
 
@@ -12,9 +12,9 @@ A rota proposta é **Android primeiro, lançamento inicial no Brasil e iOS na se
 | --- | --- | --- |
 | Regras do jogo | Núcleo C++ ligado à cena Axmol: corrida contínua, pulo, deslize, obstáculos, alimentos, moedas, combos e power-ups | Validar sensação de jogo e colisões em aparelho |
 | Progressão | Loja visual, acessórios visíveis, XP, níveis, recordes e save no diretório gravável da plataforma | Teste mobile, balanceamento, migração e recuperação guiada de save |
-| Testes | 14 grupos/100 percursos do núcleo + 3 grupos de apresentação/gestos aprovados; prova visual em duas proporções; vídeo do usuário demonstra a 0.2 no Android | Reteste físico da 0.3, integração dos SDKs, anúncios e atualização de versão |
+| Testes | 15 grupos do núcleo + 3 de apresentação/gestos aprovados; prova visual em duas proporções; vídeos Android da 0.2/0.3 | Reteste físico da 0.4, integração dos SDKs, anúncios e atualização de versão |
 | Visual e áudio | Mangue, parallax, personagem e UI provisórios desenhados em código; fonte com OFL | Arte e animações finais, tutorial, música, efeitos e inventário de licenças |
-| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.3.0; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
+| Android e iOS | Axmol 2.11.4 fixado; APK Android arm64 em revisão 0.4.0; entradas iOS preparadas | Reteste físico; build iOS em Mac, assinaturas de produção, beta e submissão |
 | Anúncios | Não integrados | Contas, SDKs, política etária, consentimento, rewarded, validação e relatórios |
 | Serviços online | Não implementados | O primeiro lançamento não depende de login, nuvem ou ranking |
 | Ambiente local | Windows validado; primeiro teste Android recebido em vídeo | Nova versão precisa ser instalada/retestada pelo usuário; Mac/iPhone ainda não validados |
@@ -297,7 +297,7 @@ Execução técnica antecipada, autorizada para iniciar a versão visual. As dat
 
 **Evidências locais:** `build/Testing/Temporary/LastTest.log`, `output/visual-smoke-20260924-113351/result.txt` e capturas na mesma pasta. O repositório inclui [menu](docs/images/prototipo-menu.png) e [corrida](docs/images/prototipo-corrida.png). O comando `build-visual.ps1 -Smoke` reproduz a prova com outro diretório e perfil isolado. Logs e binários não são versionados.
 
-**Android atual:** `output/JacaRun-0.3.0-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
+**Android atual:** `output/JacaRun-0.4.0-debug.apk` (aproximadamente 24 MB), também copiado para `output/JacaRun-debug.apk`; build reproduzível por `build-android.ps1`. Assinatura e verificações estáticas de 16 KB passaram, mas a execução em ambiente de páginas de 16 KB ainda precisa ser testada. Detalhes no [registro de validação](docs/VALIDACAO_VISUAL.md).
 
 ### Revisão 0.3 — feedback do vídeo Android, 24/09/2026
 
@@ -321,7 +321,7 @@ O usuário enviou `example-android.mp4`, com aproximadamente 33,5 segundos. A gr
 
 | ID | Tarefa | Responsável | Estimativa de esforço | Dependência | Aceite |
 | --- | --- | --- | --- | --- | --- |
-| MOB-01 | Retestar o APK 0.3 no Android já usado pelo usuário | Desenvolvimento + titular do aparelho | 4–8 h | APK atualizado e aparelho autorizado | Gestos, retomada e save conferidos; modelo/Android/evidências registrados |
+| MOB-01 | Retestar o APK 0.4 no Android já usado pelo usuário | Desenvolvimento + titular do aparelho | 4–8 h | APK atualizado e aparelho autorizado | Gestos, retomada e save conferidos; modelo/Android/evidências registrados |
 | VIS-02 | Validar ajustes de tela cheia, permanência dos objetos e gestos | Desenvolvimento | 8–16 h | Reteste MOB-01 | Sessão de 15 min e duas proporções de tela sem defeito crítico |
 | IOS-01 | Gerar build e validar em iPhone | Desenvolvimento + titular da conta | 8–16 h, além da obtenção de acesso | Mac, Xcode e iPhone | Mesmo ciclo jogável instalado e save/ciclo de vida conferidos |
 | ADS-01 | Definir público, elegibilidade e contas; provar callback nativo de teste | Produto + Desenvolvimento | 12–24 h após decisões | Decisões etárias, conta AdMob e builds mobile | Anúncio de teste não bloqueia o jogo e callback é entregue uma vez |
@@ -346,11 +346,22 @@ Esforços acima são estimativas de trabalho, não tempo de espera por aparelhos
 | --- | --- |
 | Semana/data | Preparação antecipada · 24/09/2026 |
 | Marco em andamento | M2/M3 parcialmente executados; M1 aguarda decisões de produto/contas |
-| Entregas demonstradas | Vídeo Android da 0.2; revisão visual 0.3 em duas proporções; 14 grupos de regras + 3 de apresentação/gestos; APK arm64 e capturas |
+| Entregas demonstradas | Vídeos Android da 0.2/0.3; revisão 0.4 em duas proporções; 15 grupos de regras + 3 de apresentação/gestos; APK arm64 e capturas |
 | Horas previstas/realizadas | A preencher |
-| Impedimentos e responsáveis | Titular: retestar 0.3 e informar modelo/Android; acesso a Mac/iPhone pendente; Produto: público, orçamento e contas; Desenvolvimento: fechar prova mobile |
+| Impedimentos e responsáveis | Titular: retestar 0.4 e informar modelo/Android; acesso a Mac/iPhone pendente; Produto: público, orçamento e contas; Desenvolvimento: fechar prova mobile |
 | Custo acumulado e saldo de orçamento | A preencher |
 | Métricas disponíveis | Amostra, período e plataforma |
 | Próxima decisão | Titular/Produto: confirmar a nova interação no Android e decisões de M1 antes da prova de publicidade |
 
-**Próxima entrega concreta:** atualizar para o APK 0.3 no Android e retestar gestos, tela cheia, objetos, pausa e save; completar MOB-01 com evidências. Em paralelo, fechar decisões de M1 e organizar Mac/iPhone para concluir a prova multiplataforma e de anúncios do M2.
+**Próxima entrega concreta:** atualizar para o APK 0.4 no Android e retestar enquadramento, sequências, gestos, pausa e save; completar MOB-01 com evidências. Em paralelo, fechar decisões de M1 e organizar a compilação iOS em Mac remoto para concluir a prova multiplataforma e de anúncios do M2.
+
+### Atualização de jogabilidade — 24/09/2026, versão 0.4
+
+- [x] Revisar o segundo vídeo Android: aproximadamente 54 s, corrida até 692 m, objetos ultrapassados visíveis, combos e power-ups. Isso não encerra a validação de 15 minutos.
+- [x] Subir a faixa da corrida de 23,5% para 35% da altura e aumentar o jacaré; ampliar a distância visível à frente.
+- [x] Implementar seis padrões de obstáculos, duplas após 180 m e triplas após 550 m; aumentar a densidade até 1.800 m, com limite de velocidade e recuperação entre ações.
+- [x] Mostrar o ritmo atual no HUD e alinhar as trilhas de moedas ao salto/deslize esperado.
+- [x] Validar 100 corridas simuladas de mais de 4 km e verificar progressão/espaçamento em 100 percursos de 6 km: 15 grupos de mecânicas e 3 de apresentação aprovados.
+- [ ] Retestar a 0.4 no Android por 15 minutos, incluindo sequências após 550 m e ritmo máximo após 1.800 m; avaliar conforto, clareza e reação humana. MOB-01/VIS-02 continuam abertos.
+
+O nível de experiência salvo não aumenta a dificuldade inicial: cada tentativa recomeça no aquecimento. Publicidade, iOS e aprovação nas lojas continuam pendentes.

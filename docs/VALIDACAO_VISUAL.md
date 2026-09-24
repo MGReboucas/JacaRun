@@ -1,4 +1,22 @@
-# Registro de validação — protótipo visual 0.3
+# Registro de validação — protótipo visual
+
+## Revisão 0.4 — enquadramento e percurso progressivo
+
+Em 24/09/2026, o segundo vídeo Android (aproximadamente 54 s, até 692 m) orientou esta revisão. Os quadros mostram a 0.3 com objetos persistentes, gestos sem botões de corrida e power-ups. Não houve medição de latência, áudio ou desempenho por essa inspeção.
+
+A 0.4 posiciona o chão em 35% da altura durante a corrida, amplia o jacaré e o deslocamento visual do salto e reduz a escala horizontal do mundo para oferecer cerca de 1,44 s de antecipação na velocidade máxima. O menu mantém enquadramento próprio. O HUD identifica cinco faixas de ritmo.
+
+O gerador usa seis combinações sem repetição imediata do mesmo padrão. Duplas começam após 180 m, triplas após 550 m e a densidade cresce até 1.800 m; o primeiro encontro gerado após cada limite inaugura a nova faixa. Separação mínima: 32,4 m, equivalente a 1,35 s a 24 m/s. As moedas acompanham a ação exigida e os intervalos oferecem recompensa no chão. A progressão depende da distância da tentativa, não do nível do perfil.
+
+Validação do núcleo: **15/15 grupos** aprovados, incluindo 100 corridas de 200 s com mais de 4 km sem derrota por um controlador automático, além da inspeção de espaçamento, variedade e maior densidade tardia em 100 percursos de 6 km. Apresentação/gestos: **3/3 grupos** aprovados. Esses testes verificam possibilidade mecânica; conforto e dificuldade humana continuam pendentes no Android.
+
+Prova visual final aprovada em 432 × 810 (`output/visual-smoke-20260924-124222`) e 360 × 788 (`output/visual-smoke-20260924-124243`), com inspeção das capturas. Gestos, coleta, objetos persistentes, pausa/retomada, derrota, reinício e save isolado passaram.
+
+APK: `output/JacaRun-0.4.0-debug.apk`, 23.994.503 bytes, pacote `com.mgreboucas.jacarun`, versionCode 3, min API 23/target 36. Build Android concluído; assinatura Debug v1/v2 e alinhamento ZIP de 16 KB aprovados. SHA-256: `5ec6b242a8b5eb17a489e65aba72714133389a0120d03c0b92a1f78d56389b4b`.
+
+Pendente: instalar a atualização no aparelho, conferir preservação do save, jogar por 15 minutos e avaliar as sequências nos ritmos altos. Nenhuma execução física da 0.4 foi realizada nesta validação.
+
+## Histórico — revisão 0.3
 
 **Data:** 24/09/2026. **Escopo:** revisão do protótipo após o vídeo Android; não é aceite de produção.
 

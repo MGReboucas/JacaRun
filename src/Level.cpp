@@ -30,6 +30,7 @@ void Level::Reset(std::uint32_t seed, bool procedural) {
     entities.clear();
     nextEncounter = 30.0;
     encounterCount = 0;
+    previousPattern = -1;
     nextId = 1;
     generate = procedural;
     GenerateAhead(0.0);
@@ -46,23 +47,46 @@ void Level::Spawn(EntityType type, double distance, double height) {
 void Level::GenerateAhead(double playerDistance) {
     if (!generate) return;
     while (nextEncounter < playerDistance + Balance::LookAhead) {
-        const bool ground = random() % 2 == 0;
-        Spawn(ground ? EntityType::Ground : EntityType::High, nextEncounter);
-        // Recompensa junto ao obstaculo valoriza a acao correta.
-        Spawn(ground ? EntityType::Fish : EntityType::Crab, nextEncounter, ground ? 2.0 : 0.5);
-        for (int coin = 1; coin <= 3; ++coin) {
-            Spawn(EntityType::Coin, nextEncounter + 12.0 + coin * 2.0, 0.5);
+        // Difficulty follows this run, never the saved profile: retries start gently.
+        const double intensity = std::clamp(nextEncounter / 1800.0, 0.0, 1.0);
+        const int available = nextEncounter < 180 ? 2 : nextEncounter < 550 ? 4 : 6;
+        int pattern = static_cast<int>(random() % available);
+        if (pattern == previousPattern) pattern = (pattern + 1) % available;
+        previousPattern = pattern;
+        // Singles, alternating pairs, repeated jumps and three-action combinations.
+        static constexpr EntityType patterns[6][3] = {
+            {EntityType::Ground, EntityType::Ground, EntityType::Ground},
+            {EntityType::High, EntityType::High, EntityType::High},
+            {EntityType::Ground, EntityType::High, EntityType::Ground},
+            {EntityType::High, EntityType::Ground, EntityType::High},
+            {EntityType::Ground, EntityType::Ground, EntityType::High},
+            {EntityType::High, EntityType::Ground, EntityType::High}
+        };
+        const int count = pattern < 2 ? 1 : pattern < 4 ? 2 : 3;
+        // Using the maximum speed guarantees recovery time even while accelerating.
+        const double actionGap = Balance::MaximumSpeed * (1.65 - .30 * intensity);
+        double at = nextEncounter;
+        for (int action = 0; action < count; ++action) {
+            const auto type = patterns[pattern][action];
+            const bool jump = type == EntityType::Ground;
+            Spawn(type, at);
+            Spawn(jump ? EntityType::Fish : EntityType::Crab, at, jump ? 2.0 : .5);
+            // Coin trails preview the required action; no optional jump before a branch.
+            for (int coin = -1; coin <= 1; ++coin)
+                Spawn(EntityType::Coin, at + coin * 2.0, jump ? 1.8 : .5);
+            if (action + 1 < count) at += actionGap;
         }
-        const bool rare = random() % 5 == 0;
-        Spawn(rare ? EntityType::RareFish : EntityType::Crab, nextEncounter + 25.0, rare ? 2.0 : 0.5);
+        // A short reward/recovery lane separates combinations.
+        for (int coin = 0; coin < 3; ++coin)
+            Spawn(EntityType::Coin, at + 16 + coin * 3, .5);
+        Spawn(random() % 5 == 0 ? EntityType::RareFish : EntityType::Crab, at + 22, .5);
         ++encounterCount;
         if (encounterCount % 4 == 0) {
             Spawn(encounterCount % 8 == 0 ? EntityType::Magnet : EntityType::Shield,
-                  nextEncounter + 32.0, 0.5);
+                  at + 25.0, 0.5);
         }
         // Espacamento permite terminar uma acao antes do proximo obstaculo.
-        const double minimumGap = std::max(48.0, 72.0 - nextEncounter * 0.015);
-        nextEncounter += minimumGap + static_cast<double>(random() % 13);
+        nextEncounter = at + 58.0 - 18.0 * intensity + static_cast<double>(random() % 9);
     }
 }
 

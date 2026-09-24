@@ -33,9 +33,10 @@
 using namespace ax;
 namespace {
 constexpr float Contact = 168;
-constexpr float PixelsPerMeter = 12;
-constexpr float HeightScale = 66;
-constexpr float CrocScale = 1.18f;
+// More preview distance at top speed while keeping the character prominent.
+constexpr float PixelsPerMeter = 9;
+constexpr float HeightScale = 76;
+constexpr float CrocScale = 1.28f;
 const Color4F Ink(0.035f, 0.17f, 0.18f, 1);
 const Color4F Lime(0.78f, 0.94f, 0.39f, 1);
 const Color4B Cream(247, 243, 219, 255);
@@ -59,7 +60,7 @@ std::string whole(double value) { return std::to_string(static_cast<long long>(v
 bool MainScene::init() {
     if (!Scene::init()) return false;
     viewHeight = Director::getInstance()->getVisibleSize().height;
-    floorY = viewHeight * 0.235f;
+    floorY = viewHeight * 0.35f;
     world = DrawNode::create(); addChild(world);
     panels = DrawNode::create(); addChild(panels, 1);
     ui = Node::create(); addChild(ui, 2);
@@ -205,7 +206,7 @@ void MainScene::suspend() {
 
 void MainScene::rebuildUI() {
     ui->removeAllChildren(); panels->clear(); buttons.clear();
-    score = distance = coins = status = gestureHint = nullptr;
+    score = distance = coins = status = pace = gestureHint = nullptr;
     gestures.Cancel(); activeTouch = -1; touchAction = Action::None;
     const auto state = game.GetState();
     const auto safe = Director::getInstance()->getSafeAreaRect();
@@ -253,6 +254,8 @@ void MainScene::rebuildUI() {
     coins = text(whole(game.GetRunCoins()), 24, {413, top - 29}, Color4B(255,219,122,255), true);
     if (state == GameState::Playing) {
         status = text("", 17, {240, top - 93}, Cream);
+        pace = text("", 14, {240, top - 121}, Muted);
+        pace->enableOutline(Color4B(13,47,42,210), 1);
         gestureHint = text("ARRASTE PARA CIMA: PULO\nPARA BAIXO: DESLIZE  /  2 DEDOS: PAUSA",
                            17, {240, bottom + 49}, Cream);
         gestureHint->setAlignment(TextHAlignment::CENTER);
@@ -432,7 +435,8 @@ void MainScene::drawEntity(const VisualEntity& object) {
 
 void MainScene::drawWorld() {
     world->clear();
-    const float h=viewHeight, ground=floorY;
+    const float h=viewHeight;
+    const float ground=game.GetState()==GameState::Menu ? h*.29f : floorY;
     // Sky reaches the real edges of the device; no letterboxed bands or reserved control area.
     for(int i=0;i<36;++i) {
         const float t=i/35.0f;
@@ -517,7 +521,7 @@ void MainScene::update(float dt) {
     const auto size = Director::getInstance()->getVisibleSize();
     if (std::abs(size.height - viewHeight) > .5f) {
         viewHeight = size.height;
-        floorY = viewHeight * .235f;
+        floorY = viewHeight * .35f;
         rebuildUI();
     }
     // Clamp a slow frame instead of teleporting through obstacles after a stall.
@@ -539,6 +543,14 @@ void MainScene::update(float dt) {
     if (score) score->setString(whole(game.GetScore()));
     if (distance) distance->setString(whole(game.GetDistance())+" m");
     if (coins) coins->setString(whole(game.GetRunCoins()));
+    if (pace) {
+        const double meters = game.GetDistance();
+        pace->setString(meters < 180 ? "RITMO 1 / AQUECIMENTO" :
+                        meters < 550 ? "RITMO 2 / SEQUENCIAS DUPLAS" :
+                        meters < 1100 ? "RITMO 3 / DESAFIOS TRIPLOS" :
+                        meters < 1800 ? "RITMO 4 / MANGUE ACELERADO" :
+                                        "RITMO 5 / CORRIDA SELVAGEM");
+    }
     if (status) {
         std::string info;
         if (!shop && game.GetShieldSeconds()>0) info+="ESCUDO "+whole(std::ceil(game.GetShieldSeconds()))+"s  ";

@@ -264,7 +264,7 @@ void SeedAndGeneration() {
     for (int distance = 10; distance < 10000; distance += 10) {
         a.Crossed(distance - 10, distance);
         a.GenerateAhead(distance);
-        CHECK(a.GetEntities().size() < 50); // Percurso infinito com memoria limitada.
+        CHECK(a.GetEntities().size() < 90); // Includes the complete last generated combination.
         CHECK(!a.GetEntities().empty());
         for (const auto& entity : a.GetEntities()) CHECK(entity.distance > distance);
     }
@@ -322,7 +322,7 @@ void PlayableProceduralRuns() {
     for (std::uint32_t seed = 0; seed < 100; ++seed) {
         GameManager game;
         game.StartGame(seed);
-        for (int step = 0; step < 1600 && game.IsPlaying(); ++step) {
+        for (int step = 0; step < 4000 && game.IsPlaying(); ++step) {
             if (game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding()) {
                 for (const auto& entity : game.GetLevel().GetEntities()) {
                     if ((entity.distance - game.GetDistance()) / game.GetSpeed() > 0.3) break;
@@ -337,9 +337,38 @@ void PlayableProceduralRuns() {
             game.TakeMessages();
         }
         CHECK(game.IsPlaying());
-        CHECK(game.GetDistance() > 1300 && game.GetObstaclesPassed() >= 18);
+        CHECK(game.GetDistance() > 4000 && game.GetObstaclesPassed() >= 90);
         CHECK(game.GetFoods() > 20 && game.GetRunCoins() > 40);
         CHECK(game.GetScore() > static_cast<std::int64_t>(game.GetDistance()));
+    }
+}
+
+void ProgressiveEncounterSafety() {
+    for (std::uint32_t seed = 0; seed < 100; ++seed) {
+        Level level;
+        level.Reset(seed);
+        double previous = -100;
+        int early = 0, late = 0, repeated = 0, alternating = 0;
+        EntityType previousType = EntityType::Coin;
+        for (int distance = 10; distance <= 6000; distance += 10) {
+            for (const auto& entity : level.Crossed(distance - 10, distance)) {
+                if (!IsObstacle(entity.type)) continue;
+                // At maximum speed, enough time to finish either action and react again.
+                const double seconds = (entity.distance - previous) / Balance::MaximumSpeed;
+                CHECK(seconds >= 1.35 - 1e-7);
+                CHECK(seconds > Balance::SlideSeconds + .4);
+                CHECK(seconds > 2 * Balance::JumpForce / -Balance::Gravity + .4);
+                if (entity.distance <= 1000) ++early;
+                if (entity.distance >= 5000) ++late;
+                if (previousType == entity.type) ++repeated;
+                else ++alternating;
+                previous = entity.distance;
+                previousType = entity.type;
+            }
+            level.GenerateAhead(distance);
+        }
+        CHECK(late > early);
+        CHECK(repeated > 5 && alternating > 5);
     }
 }
 
@@ -352,7 +381,8 @@ int main() {
         {"pausa e reinicio", PauseAndRestart}, {"recompensas e loja", RewardsAndShop},
         {"velocidade e passos de tempo", SpeedAndFrameIndependence}, {"geracao e seeds", SeedAndGeneration},
         {"persistencia e save invalido", PersistenceAndInvalidSave},
-        {"100 percursos jogaveis", PlayableProceduralRuns}
+        {"100 percursos jogaveis", PlayableProceduralRuns},
+        {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety}
     };
     int failures = 0;
     for (const auto& test : tests) {

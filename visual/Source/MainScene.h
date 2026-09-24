@@ -54,6 +54,7 @@ private:
     ax::Label* distance = nullptr;
     ax::Label* coins = nullptr;
     ax::Label* status = nullptr;
+    ax::Label* pace = nullptr;
     ax::Label* gestureHint = nullptr;
     std::vector<Button> buttons;
     std::filesystem::path savePath;

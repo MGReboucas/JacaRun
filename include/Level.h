@@ -32,6 +32,7 @@ private:
     std::vector<Entity> entities;
     double nextEncounter = 30.0;
     int encounterCount = 0;
+    int previousPattern = -1;
     std::uint64_t nextId = 1;
     bool generate = true;
 };

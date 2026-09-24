@@ -6,7 +6,7 @@ Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) pa
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
 
-Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.3 remove os botões da corrida e mantém obstáculos e itens perdidos visíveis até saírem da tela. O vídeo do primeiro teste Android orientou esses ajustes; a nova versão ainda precisa de reteste físico.
+Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.4 destaca a ação mais perto do centro da tela e traz sequências progressivas de obstáculos. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
 
 ![Protótipo visual do JacaRun](docs/images/prototipo-menu.png)
 
@@ -34,7 +34,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.3.0-debug.apk`. Transfira ao celular e instale como atualização da 0.2; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.4.0-debug.apk`. Transfira ao celular e instale como atualização da 0.3; o identificador e o formato do save foram preservados. Não é uma versão de loja.
+
+### Ritmo da corrida
+
+O percurso começa com raízes e galhos isolados. Após 180 m surgem duplas; após 550 m, combinações de três ações, incluindo saltos seguidos e alternância entre pulo e deslize. Seis padrões evitam repetir imediatamente a mesma sequência. A densidade cresce até 1.800 m, com trechos de recompensa entre combinações e moedas indicando a altura da ação. O HUD mostra cinco faixas de ritmo.
+
+A velocidade continua limitada a 24 m/s. Os obstáculos mantêm pelo menos 1,35 s de separação nessa velocidade, permitindo terminar pulo ou deslize antes da próxima ação. Cada nova corrida recomeça suavemente, independentemente do nível salvo do perfil. Esses valores são experimentais e precisam de teste humano.
 
 ## Decisões confirmadas no GDD
 
@@ -129,7 +135,7 @@ A gravidade e o movimento vertical usam tempo decorrido. A pausa congela movimen
 | --- | ---: | --- |
 | Caranguejo | 20 | Baixo |
 | Peixe | 30 | No ar, junto a raízes |
-| Peixe raro | 100 | No ar, em algumas recompensas entre obstáculos |
+| Peixe raro | 100 | No chão, em algumas recompensas entre sequências |
 
 A coleta considera a altura do personagem. Alimentos fora do alcance são perdidos.
 

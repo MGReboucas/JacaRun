@@ -2,38 +2,60 @@
 #include <iostream>
 
 Player::Player() {
-    positionY = 0.0f; // Chão do mangue
+    positionY = 0.0f;
     velocityY = 0.0f;
     gravity = -2.0f;  
     jumpForce = 8.0f; 
     isGrounded = true;
+    
+    isSliding = false;
+    slideDuration = 0;
 }
 
 void Player::Update() {
+    // Física da Gravidade
     if (!isGrounded) {
-        velocityY += gravity;         // A gravidade puxa para baixo
-        positionY += velocityY;       // Atualiza a posição
+        velocityY += gravity;
+        positionY += velocityY;
     }
 
-    // Verifica se bateu no chão
     if (positionY <= 0.0f) {
         positionY = 0.0f;
         velocityY = 0.0f;
-        if (!isGrounded) {
-            std::cout << "O Jaca tocou no chao do mangue.\n";
-        }
         isGrounded = true;
+    }
+
+    // Lógica do Slide (Agachar)
+    if (isSliding) {
+        slideDuration--; // Diminui o tempo restante do deslize
+        if (slideDuration <= 0) {
+            isSliding = false;
+            std::cout << "[Jaca] O Jaca levantou e voltou a correr normalmente.\n";
+        }
     }
 }
 
 void Player::Jump() {
-    if (isGrounded) {
+    // Só salta se estiver no chão e NÃO estiver agachado
+    if (isGrounded && !isSliding) {
         velocityY = jumpForce;
         isGrounded = false;
-        std::cout << "O Jaca SALTOU! BOING!\n";
+        std::cout << "[Acao] O Jaca SALTOU! BOING!\n";
+    }
+}
+
+void Player::Slide() {
+    if (isGrounded && !isSliding) {
+        isSliding = true;
+        slideDuration = 3; // O deslize dura 3 frames nesta simulação
+        std::cout << "[Acao] O Jaca AGACHOU! VRAUU!\n";
     }
 }
 
 float Player::GetPositionY() {
     return positionY;
+}
+
+bool Player::IsSliding() {
+    return isSliding;
 }

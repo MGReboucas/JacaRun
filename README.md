@@ -2,6 +2,21 @@
 
 **Corra. Coma. Compita.**
 
+**Atualização 0.8.1:** novo ícone do Jaca no Android e Windows. Arte original e instruções de exportação em [assets/branding](assets/branding/README.md). APK: `output/JacaRun-0.8.1-debug.apk`.
+
+## Novidades da versão 0.8
+
+- Animação com passada proporcional à velocidade, cauda articulada, respiração e piscadas; alongamento no salto, compressão na aterrissagem e transição suave de deslize. A física e as colisões continuam independentes do desenho.
+- Poeira nos passos, salto e aterrissagem, partículas de coleta/impacto, moedas giratórias, peixes animados e luzes discretas no mangue. Animação da corrida congelada durante a pausa.
+- Seis efeitos sonoros originais, sintetizados localmente. Controle **SOM** no menu e na pausa, com preferência persistente. Sem música ou áudio externo; `scripts/generate-sounds.ps1` reproduz os WAVs.
+- **MISSÕES E CONQUISTAS** no menu: três missões simultâneas, nove variações em rotação, barras de progresso e seis conquistas permanentes. No terminal, use `objetivos`.
+- Missões de 250–750 m, 15–30 moedas, 8–15 obstáculos ou 5–8 alimentos. O progresso acumula entre tentativas; bônus de 80–160 moedas por missão. A substituta começa na corrida seguinte, sem reaproveitar o excedente.
+- Conquistas por distância total, moedas coletadas, obstáculos, alimentos, dez corridas de pelo menos 50 m e recorde de 2.000 m. Bônus únicos de 200–600 moedas; moedas de bônus não contam como coleta.
+- Resultado com moedas coletadas e bônus separados, objetivos concluídos e acesso à próxima missão. Recompensas são creditadas uma única vez ao encerrar, inclusive ao sair para o menu.
+- Save v3 migra v1/v2 sem perder saldo, XP, compras ou recordes. Contadores acumulados começam na atualização; o recorde de distância existente vale para sua conquista. Saves v3 não são compatíveis com versões antigas.
+
+**APK desta atualização:** `output/JacaRun-0.8.0-debug.apk`. Instale sobre a versão anterior para preservar o progresso; continua sendo um build de desenvolvimento.
+
 Consulte o [cronograma de produção e monetização](CRONOGRAMA_PRODUCAO.md) para as etapas de Android, iOS, publicação nas lojas e integração com AdMob.
 
 JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares em orientação vertical. Um jacaré corre pelo mangue, supera obstáculos, captura alimentos e coleta moedas para personalizar sua aparência.
@@ -34,7 +49,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.7.0-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.8.1-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 
@@ -164,7 +179,7 @@ Moedas coletadas ficam no saldo da corrida e são creditadas na carteira quando 
 
 A loja tem abas de visuais e melhorias, páginas, descrição de efeitos, saldo e feedback de compra. Visuais 0–6 são equipáveis e aparecem no jacaré. Melhorias 7–9 são permanentes e ficam ativas automaticamente: não precisam ser equipadas nem recompradas. O jogo bloqueia compras repetidas e saldo insuficiente. Não há compra com dinheiro real.
 
-Os preços são metas experimentais de esforço: em 100 corridas automatizadas de 200 s, sem melhorias, a média foi 321,73 moedas (312–336). Nesse desempenho, o boné exige aproximadamente 7 corridas completas; o capacete, 156. Isso não é previsão de desempenho humano: derrotas e coletas perdidas aumentam o tempo. Revisar retenção e preços após testes reais, sem retirar compras já conquistadas.
+Os preços são metas experimentais de esforço: em 100 corridas automatizadas de 200 s, sem melhorias, a média de coleta foi 321,73 moedas (312–336), antes dos novos bônus. A versão 0.8 acrescenta recompensas de missões e conquistas, então a estimativa anterior de 7/156 corridas para boné/capacete já não representa o saldo final. Isso não é previsão de desempenho humano: revisar retenção e preços após testes reais, sem retirar compras já conquistadas.
 
 ### Power-ups experimentais
 
@@ -185,7 +200,7 @@ O jogador ganha um nível a cada **200 XP**. Os níveis registram a progressão 
 
 ## Salvamento
 
-O perfil é salvo automaticamente ao encerrar a corrida, comprar ou equipar um acessório, voltar ao menu e sair. Ele inclui carteira, XP, recordes, visuais, melhorias e equipamento atual. A versão 0.7 lê saves antigos e grava o formato v2, preservando moedas e compras anteriores, sem cobrar diferenças de preço. Versões antigas do app não leem o formato novo.
+O perfil é salvo automaticamente ao encerrar a corrida, comprar ou equipar um acessório, voltar ao menu e sair. Ele inclui carteira, XP, recordes, visuais, melhorias, equipamento, missões e conquistas. A versão 0.8 lê v1/v2 e grava v3, preservando moedas e compras anteriores, sem cobrar diferenças de preço. Versões antigas do app não leem o formato novo.
 
 O caminho padrão é `output/jacarun.save`, relativo à pasta de execução. Os arquivos de progresso e os novos executáveis são ignorados pelo Git.
 
@@ -241,10 +256,10 @@ Os principais parâmetros estão em `include/Balance.h`; os acessórios e seus p
 
 O ciclo local do protótipo está implementado. A visão completa do GDD ainda depende de:
 
-- Arte e animações finais, áudio, tutorial e acessibilidade.
+- Arte final, trilha musical, tutorial interativo e mais opções de acessibilidade; animações e efeitos sonoros básicos já estão presentes.
 - Validação da interface/toque em aparelhos Android/iOS e builds para as lojas.
 - Ranking online semanal, contas, validação de pontuações e recompensas competitivas.
-- Novos biomas, fases, missões, conquistas e regras de desbloqueio.
+- Novos biomas, fases e regras de desbloqueio; missões curtas e conquistas locais já estão presentes.
 - Balanceamento final, monetização e fechamento do escopo da versão 1.0.
 
 ## Referência

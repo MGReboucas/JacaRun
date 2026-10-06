@@ -24,8 +24,8 @@ android {
         applicationId packageName
         minSdkVersion minSdk
         targetSdkVersion targetSdk
-        versionCode 8
-        versionName "0.7.0"
+        versionCode 10
+        versionName "0.8.1"
 
         externalNativeBuild {
             cmake {

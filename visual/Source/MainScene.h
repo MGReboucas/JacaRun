@@ -28,6 +28,7 @@
 #include "GameManager.h"
 #include "RunPresentation.h"
 #include "GestureInput.h"
+#include "CharacterMotion.h"
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -39,11 +40,24 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Item0, Item1, Item2 };
+    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
     GestureInput gestures;
+    CharacterMotion motion;
+    struct Particle { ax::Vec2 position, velocity; float life, duration, radius; ax::Color4F color; };
+    std::vector<Particle> particles;
+    float dustTime = 0, pickupPulse = 0, impactTime = 0, resultTime = 0;
+    unsigned int notifiedMissions = 0;
+    ax::Label* missionHud = nullptr;
+    ax::Label* missionToast = nullptr;
+    ax::Label* resultGoals = nullptr;
+    float toastTime = 0;
+    bool goals = false, achievementTab = false;
+    int goalPage = 0;
+    bool soundEnabled = true;
+    float soundCooldown = 0;
     float viewHeight = 900;
     float floorY = 220;
     float runTime = 0;
@@ -85,6 +99,8 @@ private:
     void drawEntity(const VisualEntity& entity);
     void handleGesture(Gesture gesture);
     void drawCrocodile(ax::Vec2 feet, float scale = 1);
+    void burst(ax::Vec2 point, ax::Color4F color, int count, float strength = 1);
+    void sound(const char* name);
     ax::Label* text(const std::string& value, float size, ax::Vec2 point,
                     ax::Color4B color = ax::Color4B(247, 243, 219, 255), bool bold = false);
     void button(const std::string& title, ax::Rect bounds, Action action, bool primary = false);

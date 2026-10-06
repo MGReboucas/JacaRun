@@ -24,6 +24,7 @@
  ****************************************************************************/
 
 #include "MainScene.h"
+#include "audio/AudioEngine.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -84,6 +85,8 @@ bool MainScene::init() {
     }
 #endif
     std::string error;
+    soundEnabled=UserDefault::getInstance()->getBoolForKey("sound-enabled",true);
+    AudioEngine::setMaxAudioInstance(8);
     if (smokeStep < 0 && !game.GetProfile().Load(savePath, error)) {
         saveAllowed = false;
         saveWarning = "Save indisponivel. Original preservado.";
@@ -113,7 +116,7 @@ bool MainScene::init() {
         }
         if (t->getID() != activeTouch) return;
         activeTouch = -1;
-        if (!shop && p.y - touchStart.y > 35 && p.y - touchStart.y > std::abs(p.x-touchStart.x)*1.15f) {
+        if (!shop && !goals && p.y - touchStart.y > 35 && p.y - touchStart.y > std::abs(p.x-touchStart.x)*1.15f) {
             if (game.GetState() == GameState::Paused) act(Action::Pause);
             else act(Action::Play);
         } else if (touchAction != Action::None) {
@@ -130,7 +133,7 @@ bool MainScene::init() {
         if (key == Key::KEY_SPACE || key == Key::KEY_UP_ARROW || key == Key::KEY_W) act(Action::Jump);
         if (key == Key::KEY_DOWN_ARROW || key == Key::KEY_S) act(Action::Slide);
         if (key == Key::KEY_P || key == Key::KEY_ESCAPE || key == Key::KEY_BACK) {
-            if (shop) act(Action::Back); else act(Action::Pause);
+            if (shop || goals) act(Action::Back); else act(Action::Pause);
         }
         if (key == Key::KEY_ENTER) {
             if (game.GetState() == GameState::Paused) act(Action::Pause);
@@ -165,7 +168,10 @@ void MainScene::handleGesture(Gesture gesture) {
     else if (gesture == Gesture::Pause) act(Action::Pause);
 }
 void MainScene::start(bool procedural) {
-    shop = false;
+    shop = goals = false;
+    motion.Reset(); particles.clear();
+    dustTime = pickupPulse = impactTime = resultTime = toastTime = 0;
+    notifiedMissions = 0;
     auto seed = static_cast<std::uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count());
     game.StartGame(seed, procedural);
     presentation.Reset();
@@ -180,22 +186,45 @@ void MainScene::start(bool procedural) {
 void MainScene::act(Action action) {
     switch (action) {
     case Action::Play: if (!game.IsPlaying() && game.GetState() != GameState::Paused) start(); break;
-    case Action::Jump: game.Jump(); break;
-    case Action::Slide: game.Slide(); break;
+    case Action::Jump:
+        if (game.Jump()) { burst({Contact-60, floorY+4}, Color4F(.80f,.78f,.49f,.8f), 7, .65f); sound("jump"); }
+        break;
+    case Action::Slide:
+        if (game.Slide()) { burst({Contact-80, floorY+5}, Color4F(.80f,.78f,.49f,.8f), 9, .7f); sound("slide"); }
+        break;
     case Action::Pause:
         if (game.IsPlaying() || game.GetState() == GameState::Paused) {
-            game.TogglePause(); rebuildUI();
+            game.TogglePause(); AudioEngine::stopAll(); rebuildUI();
         }
         break;
-    case Action::Menu: game.ReturnToMenu(); shop = false; save(); rebuildUI(); break;
+    case Action::Menu: game.ReturnToMenu(); shop = goals = false; save(); rebuildUI(); break;
     case Action::Shop:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; rebuildUI(); }
         break;
-    case Action::Back: shop = false; rebuildUI(); break;
+    case Action::Back: shop = goals = false; rebuildUI(); break;
+    case Action::Goals:
+        if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
+            shop = false; goals = true; goalPage = 0; rebuildUI();
+        }
+        break;
+    case Action::Missions: achievementTab=false; goalPage=0; rebuildUI(); break;
+    case Action::Achievements: achievementTab=true; goalPage=0; rebuildUI(); break;
+    case Action::Sound:
+        soundEnabled=!soundEnabled;
+        if(smokeStep<0) {
+            UserDefault::getInstance()->setBoolForKey("sound-enabled",soundEnabled);
+            UserDefault::getInstance()->flush();
+        }
+        if(!soundEnabled) AudioEngine::stopAll(); else sound("coin");
+        rebuildUI(); break;
     case Action::Looks: upgradeShop=false; shopPage=0; rebuildUI(); break;
     case Action::Upgrades: upgradeShop=true; shopPage=0; rebuildUI(); break;
-    case Action::Previous: shopPage=std::max(0,shopPage-1); rebuildUI(); break;
-    case Action::Next: shopPage=std::min(2,shopPage+1); rebuildUI(); break;
+    case Action::Previous:
+        if(goals) goalPage=std::max(0,goalPage-1); else shopPage=std::max(0,shopPage-1);
+        rebuildUI(); break;
+    case Action::Next:
+        if(goals) goalPage=std::min(1,goalPage+1); else shopPage=std::min(2,shopPage+1);
+        rebuildUI(); break;
     case Action::Item0: case Action::Item1: case Action::Item2: {
         if (!shop) break;
         const int id = (upgradeShop ? CosmeticCount : shopPage*3) +
@@ -217,6 +246,7 @@ void MainScene::save() {
     else saveWarning.clear();
 }
 void MainScene::suspend() {
+    AudioEngine::stopAll();
     if (game.IsPlaying()) { game.TogglePause(); rebuildUI(); }
     activeTouch = -1;
     gestures.Cancel();
@@ -226,15 +256,49 @@ void MainScene::suspend() {
 void MainScene::rebuildUI() {
     ui->removeAllChildren(); panels->clear(); buttons.clear();
     score = distance = coins = status = pace = gestureHint = nullptr;
+    missionHud = missionToast = resultGoals = nullptr;
     gestures.Cancel(); activeTouch = -1; touchAction = Action::None;
     const auto state = game.GetState();
     const auto safe = Director::getInstance()->getSafeAreaRect();
     const float top = std::min(viewHeight - 28.0f, safe.getMaxY() - 24.0f);
     const float bottom = std::max(26.0f, safe.getMinY() + 18.0f);
     const float center = viewHeight * .52f;
+    if (goals) {
+        const auto& profile = game.GetProfile();
+        pill(panels, {20, center-320, 440, 650}, Color4F(.035f,.17f,.18f,1));
+        text("CADA CORRIDA CONTA", 16, {240,center+293}, Muted);
+        text("Trilhas do mangue", 32, {240,center+254}, Cream, true);
+        text(whole(profile.missionsCompleted)+" missoes completas  /  "+whole(profile.coins)+" moedas",
+             17, {240,center+214}, Color4B(255,219,122,255));
+        button("MISSOES", {40,center+145,192,44}, Action::Missions,!achievementTab);
+        button("CONQUISTAS", {248,center+145,192,44}, Action::Achievements,achievementTab);
+        for(int row=0; row<3; ++row) {
+            const int id = achievementTab ? goalPage*3+row : profile.missionIds[row];
+            const auto& goal = achievementTab ? AchievementCatalog()[id] : MissionCatalog()[id];
+            const auto value = achievementTab ? profile.AchievementProgress(id) : profile.missionProgress[row];
+            const bool done = achievementTab && (profile.achievements & (1u<<id));
+            const float y = center+17-row*115.0f;
+            pill(panels,{36,y,408,105},Color4F(.08f,.25f,.24f,1));
+            text(goal.title,21,{52,y+83},done?Color4B(199,240,100,255):Cream,true)->setAnchorPoint({0,.5f});
+            text(goal.description,15,{52,y+59},Muted)->setAnchorPoint({0,.5f});
+            text(done?"CONQUISTADA":whole(value)+" / "+whole(goal.target),14,{52,y+36},Cream)->setAnchorPoint({0,.5f});
+            text(done?"BONUS RECEBIDO":"+"+whole(goal.reward)+" moedas",14,{427,y+36},Color4B(255,219,122,255))->setAnchorPoint({1,.5f});
+            pill(panels,{52,y+13,376,8},Color4F(.035f,.16f,.17f,1));
+            const float fill=376*static_cast<float>(done?1.0:static_cast<double>(value)/goal.target);
+            if(fill>.1f) pill(panels,{52,y+13,fill,8},Lime);
+        }
+        if(achievementTab) {
+            button("<",{40,center-263,55,36},Action::Previous);
+            text(whole(goalPage+1)+" / 2",15,{240,center-245},Muted);
+            button(">",{385,center-263,55,36},Action::Next);
+        } else text("Progresso acumulado. Novas missoes ao concluir.",14,{240,center-242},Muted);
+        button("VOLTAR",{150,center-301,180,34},Action::Back);
+        text(saveWarning.empty()?"Bonus creditados ao encerrar a corrida.":saveWarning,13,{240,center-315},Muted);
+        return;
+    }
     if (shop) {
         pill(panels, {20, center - 320, 440, 650}, Color4F(.035f,.17f,.18f,1));
-        text("CONQUISTAS DO MANGUE", 16, {240, center + 290}, Muted);
+        text("LOJA DO MANGUE", 16, {240, center + 290}, Muted);
         text("Sua corrida vale mais", 30, {240, center + 254}, Cream, true);
         text(whole(game.GetProfile().coins) + " MOEDAS", 22, {240, center + 215}, Color4B(255,219,122,255),true);
         button("VISUAIS", {40,center+145,192,44}, Action::Looks,!upgradeShop);
@@ -263,6 +327,7 @@ void MainScene::rebuildUI() {
         return;
     }
     if (state == GameState::Menu) {
+        button(soundEnabled?"SOM: ON":"SOM: OFF",{326,top-9,130,32},Action::Sound);
         text("MANGUE EM MOVIMENTO", 17, {240, top - 40}, Muted);
         text("JACARUN", 78, {240, top - 108}, Cream, true);
         text("Seu caminho passa pelo mangue.", 21, {240, top - 173}, Cream);
@@ -272,7 +337,8 @@ void MainScene::rebuildUI() {
         button("VAMOS CORRER", {55, bottom +  90, 370, 65}, Action::Play, true);
         button("SEU JACA  /  " + whole(game.GetProfile().coins) + " moedas",
                {55, bottom + 22, 370, 52}, Action::Shop);
-        text("DESLIZE PARA CIMA PARA COMECAR", 13, {240, bottom + 177}, Cream);
+        button("MISSOES E CONQUISTAS", {55,bottom+173,370,48}, Action::Goals);
+        text("DESLIZE PARA CIMA PARA COMECAR", 13, {240, bottom + 242}, Cream);
         if (!saveWarning.empty()) text(saveWarning, 14, {240, bottom + 2}, Color4B(255,194,116,255));
         return;
     }
@@ -287,6 +353,10 @@ void MainScene::rebuildUI() {
         status = text("", 17, {240, top - 93}, Cream);
         pace = text("", 14, {240, top - 121}, Muted);
         pace->enableOutline(Color4B(13,47,42,210), 1);
+        missionHud = text("",16,{240,bottom+131},Cream);
+        missionHud->enableOutline(Color4B(13,47,42,230),2);
+        missionToast = text("",20,{240,top-164},Color4B(220,255,145,255),true);
+        missionToast->enableOutline(Color4B(13,47,42,230),2);
         gestureHint = text("ARRASTE PARA CIMA: PULO\nPARA BAIXO: DESLIZE  /  2 DEDOS: PAUSA\nPEIXES NO ALTO: PONTOS MAIS RAPIDOS",
                            17, {240, bottom + 49}, Cream);
         gestureHint->setAlignment(TextHAlignment::CENTER);
@@ -294,7 +364,7 @@ void MainScene::rebuildUI() {
         return;
     }
     rect(panels, {0,0,480,viewHeight}, Color4F(.015f,.09f,.11f,.49f));
-    pill(panels, {28, center - 257, 424, 493}, Color4F(.035f,.17f,.18f,.96f));
+    pill(panels, {28, center - 300, 424, 560}, Color4F(.035f,.17f,.18f,.96f));
     if (state == GameState::Paused) {
         text("RESPIRE UM POUCO", 16, {240, center + 187}, Muted);
         text("Corrida pausada", 36, {240, center + 135}, Cream, true);
@@ -302,27 +372,43 @@ void MainScene::rebuildUI() {
         button("CONTINUAR", {59, center - 66, 362, 66}, Action::Pause, true);
         button("ENCERRAR E VOLTAR", {59, center - 149, 362, 58}, Action::Menu);
         text("As moedas coletadas serao guardadas.", 16, {240, center - 198}, Muted);
+        button(soundEnabled?"SOM: ON":"SOM: OFF",{160,center-262,160,38},Action::Sound);
     } else {
-        text("ATE A PROXIMA CORRIDA", 16, {240, center + 188}, Muted);
-        text("Boa, Jaca!", 45, {240, center + 133}, Cream, true);
-        text(whole(game.GetScore()) + " pontos", 37, {240, center + 68}, Cream, true);
-        text(whole(game.GetDistance()) + " m  /  +" + whole(game.GetRunCoins()) +
-             " moedas  /  " + whole(game.GetFoods()) + " alimentos", 19, {240, center + 18}, Muted);
-        text("RECORDE  " + whole(game.GetProfile().bestScore), 16, {240, center - 20}, Muted);
-        button("CORRER DE NOVO", {59, center - 119, 362, 66}, Action::Play, true);
-        button("VOLTAR AO INICIO", {59, center - 195, 362, 56}, Action::Menu);
-        if (!saveWarning.empty()) text(saveWarning, 14, {240, center - 229}, Color4B(255,194,116,255));
+        const auto& rewards=game.GetProgressRewards();
+        text(rewards.coins>0?"OBJETIVOS CONCLUIDOS!":"MAIS UMA HISTORIA NO MANGUE",16,{240,center+225},Muted);
+        text("Boa, Jaca!",45,{240,center+180},Cream,true);
+        text(whole(game.GetScore())+" pontos",35,{240,center+126},Cream,true);
+        text(whole(game.GetDistance())+" m  /  RECORDE "+whole(game.GetProfile().bestScore),17,{240,center+86},Muted);
+        pill(panels,{49,center+8,382,58},Color4F(.10f,.29f,.25f,1));
+        text("+"+whole(game.GetRunCoins()+rewards.coins)+" MOEDAS",25,{240,center+44},Color4B(255,219,122,255),true);
+        text("Coleta: "+whole(game.GetRunCoins())+"  /  Objetivos: "+whole(rewards.coins),15,{240,center+21},Muted);
+        resultGoals=text("",16,{240,center-37},Cream);
+        resultGoals->setAlignment(TextHAlignment::CENTER);
+        button("CORRER DE NOVO",{59,center-145,362,60},Action::Play,true);
+        button("VER OBJETIVOS",{59,center-205,362,46},Action::Goals);
+        button("VOLTAR AO INICIO",{59,center-259,362,42},Action::Menu);
+        if(!saveWarning.empty()) text(saveWarning,13,{240,center-281},Color4B(255,194,116,255));
     }
 }
 
 void MainScene::drawCrocodile(Vec2 feet, float scale) {
     const bool sliding = game.GetPlayer().IsSliding() && game.GetState() != GameState::Menu;
-    auto point = [&](float x, float y) { return feet + Vec2(x * scale, y * scale * (sliding ? 0.46f : 1.0f)); };
+    const bool airborne = !game.GetPlayer().IsGrounded() && game.GetState()!=GameState::Menu;
+    const bool idle = game.GetState()==GameState::Menu;
+    const float cycle = motion.phase;
+    const float bob = idle ? std::sin(motion.time*2.5f)*1.8f :
+        airborne || sliding ? 0 : std::abs(std::sin(cycle))*2.8f;
+    const float lean = airborne ? std::clamp(static_cast<float>(game.GetPlayer().GetVelocityY())*.012f,-.12f,.12f) : -.035f*motion.slide;
+    const float sx=motion.Width(), sy=motion.Height();
+    auto point = [&](float x, float y) {
+        return feet + Vec2((x*sx-y*lean)*scale,(y*sy+x*lean+bob)*scale);
+    };
     auto oval = [&](float x, float y, float rx, float ry, Color4F c) {
-        ellipse(world, point(x,y), rx*scale, ry*scale*(sliding ? 0.46f : 1.0f), c);
+        ellipse(world, point(x,y), rx*scale*sx, ry*scale*sy, c);
     };
     const Color4F green(0.39f, 0.68f, 0.30f, 1), bright(0.72f, 0.88f, 0.39f, 1);
-    Vec2 tail[] = {point(-23, 15), point(-74, 30), point(-45, 2), point(-7, 7)};
+    const float wag=std::sin(cycle*.65f)*5;
+    Vec2 tail[] = {point(-23, 15), point(-74, 30+wag), point(-45, 2+wag*.4f), point(-7, 7)};
     world->drawSolidPoly(tail, 4, green);
     oval(-9, 22, 38, 21, Color4F(.19f,.40f,.23f,1));
     oval(-9, 24, 36, 20, green);
@@ -335,9 +421,10 @@ void MainScene::drawCrocodile(Vec2 feet, float scale) {
         world->drawSolidPoly(spike, 3, Color4F(0.29f, 0.54f, 0.26f, 1));
     }
     oval(12, 45, 10, 11, bright);
-    oval(14, 47, 6, 7, Color4F(0.98f,0.98f,0.83f,1));
+    const bool blink=std::fmod(motion.time,4.3f)>4.13f;
+    oval(14, 47, 6, blink?1.5f:7.0f, Color4F(0.98f,0.98f,0.83f,1));
     for (int i=0; i<5; ++i) oval(-31+i*9, 26+(i%2)*6, 2, 2, Color4F(.28f,.54f,.26f,1));
-    oval(17, 47, 2.6f, 4.5f, Ink);
+    oval(17, 47, 2.6f, blink?1.0f:4.5f, Ink);
     oval(49, 32, 2, 2, Ink);
     world->drawSegment(point(23,22), point(55,23), scale, Ink);
     for (int i=0; i<3; ++i) {
@@ -345,10 +432,10 @@ void MainScene::drawCrocodile(Vec2 feet, float scale) {
         Vec2 tooth[] = {point(x,22),point(x+5,22),point(x+2,17)};
         world->drawSolidPoly(tooth,3,Color4F(1,0.98f,0.83f,1));
     }
-    const float step = game.IsPlaying() && game.GetPlayer().IsGrounded() && !sliding ?
-        std::sin(clock * 20) * 5 : 0;
-    oval(-25 + step, 4, 13, 5, green);
-    oval(13 - step, 4, 13, 5, green);
+    const float step = !idle && !airborne && !sliding ? std::sin(cycle)*8 : 0;
+    const float tuck=airborne?8.0f:0;
+    oval(-25+step,4+tuck+std::max(0.0f,step*.5f),13,5,green);
+    oval(13-step,4+tuck+std::max(0.0f,-step*.5f),13,5,green);
     const int accessory = game.GetProfile().equipped;
     if (accessory == 1) {
         world->drawSegment(point(3,57), point(29,57), 4*scale, Color4F(1,0.55f,0.29f,1));
@@ -373,7 +460,21 @@ void MainScene::drawCrocodile(Vec2 feet, float scale) {
         oval(37,59,4,7,Color4F(.78f,.95f,1,.8f));
     }
     if (game.GetShieldSeconds() > 0)
-        world->drawCircle(point(-3,24), 67*scale, 0, 48, false, Color4F(0.56f,0.92f,0.96f,0.8f));
+        world->drawCircle(point(-3,24), (66+std::sin(motion.time*5)*2)*scale, 0, 48, false, Color4F(0.56f,0.92f,0.96f,0.8f));
+}
+
+void MainScene::burst(Vec2 point, Color4F color, int count, float strength) {
+    for(int i=0;i<count && particles.size()<160;++i) {
+        const float angle=(i+.5f)*2.39996f;
+        const float speed=(40+(i%4)*23.0f)*strength;
+        const float life=.32f+(i%4)*.07f;
+        particles.push_back({point,{std::cos(angle)*speed,std::sin(angle)*speed+28},life,life,2.5f+(i%3),color});
+    }
+}
+
+void MainScene::sound(const char* name) {
+    if(!soundEnabled || smokeStep>=0) return;
+    AudioEngine::play2d(std::string("audio/")+name+".wav",false,.32f);
 }
 
 void MainScene::drawEntity(const VisualEntity& object) {
@@ -446,7 +547,7 @@ void MainScene::drawEntity(const VisualEntity& object) {
         ellipse(world,{x+52,floorY+211},29,18,Color4F(.38f,.57f,.29f,1));
         break;
     case EntityType::Coin: {
-        const float face=.77f+.23f*std::cos(clock*4+static_cast<float>(e.distance));
+        const float face=.30f+.70f*std::abs(std::cos(motion.time*4+static_cast<float>(e.distance)));
         oval(0,0,12*face,15,Color4F(.69f,.40f,.12f,1));
         oval(0,2,10*face,13,Color4F(1,.78f,.26f,1));
         oval(-2,3,6*face,9,Color4F(1,.90f,.50f,1));
@@ -468,7 +569,9 @@ void MainScene::drawEntity(const VisualEntity& object) {
         } break;
     case EntityType::Fish: case EntityType::RareFish: {
         const Color4F fish = e.type == EntityType::RareFish ? Color4F(1,.74f,.30f,1) : Color4F(.42f,.81f,.83f,1);
-        Vec2 tail[]={pos(11,0),pos(26,11),pos(23,0),pos(26,-11)};
+        const float fin=std::sin(motion.time*9+static_cast<float>(e.distance))*4;
+        oval(0,0,26+std::sin(motion.time*4)*2,18,Color4F(fish.r,fish.g,fish.b,.13f));
+        Vec2 tail[]={pos(11,0),pos(26,11+fin),pos(23,fin),pos(26,-11+fin)};
         world->drawSolidPoly(tail,4,tint(fish));
         oval(0,0,18,11,fish);
         oval(-2,-4,13,5,Color4F(.88f,.93f,.71f,1));
@@ -566,23 +669,56 @@ void MainScene::drawWorld() {
         world->drawSegment({x-23,y+5},{x+13,y+5},1,Color4F(.48f,.58f,.38f,.7f));
         ellipse(world,{x+61,y+29},10,5,Color4F(.48f,.49f,.30f,1));
     }
+    // Quiet fireflies and drifting reflections give the mangrove a little life.
+    for(int i=0;i<9;++i) {
+        const float x=35+i*57.0f+std::sin(motion.time*.6f+i*2)*14;
+        const float y=ground+95+(i%4)*72.0f+std::sin(motion.time+i)*9;
+        const float glow=.10f+.16f*(1+std::sin(motion.time*1.8f+i))*.5f;
+        ellipse(world,{x,y},5,5,Color4F(.94f,.93f,.56f,glow*.3f));
+        ellipse(world,{x,y},1.5f,1.5f,Color4F(.94f,.93f,.56f,glow));
+    }
     const bool menu=game.GetState()==GameState::Menu;
     if(!menu) for(const auto& entity:presentation.GetObjects()) drawEntity(entity);
     const float scale=menu?1.80f:CrocScale;
     const float playerX=menu?250:Contact-55*scale;
     const float playerY=ground+(menu?0:static_cast<float>(game.GetPlayer().GetPositionY())*HeightScale);
-    ellipse(world,{playerX-4,ground+1},menu?100:59,6,Color4F(.04f,.13f,.10f,.36f));
+    const float altitude=menu?0:static_cast<float>(game.GetPlayer().GetPositionY());
+    ellipse(world,{playerX-4,ground+1},menu?100:59-altitude*8,6-altitude,Color4F(.04f,.13f,.10f,.36f-altitude*.07f));
+    if(!menu && game.GetFrenzySeconds()>0) {
+        for(int i=0;i<3;++i) {
+            const float x=playerX-60-i*19.0f;
+            world->drawSegment({x,playerY+17+i*13.0f},{x-18,playerY+17+i*13.0f},2,Color4F(1,.83f,.37f,.35f));
+        }
+    }
     drawCrocodile({playerX,playerY},scale);
+    for(const auto& p:particles) {
+        auto color=p.color; color.a*=p.life/p.duration;
+        ellipse(world,p.position,p.radius*p.life/p.duration,p.radius*p.life/p.duration,color);
+    }
+    if(impactTime>0) {
+        const float t=1-impactTime/.35f;
+        world->drawCircle({playerX+20,playerY+25},30+t*75,0,40,false,Color4F(1,.77f,.46f,(1-t)*.8f));
+    }
     // Foreground vegetation frames the lane without hiding obstacles.
     for(int i=0;i<7;++i) {
         const float x=i*113.0f-std::fmod(travel*8,113.0f)-30;
         const float y=18+(i%2)*15.0f;
-        const float sway=std::sin(clock*.8f+i)*3;
+        const float sway=std::sin(motion.time*.8f+i)*3;
         for(int leaf=-2;leaf<=2;++leaf) {
             const Vec2 start(x,y), tip(x+leaf*11+sway,y+37-std::abs(leaf)*7);
             world->drawSegment(start,tip,3.2f,Color4F(.11f,.30f,.22f,1));
             ellipse(world,tip,5,11,Color4F(.19f,.38f,.25f,1));
         }
+    }
+    if(game.IsPlaying()) {
+        const auto safe=Director::getInstance()->getSafeAreaRect();
+        const float bottom=std::max(26.0f,safe.getMinY()+18.0f);
+        const int slot=static_cast<int>(runTime/5)%MissionSlots;
+        const auto& goal=MissionCatalog()[game.GetProfile().missionIds[slot]];
+        const float progress=static_cast<float>(game.GetMissionProgress(slot))/goal.target;
+        pill(world,{28,bottom+102,424,54},Color4F(.035f,.17f,.18f,.94f));
+        pill(world,{44,bottom+111,392,5},Color4F(.12f,.31f,.28f,1));
+        if(progress>0) pill(world,{44,bottom+111,392*progress,5},Lime);
     }
 }
 
@@ -596,22 +732,95 @@ void MainScene::update(float dt) {
     // Clamp a slow frame instead of teleporting through obstacles after a stall.
     dt=std::clamp(dt,0.0f,0.1f);
     clock += dt;
+    soundCooldown=std::max(0.0f,soundCooldown-dt);
     const auto before=game.GetState();
+    const bool wasGrounded=game.GetPlayer().IsGrounded();
     presentation.Sync(game.GetLevel().GetEntities());
     game.Update(dt);
     presentation.Resolve(game.GetFrameResolutions());
     presentation.Sync(game.GetLevel().GetEntities());
     const float activeDt = before == GameState::Playing ? dt : 0;
+    motion.Update(dt,before==GameState::Playing || before==GameState::Menu,
+                  before==GameState::Menu || game.GetPlayer().IsGrounded(),
+                  before!=GameState::Menu && game.GetPlayer().IsSliding(),before==GameState::Menu?0:game.GetSpeed());
+    const float effectDt=before==GameState::Paused?0:dt;
+    pickupPulse=std::max(0.0f,pickupPulse-effectDt*4);
+    impactTime=std::max(0.0f,impactTime-effectDt);
+    toastTime=std::max(0.0f,toastTime-activeDt);
+    for(auto& p:particles) {
+        p.life-=effectDt; p.velocity.y-=110*effectDt; p.position+=p.velocity*effectDt;
+    }
+    particles.erase(std::remove_if(particles.begin(),particles.end(),[](const Particle& p){return p.life<=0;}),particles.end());
+    if(before==GameState::Playing) {
+        if(!wasGrounded && game.GetPlayer().IsGrounded())
+            burst({Contact-60,floorY+4},Color4F(.83f,.80f,.53f,.75f),12,.85f);
+        dustTime+=dt;
+        if(game.GetPlayer().IsGrounded() && dustTime>.10f) {
+            dustTime=0;
+            burst({Contact-106,floorY+5},Color4F(.74f,.73f,.49f,.45f),2,.35f);
+        }
+    }
+    for(const auto& resolution:game.GetFrameResolutions()) {
+        const auto& e=resolution.entity;
+        if(resolution.outcome==EntityOutcome::Collected) {
+            const bool coin=e.type==EntityType::Coin;
+            burst({Contact,floorY+static_cast<float>(e.height)*HeightScale},
+                  coin?Color4F(1,.84f,.34f,1):Color4F(.62f,.96f,.78f,1),coin?7:12);
+            pickupPulse=1;
+            if(soundCooldown<=0) { sound(coin?"coin":"food"); soundCooldown=.07f; }
+        } else if(resolution.outcome==EntityOutcome::Shielded || resolution.outcome==EntityOutcome::Hit) {
+            burst({Contact-30,floorY+32},Color4F(1,.70f,.38f,1),20,1.3f);
+            impactTime=.35f;
+            sound("hit");
+        }
+    }
     presentation.Update(activeDt, game.GetDistance(), Contact, PixelsPerMeter);
     if (before == GameState::Playing) runTime += dt;
-    if (before!=game.GetState()) { save(); rebuildUI(); }
+    if (before!=game.GetState()) {
+        save(); rebuildUI();
+        if(game.GetState()==GameState::GameOver && game.GetProgressRewards().coins>0) sound("reward");
+    }
     for(auto& message:game.TakeMessages()) {
         feedback=std::move(message); feedbackTime=2.5f;
     }
     feedbackTime=std::max(0.0f,feedbackTime-dt);
     if (score) score->setString(whole(game.GetScore()));
     if (distance) distance->setString(whole(game.GetDistance())+" m");
-    if (coins) coins->setString(whole(game.GetRunCoins()));
+    if (coins) {
+        coins->setString(whole(game.GetRunCoins()));
+        coins->setScale(1+pickupPulse*.13f);
+    }
+    if(missionHud) {
+        const int slot=static_cast<int>(runTime/5)%MissionSlots;
+        const auto& goal=MissionCatalog()[game.GetProfile().missionIds[slot]];
+        missionHud->setString(goal.description+std::string("  ")+whole(game.GetMissionProgress(slot))+"/"+whole(goal.target)+"  +"+whole(goal.reward));
+        int newlyCompleted=0, newBonus=0;
+        for(int i=0;i<MissionSlots;++i) {
+            const auto& card=MissionCatalog()[game.GetProfile().missionIds[i]];
+            if(!(notifiedMissions&(1u<<i)) && game.GetMissionProgress(i)>=card.target) {
+                notifiedMissions|=1u<<i;
+                ++newlyCompleted; newBonus+=card.reward;
+            }
+        }
+        if(newlyCompleted>0) {
+            missionToast->setString((newlyCompleted==1?std::string("MISSAO FEITA!"):whole(newlyCompleted)+" MISSOES FEITAS!")+" +"+whole(newBonus));
+            toastTime=3;
+            sound("reward");
+        }
+        missionToast->setOpacity(static_cast<uint8_t>(255*std::clamp(toastTime,0.0f,1.0f)));
+    }
+    if(resultGoals) {
+        resultTime+=dt;
+        const auto& completed=game.GetCompletedGoals();
+        if(completed.empty()) resultGoals->setString("Seu progresso nas missoes foi guardado.\nCada tentativa deixa voce mais perto!");
+        else {
+            const auto page=static_cast<std::size_t>(resultTime/4)%((completed.size()+1)/2);
+            std::string summary=completed[page*2];
+            if(page*2+1<completed.size()) summary+="\n"+completed[page*2+1];
+            if(completed.size()>2) summary+="\n"+whole(page+1)+" / "+whole((completed.size()+1)/2);
+            resultGoals->setString(summary);
+        }
+    }
     if (pace) {
         const double meters = game.GetDistance();
         const auto points = game.GetScore();
@@ -700,7 +909,7 @@ void MainScene::smokeTick(float dt) {
         if(smokeTime>1) Director::getInstance()->end();
         return;
     }
-    if(smokeTime>22) { finishSmoke(false,"Timed out"); return; }
+    if(smokeTime>35) { finishSmoke(false,"Timed out"); return; }
     const double d=game.GetDistance();
     if(smokeStep==0 && smokeTime>0.4f) { capture("01-menu.png"); smokeStep=1; }
     else if(smokeStep==1 && smokeTime>0.9f) {
@@ -818,7 +1027,65 @@ void MainScene::smokeTick(float dt) {
         smokeStep=18;
     } else if(smokeStep==18) {
         capture("12-shop-upgrades.png");
-        finishSmoke(true,"Gameplay regression; precise fish and coin arc; shop pages/touch purchases, permanent upgrade and v2 save.");
+        smokeStep=21;
+    } else if(smokeStep==21) {
+        act(Action::Back);
+        const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
+        smokeTouch({240,bottom+196},{240,bottom+196});
+        if(!goals || shop) { finishSmoke(false,"Mission entry button failed"); return; }
+        smokeStep=22;
+    } else if(smokeStep==22) {
+        capture("13-missions.png"); smokeStep=23;
+    } else if(smokeStep==23) {
+        const float center=viewHeight*.52f;
+        smokeTouch({344,center+167},{344,center+167});
+        if(!achievementTab) { finishSmoke(false,"Achievement tab failed"); return; }
+        smokeStep=24;
+    } else if(smokeStep==24) {
+        capture("14-achievements.png"); smokeStep=25;
+    } else if(smokeStep==25) {
+        const float center=viewHeight*.52f;
+        smokeTouch({410,center-245},{410,center-245});
+        if(goalPage!=1) { finishSmoke(false,"Achievement paging failed"); return; }
+        smokeStep=26;
+    } else if(smokeStep==26) {
+        capture("15-achievements-page2.png"); smokeStep=27;
+    } else if(smokeStep==27) {
+        // Isolated fixture: one run completes all three cards and five achievements.
+        auto& profile=game.GetProfile();
+        profile.missionIds={{0,1,2}}; profile.missionProgress={{249,14,7}};
+        profile.lifetime={{499,99,24,29,9}}; profile.achievements=0; profile.missionsCompleted=0;
+        start(false);
+        game.Spawn(EntityType::Coin,.1,.5); game.Spawn(EntityType::Crab,.2,.5);
+        game.Spawn(EntityType::High,6);
+        smokeTouch({350,floorY+160},{350,floorY+95});
+        smokeStep=28;
+    } else if(smokeStep==28 && d>7) {
+        capture("16-mission-complete.png"); smokeStep=29;
+    } else if(smokeStep==29 && d>51) {
+        game.EndRun(); save(); rebuildUI();
+        if(game.GetProgressRewards().coins!=1680 || game.GetProfile().coins!=19681 ||
+           game.GetProfile().missionsCompleted!=3 || game.GetProfile().achievements!=31) {
+            finishSmoke(false,"Mission/achievement settlement failed"); return;
+        }
+        Profile restored; std::string error;
+        if(!restored.Load(savePath,error) || restored.missionsCompleted!=3 || restored.achievements!=31 || restored.coins!=19681) {
+            finishSmoke(false,"Progress v3 reload failed"); return;
+        }
+        game.EndRun();
+        if(game.GetProfile().coins!=19681) { finishSmoke(false,"Duplicate rewards"); return; }
+        smokeStep=30;
+    } else if(smokeStep==30) {
+        capture("17-reward-result.png"); smokeStep=31;
+    } else if(smokeStep==31) {
+        act(Action::Goals); act(Action::Missions); smokeStep=32;
+    } else if(smokeStep==32) {
+        capture("18-next-missions.png"); smokeStep=33;
+    } else if(smokeStep==33) {
+        act(Action::Achievements); smokeStep=34;
+    } else if(smokeStep==34) {
+        capture("19-achievements-earned.png");
+        finishSmoke(true,"Gameplay, shop, gestures, mission and achievement tabs/paging; 3 missions + 5 achievements settled once; v3 save reloaded; new cards ready.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

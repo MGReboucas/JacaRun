@@ -9,6 +9,7 @@ public:
     bool Jump();
     bool Slide();
     double GetPositionY() const { return positionY; }
+    double GetVelocityY() const { return velocityY; }
     bool IsSliding() const { return slideRemaining > 0.0; }
     bool IsGrounded() const { return grounded; }
 

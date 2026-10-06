@@ -41,6 +41,9 @@ public:
     int GetRunCoins() const { return runCoins; }
     int GetFoods() const { return foods; }
     int GetObstaclesPassed() const { return obstaclesPassed; }
+    const ProgressRewards& GetProgressRewards() const { return progressRewards; }
+    const std::vector<std::string>& GetCompletedGoals() const { return completedGoals; }
+    std::int64_t GetMissionProgress(int slot) const;
     double GetShieldSeconds() const { return shieldRemaining; }
     double GetMagnetSeconds() const { return magnetRemaining; }
     double GetFrenzySeconds() const { return frenzyRemaining; }
@@ -70,6 +73,8 @@ private:
     double magnetRemaining = 0.0;
     std::vector<std::string> messages;
     std::vector<EntityResolution> frameResolutions;
+    ProgressRewards progressRewards;
+    std::vector<std::string> completedGoals;
 };
 
 #endif

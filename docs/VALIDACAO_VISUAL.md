@@ -1,5 +1,37 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.8.1 — ícone do aplicativo
+
+Em 05/10/2026, o ícone padrão foi substituído por uma ilustração original do Jaca, criada com imagegen e preservada em `assets/branding/jaca-icon-source.png`. Android inclui cinco densidades legadas, variante circular e camadas adaptativas; Windows inclui ICO de sete tamanhos. Exportação reproduzível por `scripts/export-app-icons.ps1`. Prévia dos recortes e tamanhos pequenos inspecionada em `docs/images/app-icon-preview.png`.
+
+Builds Android e Windows aprovados. `aapt2 dump badging` confirmou pacote `com.mgreboucas.jacarun`, versão 0.8.1/versionCode 10 e ícone adaptativo; inspeção ZIP confirmou foreground, XMLs e todos os PNGs no APK. Certificado de atualização original verificado pelo helper. Nenhuma mudança em mecânicas ou formato de save nesta revisão; não foi repetida a suíte de jogabilidade. Instalação e aparência no launcher físico ainda não foram verificadas.
+
+APK: `output/JacaRun-0.8.1-debug.apk`. SHA-256: `3fce546ed8fe613b36068faff2db9361696230b716edd717d4a1d6b8f35ea09e`.
+
+## Revisão 0.8 — animações, missões, conquistas e som
+
+**Data:** 05/10/2026. Atualização implementada e compilada para Windows/Android; avaliação humana no aparelho continua pendente.
+
+`CharacterMotion` separa animação e colisão: passada ajustada à velocidade, cauda, respiração/piscadas, inclinação e alongamento do salto, compressão da aterrissagem e transição de deslize. Poeira, partículas, sombra por altura, rotação das moedas, cauda dos peixes, brilho do frenesi e vaga-lumes completam o feedback. A pausa congela o movimento da corrida, inclusive efeitos. Os desenhos mantêm a mesma física.
+
+Nove missões curtas rodam em três slots. O progresso acumula entre corridas e paga 80–160 moedas por cartão concluído. Cada slot troca de cartão somente no encerramento, sem levar o excedente à próxima missão. Seis conquistas têm recompensa única de 200–600 moedas. Bônus não contam como moedas coletadas; a conquista de dez corridas exige pelo menos 50 m por tentativa. O HUD exibe progresso e conclusão; a tela de objetivos mostra barras e as conquistas em duas páginas. O resultado separa coleta/bônus e exibe todos os objetivos concluídos em páginas automáticas.
+
+Save v3 inclui cartões/progresso, totais e conquistas. A migração v1/v2 preserva carteira, XP, recordes e compras. Totais não existentes começam em zero; o recorde anterior de distância é aproveitado. Saves inválidos continuam preservados sem alteração do perfil em memória. Encerramento repetido não paga novamente. Uma corrida interrompida pelo encerramento do processo continua sem restauração, como antes.
+
+Seis WAVs originais foram sintetizados por `scripts/generate-sounds.ps1` e incluídos no APK. OpenAL é biblioteca compartilhada; licença/avisos acompanham os recursos. Há controle de som no menu e na pausa, com preferência persistente; ir para segundo plano interrompe os efeitos. O smoke usa perfil isolado, não modifica a preferência real e permanece mudo. Volume, latência e qualidade percebida não foram validados por audição em aparelho.
+
+**Validação automática:** 22/22 grupos de mecânicas e 4/4 de apresentação/animação aprovados. Inclui migração v1/v2, round-trip v3, campos inválidos/truncamento, progresso entre corridas, bônus único após pausa/menu/reinício, desbloqueios, exclusão de moedas bônus dos contadores e pausa/recuperação da animação. Mantidas as 100 corridas longas e as 20 extremas. Compilação do núcleo com MSVC e GCC; GCC com `-Wall -Wextra -Wpedantic -Werror`.
+
+**Validação visual final:** aprovada em 432 × 810 (`output/visual-smoke-20261005-180622`) e 360 × 788 (`output/visual-smoke-20261005-180719`). Dezenove capturas por execução. Eventos de toque verificam corrida, loja, entrada em objetivos, abas/paginação, três missões e cinco conquistas concluídas em fixture, crédito único, releitura v3 e novas missões. Capturas de menu, salto, deslize, missões, conquistas e resultado inspecionadas. Os saldos e contadores das capturas são de teste.
+
+![Missões com progresso acumulado](images/missoes-0.8.png)
+![Conquistas desbloqueadas](images/conquistas-0.8.png)
+![Resumo de recompensas](images/resultado-0.8.png)
+
+**APK:** `output/JacaRun-0.8.0-debug.apk`, versionCode 9. Mesmo pacote e certificado original de atualização, verificado pelo helper de build. Alinhamento ZIP de 16 KB aprovado; segmentos LOAD da nova `libopenal.so` usam alinhamento `0x4000`. SHA-256: `d803abe7d6d243081393070c86a0884b76c9336a84e3a797aff913d9f4365893`.
+
+Pendente: instalar sobre a versão existente no celular, confirmar o perfil real, ouvir os efeitos e avaliar conforto/retensão em sessões humanas. Não houve teste físico Android nem build iOS nesta revisão. Avisos de dependências Axmol/Gradle e o aviso de runtime do link Debug Windows continuam registrados nos logs; os builds e testes de execução acima passaram.
+
 ## Revisão 0.7 — loja, esforço e frenesi dos peixes
 
 A loja agora tem sete visuais (original, boné, óculos, chapéu, bandana, coroa e capacete lunar) e três melhorias permanentes, com abas e paginação. Itens pagos custam 2.000–50.000 moedas. Melhorias: +2 s para manter o combo (12.000), +4 s de ímã (20.000), +3 s no frenesi (35.000). Compras duplicadas e saldo insuficiente são bloqueados; melhorias não substituem o visual equipado nem precisam ser recompradas por corrida.

@@ -18,6 +18,8 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     comboRemaining = shieldRemaining = magnetRemaining = 0.0;
     messages.clear();
     frameResolutions.clear();
+    progressRewards = {};
+    completedGoals.clear();
     state = GameState::Playing;
     messages.emplace_back("Jaca no mangue! Pule as raizes e agache nos galhos.");
 }
@@ -28,6 +30,14 @@ std::int64_t GameManager::GetScore() const {
 
 int GameManager::GetMultiplier() const {
     return std::min(Balance::MaximumMultiplier, 1 + combo / Balance::FoodsPerMultiplier);
+}
+
+std::int64_t GameManager::GetMissionProgress(int slot) const {
+    if (slot < 0 || slot >= MissionSlots) return 0;
+    const auto& goal = MissionCatalog()[profile.missionIds[slot]];
+    const RunProgress run{static_cast<std::int64_t>(distance), runCoins, obstaclesPassed, foods};
+    const bool active = state == GameState::Playing || state == GameState::Paused;
+    return std::min(goal.target, profile.missionProgress[slot] + (active ? run.Value(goal.metric) : 0));
 }
 
 bool GameManager::Jump() {
@@ -161,6 +171,21 @@ void GameManager::EndRun(const std::string& reason) {
         messages.emplace_back("NOVO RECORDE!");
     }
     profile.bestDistance = std::max(profile.bestDistance, distance);
+    const auto missionIds = profile.missionIds;
+    progressRewards = profile.ApplyRunProgress({static_cast<std::int64_t>(distance), runCoins, obstaclesPassed, foods});
+    for (int slot = 0; slot < MissionSlots; ++slot) {
+        if (progressRewards.missions & (1u << slot)) {
+            const auto& goal = MissionCatalog()[missionIds[slot]];
+            completedGoals.emplace_back(std::string(goal.title) + "  +" + std::to_string(goal.reward));
+        }
+    }
+    for (int id = 0; id < AchievementCount; ++id) {
+        if (progressRewards.achievements & (1u << id)) {
+            const auto& goal = AchievementCatalog()[id];
+            completedGoals.emplace_back(std::string(goal.title) + "  +" + std::to_string(goal.reward));
+        }
+    }
+    for (const auto& goal : completedGoals) messages.emplace_back("CONCLUIDO: " + goal);
     messages.push_back(reason);
     messages.emplace_back("Recompensas: " + std::to_string(runCoins) + " moedas e " + std::to_string(xp) + " XP.");
     if (profile.GetLevel() > oldLevel) messages.emplace_back("SUBIU DE NIVEL! Nivel " + std::to_string(profile.GetLevel()));

@@ -561,6 +561,80 @@ void FishFrenzyAndBenefits() {
     CHECK(game.GetFrenzySeconds()==0 && game.GetFrenzyMultiplier()==1);
 }
 
+void MissionsAchievementsAndPersistence() {
+    Profile profile;
+    auto first=profile.ApplyRunProgress({120,7,4,2});
+    CHECK(first.coins==0 && profile.missionProgress[0]==120 && profile.missionProgress[1]==7);
+    TempFiles files; std::string error;
+    const auto path=files.folder/"profile.save";
+    CHECK(profile.Save(path,error));
+    Profile restored; CHECK(restored.Load(path,error));
+    CHECK(restored.missionProgress==profile.missionProgress && restored.lifetime==profile.lifetime);
+    auto second=restored.ApplyRunProgress({130,8,4,2});
+    CHECK(second.coins==280 && second.missions==7 && second.achievements==0);
+    CHECK(restored.coins==280 && restored.missionsCompleted==3);
+    CHECK(restored.missionIds[0]==3 && restored.missionIds[1]==4 && restored.missionIds[2]==5);
+    CHECK(restored.missionProgress[0]==0 && restored.missionProgress[1]==0);
+    auto third=restored.ApplyRunProgress({250,0,0,0});
+    CHECK(third.achievements==1 && third.coins==200);
+    CHECK(restored.AchievementProgress(0)==500 && restored.achievements==1);
+    CHECK(restored.Save(path,error));
+    Profile again; CHECK(again.Load(path,error));
+    CHECK(again.achievements==1 && again.missionsCompleted==3);
+    CHECK(again.ApplyRunProgress({0,0,0,0}).coins==0);
+    // Bonus coins never count as collected coins; only ten genuine 50m runs qualify.
+    CHECK(again.lifetime[1]==15 && again.lifetime[4]==3);
+    for(int i=0;i<20;++i) again.ApplyRunProgress({1,0,0,0});
+    CHECK(again.lifetime[4]==3);
+    // Completing a card does not apply excess progress to its replacement.
+    Profile large;
+    auto bonus=large.ApplyRunProgress({5000,1000,100,100});
+    CHECK(bonus.missions==7 && large.missionsCompleted==3 && large.missionProgress[0]==0);
+    CHECK(bonus.achievements==47); // All except ten completed runs.
+    CHECK(large.ApplyRunProgress({0,0,0,0}).achievements==0);
+    for(int i=0;i<9;++i) large.ApplyRunProgress({50,0,0,0});
+    CHECK(large.achievements==63);
+    // Both old formats migrate without losing purchases, money or records.
+    { std::ofstream out(path); out<<"JACARUN 2\n777 200 3000 2200 1023 6\n"; }
+    CHECK(again.Load(path,error));
+    CHECK(again.coins==777 && again.owned[FrenzyUpgrade] && again.equipped==6);
+    CHECK(again.missionsCompleted==0 && again.lifetime[0]==0);
+    CHECK(again.ApplyRunProgress({0,0,0,0}).achievements==32); // Existing best distance is honored once.
+    CHECK(again.Save(path,error));
+    CHECK(restored.Load(path,error));
+    CHECK(restored.ApplyRunProgress({0,0,0,0}).coins==0);
+    const auto balance=restored.coins;
+    for(const auto invalid:{
+        "JACARUN 3\n0 0 0 0 1 0\n64 0 0 0 0 0 0\n0 0\n1 0\n2 0\n",
+        "JACARUN 3\n0 0 0 0 1 0\n0 0 -1 0 0 0 0\n0 0\n1 0\n2 0\n",
+        "JACARUN 3\n0 0 0 0 1 0\n0 0 0 0 0 0 0\n9 0\n1 0\n2 0\n",
+        "JACARUN 3\n0 0 0 0 1 0\n0 0 0 0 0 0 0\n0 250\n1 0\n2 0\n",
+        "JACARUN 3\n0 0 0 0 1 0\n0 0 0 0 0 0 0\n0 0\n1 0\n",
+        "JACARUN 3\n0 0 0 0 1 0\n0 0 0 0 0 0 0\n0 0\n1 0\n2 0\nextra"}) {
+        { std::ofstream out(path); out<<invalid; }
+        CHECK(!restored.Load(path,error) && restored.coins==balance);
+    }
+}
+
+void MissionSettlementIsIdempotent() {
+    GameManager game; game.StartGame(1,false);
+    for(int i=0;i<15;++i) game.Spawn(EntityType::Coin,.1+i*.1,.5);
+    game.Update(.2);
+    CHECK(game.GetMissionProgress(1)==15 && game.GetProfile().coins==0);
+    game.TogglePause(); game.Update(100);
+    CHECK(game.GetMissionProgress(1)==15 && game.GetProfile().missionProgress[1]==0);
+    game.EndRun();
+    CHECK(game.GetProfile().coins==115 && game.GetProgressRewards().coins==100);
+    CHECK(game.GetCompletedGoals().size()==1 && game.GetProfile().missionIds[1]==4);
+    game.EndRun(); game.ReturnToMenu(); game.EndRun();
+    CHECK(game.GetProfile().coins==115 && game.GetProfile().missionsCompleted==1);
+    game.StartGame(2,false);
+    CHECK(game.GetProgressRewards().coins==0 && game.GetCompletedGoals().empty());
+    CHECK(game.GetMissionProgress(1)==0);
+    game.ReturnToMenu();
+    CHECK(game.GetProfile().coins==115);
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
         {"acoes do jogador", PlayerActions}, {"fisica por tempo", TimeBasedPhysics},
@@ -576,7 +650,9 @@ int main() {
         {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc},
         {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns},
         {"loja cara, melhorias e migracao de save", ShopMigrationAndUpgrades},
-        {"peixe preciso, frenesi e melhorias", FishFrenzyAndBenefits}
+        {"peixe preciso, frenesi e melhorias", FishFrenzyAndBenefits},
+        {"missoes, conquistas e save v3", MissionsAchievementsAndPersistence},
+        {"bonus unico ao encerrar e reiniciar", MissionSettlementIsIdempotent}
     };
     int failures = 0;
     for (const auto& test : tests) {

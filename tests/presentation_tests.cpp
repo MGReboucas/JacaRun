@@ -1,4 +1,5 @@
 #include "../visual/Source/RunPresentation.h"
+#include "../visual/Source/CharacterMotion.h"
 #include "../visual/Source/GestureInput.h"
 #include <iostream>
 #include <stdexcept>
@@ -79,12 +80,29 @@ void SwipesAndTwoFingerPause() {
     gestures.Cancel();
     CHECK(gestures.End(1, {50, 90}, 6.2f) == Gesture::None);
 }
+void AnimationPausesAndRecovers() {
+    CharacterMotion motion;
+    motion.Update(.1f,true,false,false,24);
+    CHECK(motion.lift>0 && motion.Height()>1);
+    const auto frozen=motion;
+    motion.Update(10,false,true,true,60);
+    CHECK(motion.time==frozen.time && motion.phase==frozen.phase && motion.Height()==frozen.Height());
+    motion.Update(.05f,true,true,false,24);
+    CHECK(motion.landing>0 && motion.Width()>1);
+    for(int i=0;i<30;++i) motion.Update(.05f,true,true,true,24);
+    CHECK(motion.slide>.99f && motion.Height()<.47f);
+    for(int i=0;i<30;++i) motion.Update(.05f,true,true,false,24);
+    CHECK(motion.slide<.001f && std::abs(motion.Height()-1)<.001f);
+    motion.Reset(); CHECK(motion.time==0 && motion.phase==0 && motion.Height()==1);
+}
+
 int main() {
     try {
         PersistenceAndCollection();
         HitIsVisibleAndEventsBounded();
         SwipesAndTwoFingerPause();
-        std::cout << "3/3 presentation and gesture groups passed.\n";
+        AnimationPausesAndRecovers();
+        std::cout << "4/4 presentation, gesture and animation groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

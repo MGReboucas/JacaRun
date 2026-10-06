@@ -24,7 +24,7 @@ struct Options {
 void Help() {
     std::cout << "JACARUN - prototipo de mecanicas no terminal\n"
               << "Uso: jacarun [--seed NUMERO] [--save ARQUIVO] [--no-save] [--demo] [--help]\n"
-              << "Menu: jogar | loja | comprar ID | equipar ID | sair\n"
+              << "Menu: jogar | loja | objetivos | comprar ID | equipar ID | sair\n"
               << "Corrida: ENTER/correr | pular (p) | agachar (a) | pausa | menu | sair\n"
               << "Cada acao valida da corrida avanca 0.2 s. Pausa congela tudo.\n"
               << "--demo executa uma corrida automatica sem ler ou gravar progresso.\n";
@@ -75,6 +75,23 @@ void ShowShop(const GameManager& game) {
                   << (game.GetProfile().owned[i] ? " | adquirido" : "") << " | " << catalog[i].description << '\n';
     }
     std::cout << "Use comprar ID; equipar ID para visuais 0-6. Melhorias 7-9 ficam ativas automaticamente.\n";
+}
+
+void ShowGoals(const GameManager& game) {
+    const auto& profile=game.GetProfile();
+    std::cout << "MISSOES - progresso acumulado entre corridas; bonus ao encerrar\n";
+    for(int slot=0;slot<MissionSlots;++slot) {
+        const auto& goal=MissionCatalog()[profile.missionIds[slot]];
+        std::cout << goal.title << ": " << goal.description << " | " << game.GetMissionProgress(slot)
+                  << '/' << goal.target << " | +" << goal.reward << " moedas\n";
+    }
+    std::cout << "CONQUISTAS - recompensa unica\n";
+    for(int id=0;id<AchievementCount;++id) {
+        const auto& goal=AchievementCatalog()[id];
+        std::cout << ((profile.achievements&(1u<<id))?"[OK] ":"[ ] ") << goal.title << ": "
+                  << goal.description << " | " << profile.AchievementProgress(id) << '/' << goal.target
+                  << " | +" << goal.reward << " moedas\n";
+    }
 }
 
 void ShowRun(const GameManager& game) {
@@ -181,6 +198,7 @@ int main(int argc, char** argv) {
             break;
         }
         if (command == "ajuda") { Help(); continue; }
+        if (command == "objetivos" || command == "missoes" || command == "conquistas") { ShowGoals(game); continue; }
         if (command == "menu") {
             game.ReturnToMenu();
             Messages(game);

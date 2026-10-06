@@ -1,0 +1,13 @@
+# Ícone do JacaRun
+
+Arte criada em 05/10/2026 com a ferramenta integrada de geração de imagens (imagegen), em fundo transparente. Original preservado em `jaca-icon-source.png`. `jaca-icon-512.png` é a versão quadrada com fundo; as versões `rounded` e `round` permitem reutilização e inspeção.
+
+Execute `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/export-app-icons.ps1` na raiz para reproduzir os recursos. O script apenas enquadra, compõe o fundo e exporta tamanhos/formatos; não redesenha o personagem.
+
+Android: PNGs em cinco densidades, ícone circular legado e ícones adaptativos separados em fundo/primeiro plano. A camada de 432 px corresponde a 108 dp em xxxhdpi; o personagem ocupa no máximo 64 dp centrais. Windows: ICO com sete tamanhos entre 16 e 256 px. A prévia em `docs/images/app-icon-preview.png` mostra recortes aproximados de launcher e os PNGs de 48 px; não é captura de aparelho.
+
+Referência técnica: [ícones adaptativos — Android Developers](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
+
+## Prompt utilizado
+
+Create a single professional mobile game launcher icon foreground mascot for JacaRun, a Brazilian tropical mangrove endless runner starring a friendly crocodile. Asset type: polished cartoon game icon illustration, square 1024x1024 canvas with true transparent background. Subject: ONLY one extremely charming lime-green crocodile head and a little neck, three-quarter profile facing right, broad rounded elongated snout, one large expressive ivory eye with dark forest-green pupil, smaller far eye, a cheeky warm closed-mouth smile with 2 or 3 tiny cream triangular teeth, a few darker green crown/back ridges. NOT a dragon or dinosaur: clearly a crocodile with long broad snout. Colors inspired by the game: bright yellow-green upper snout, grassy green head, pale warm cream lower jaw, dark teal-green contour, subtle cel-shaded highlights and shadow. Silhouette should be chunky, soft, friendly and beautifully readable at 48 pixels. Premium clean 2D cartoon illustration with restrained dimensional shading, bold contour, no photorealism, no intricate textures. Composition: mascot centered, entire head and neck visible, compact nearly square silhouette, occupies approximately 76 percent of canvas width and 66 percent of height, generous transparent outer margins with no clipping. Only the isolated mascot on transparency: NO letters, NO text, NO badge, NO logo text, NO square tile, NO rounded-square background, NO scenery, NO circular frame, NO watermark, NO unrelated objects. The icon background will be solid deep mangrove teal added by the app's adaptive-icon resource, so choose colors that contrast beautifully against #0B3435.

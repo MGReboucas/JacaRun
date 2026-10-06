@@ -17,6 +17,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar os testes." }
         & ".\output\mechanics_tests.exe"
         if ($LASTEXITCODE -ne 0) { throw "Falha nos testes de mecanicas." }
+        & $Compiler @flags "tests/presentation_tests.cpp" @sources "-o" "output/presentation_tests.exe"
+        if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar os testes de apresentacao." }
+        & ".\output\presentation_tests.exe"
+        if ($LASTEXITCODE -ne 0) { throw "Falha nos testes de apresentacao." }
     }
 } finally {
     Pop-Location

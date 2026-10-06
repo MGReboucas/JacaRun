@@ -25,11 +25,12 @@
 
 #include "AppDelegate.h"
 #include "MainScene.h"
+#include "audio/AudioEngine.h"
 #include <cstdlib>
 #include <string_view>
 using namespace ax;
 AppDelegate::AppDelegate() = default;
-AppDelegate::~AppDelegate() = default;
+AppDelegate::~AppDelegate() { AudioEngine::end(); }
 void AppDelegate::initGfxContextAttrs() {
     GfxContextAttrs attrs = {8, 8, 8, 8, 24, 8, 0};
     RenderView::setGfxContextAttrs(attrs);

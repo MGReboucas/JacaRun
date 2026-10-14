@@ -2,13 +2,21 @@
 
 **Corra. Coma. Compita.**
 
+**Atualização 0.8.5:** caranguejos fogem com passos acelerados e poeira ao perceber o Jaca; coletar alimentos anima a mandíbula e toca uma mordida original. A corrida tem uma trilha original em loop, com inspiração leve em baião, baixo e melodia dedilhada sintetizados. O botão SOM controla música e efeitos; pausa e segundo plano interrompem o áudio. Gere os novos WAVs com `python scripts/generate-music.py`. APK: `output/JacaRun-0.8.5-debug.apk`.
+
+**Atualização 0.8.4:** caranguejos apoiados na margem, com seis patas alternadas, pinças articuladas e piscadas; folhas de cipós e galhos ao vento, escudo pulsante e partículas de atração do ímã. Movimentos de apresentação congelam na pausa; regras e recompensas preservadas. APK: `output/JacaRun-0.8.4-debug.apk`.
+
+**Atualização 0.8.3:** peixes comuns e raros saltam do canal do mangue, inclinam o corpo na subida/descida e retornam à água quando não coletados. Ondulações e respingos substituem a aparência de item flutuante. Altura de coleta, precisão e bônus preservados. APK: `output/JacaRun-0.8.3-debug.apk`.
+
+**Atualização 0.8.2 — primeira revisão de UX/UI:** loja com prévias do Jaca usando cada acessório, botões de compra e navegação maiores, guia “Como jogar” antes da primeira corrida e acessível no menu, pausa visível durante a corrida e leitura manual das páginas de recompensas. Textos revisados e recorde identificado em pontos. APK: `output/JacaRun-0.8.2-debug.apk`. Teste humano em Android continua necessário.
+
 **Atualização 0.8.1:** novo ícone do Jaca no Android e Windows. Arte original e instruções de exportação em [assets/branding](assets/branding/README.md). APK: `output/JacaRun-0.8.1-debug.apk`.
 
 ## Novidades da versão 0.8
 
 - Animação com passada proporcional à velocidade, cauda articulada, respiração e piscadas; alongamento no salto, compressão na aterrissagem e transição suave de deslize. A física e as colisões continuam independentes do desenho.
 - Poeira nos passos, salto e aterrissagem, partículas de coleta/impacto, moedas giratórias, peixes animados e luzes discretas no mangue. Animação da corrida congelada durante a pausa.
-- Seis efeitos sonoros originais, sintetizados localmente. Controle **SOM** no menu e na pausa, com preferência persistente. Sem música ou áudio externo; `scripts/generate-sounds.ps1` reproduz os WAVs.
+- Seis efeitos sonoros originais da 0.8, sintetizados localmente; `scripts/generate-sounds.ps1` reproduz esses WAVs. A 0.8.5 acrescenta música e mordida originais. Controle **SOM** no menu e na pausa, com preferência persistente; nenhum sample externo.
 - **MISSÕES E CONQUISTAS** no menu: três missões simultâneas, nove variações em rotação, barras de progresso e seis conquistas permanentes. No terminal, use `objetivos`.
 - Missões de 250–750 m, 15–30 moedas, 8–15 obstáculos ou 5–8 alimentos. O progresso acumula entre tentativas; bônus de 80–160 moedas por missão. A substituta começa na corrida seguinte, sem reaproveitar o excedente.
 - Conquistas por distância total, moedas coletadas, obstáculos, alimentos, dez corridas de pelo menos 50 m e recorde de 2.000 m. Bônus únicos de 200–600 moedas; moedas de bônus não contam como coleta.
@@ -49,7 +57,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.8.1-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.8.5-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 

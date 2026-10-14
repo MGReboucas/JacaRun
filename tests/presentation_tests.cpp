@@ -2,6 +2,7 @@
 #include "../visual/Source/CharacterMotion.h"
 #include "../visual/Source/GestureInput.h"
 #include <iostream>
+#include "../visual/Source/FishMotion.h"
 #include <stdexcept>
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while(false)
 
@@ -93,16 +94,36 @@ void AnimationPausesAndRecovers() {
     CHECK(motion.slide>.99f && motion.Height()<.47f);
     for(int i=0;i<30;++i) motion.Update(.05f,true,true,false,24);
     CHECK(motion.slide<.001f && std::abs(motion.Height()-1)<.001f);
+    motion.Eat(); motion.Update(.1f,true,true,false,24);
+    CHECK(motion.Mouth()>.5f);
+    const float mouth=motion.Mouth();
+    motion.Update(.1f,false,true,false,24); CHECK(motion.Mouth()==mouth);
+    for(int i=0;i<5;++i) motion.Update(.1f,true,true,false,24);
+    CHECK(motion.Mouth()==0);
+    motion.Eat(); motion.Reset(); CHECK(motion.Mouth()==0);
     motion.Reset(); CHECK(motion.time==0 && motion.phase==0 && motion.Height()==1);
 }
 
+void FishLeavesAndReturnsToWater() {
+    for(float catchHeight : {130.0f,180.0f}) {
+        CHECK(!FishLeap(30,22,catchHeight).airborne);
+        CHECK(FishLeap(24,22,catchHeight).height==22);
+        CHECK(FishLeap(0,22,catchHeight).height==catchHeight);
+        CHECK(FishLeap(12,22,catchHeight).angle<0);
+        CHECK(FishLeap(-12,22,catchHeight).angle>0);
+        CHECK(FishLeap(-24,22,catchHeight).height==22);
+        CHECK(!FishLeap(-30,22,catchHeight).airborne);
+        CHECK(FishLeap(12,22,catchHeight).height==FishLeap(-12,22,catchHeight).height);
+    }
+}
 int main() {
     try {
         PersistenceAndCollection();
         HitIsVisibleAndEventsBounded();
         SwipesAndTwoFingerPause();
         AnimationPausesAndRecovers();
-        std::cout << "4/4 presentation, gesture and animation groups passed.\n";
+        FishLeavesAndReturnsToWater();
+        std::cout << "5/5 presentation, gesture and animation groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

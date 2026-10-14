@@ -1,5 +1,49 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.8.5 — fuga, mordida e trilha do mangue
+
+APK `output/JacaRun-0.8.5-debug.apk`, versionCode 14, compilado e verificado pelo helper (`output/bite-android.log`). Os dois novos WAVs foram conferidos byte a byte dentro do APK. Picos PCM abaixo de 32767 e continuidade da borda do loop verificados; isso não substitui audição.
+
+Caranguejos reagem aos últimos 18 m da aproximação: avançam visualmente pela margem, aceleram as patas, olham para a frente e levantam poeira. O deslocamento visual converge ao ponto original de coleta. A regra de encontro não muda.
+
+Alimentos coletados acionam uma mordida de 0,42 s no Jaca, com mandíbula, interior da boca e língua, e o efeito original `chomp.wav`. Moedas e power-ups não acionam a mordida. A animação congela na pausa e é limpa ao reiniciar; esses comportamentos foram adicionados ao teste de apresentação.
+
+`scripts/generate-music.py` sintetiza, sem samples externos, a mordida e a composição original `mangue-loop.wav`: oito compassos a aproximadamente 112 BPM, melodia dedilhada, baixo e percussão com inspiração leve em baião. Loop de 17,142 s a volume de reprodução 0,16, abaixo dos efeitos (0,32). Toca durante a corrida; o botão SOM controla ambos. Pausa/segundo plano interrompem o áudio; retomar inicia novamente a música.
+
+22/22 grupos de mecânicas e 5/5 de apresentação passaram (`output/bite-tests.log`). Smoke em 360 × 788 aprovado (`output/visual-smoke-20261014-153520`), com captura `26-bite.png` inspecionada após coleta real na cena de teste. O smoke permanece mudo; audição, latência e conforto musical em aparelho físico continuam pendentes.
+
+## Revisão 0.8.4 — caranguejos e itens animados
+
+Em 14/10/2026, os caranguejos passaram a ser desenhados apoiados na margem, com sombra, seis patas alternadas, pequenas oscilações do corpo, pinças articuladas e olhos com piscadas. A altura lógica de coleta foi preservada; a mudança é de apresentação. Cada entidade tem uma fase própria, evitando movimentos idênticos entre caranguejos próximos.
+
+Folhas de cipós e galhos oscilam sem deslocar a região perigosa dos obstáculos. Escudos pulsam e ímãs têm traços que convergem para seus polos. Todos esses efeitos usam `motion.time`, que congela na pausa. Pedras e troncos continuam imóveis.
+
+Smoke final aprovado em 360 × 788: `output/visual-smoke-20261014-152006`. Capturas `24-living-items-a.png` e `25-living-items-b.png` inspecionadas, mostrando poses distintas das patas e pinças e contato com a margem. A cena isolada reinicia a corrida antes de gerar os itens, sem herdar a distância do teste de peixes.
+
+Regressão existente: 22/22 grupos de mecânicas e 5/5 de apresentação passaram. APK `output/JacaRun-0.8.4-debug.apk`, versionCode 13, compilado com verificações de assinatura/alinhamento do helper; log `output/life-android.log`. Teste em aparelho físico ainda pendente.
+
+## Revisão 0.8.3 — peixes saltando da água
+
+APK: `output/JacaRun-0.8.3-debug.apk`, versionCode 12. Build Android e verificações de assinatura/alinhamento do helper concluídos (`output/fish-android.log`).
+
+Em 14/10/2026, peixes comuns e raros deixaram de permanecer suspensos. A apresentação agora usa um salto parabólico único, sincronizado à distância do encontro: saída do canal, inclinação na subida, ápice na altura original de coleta, descida e retorno à água se perdidos. Ondulações e gotas indicam a origem aquática; o halo foi removido. A animação acompanha a distância e fica congelada durante a pausa. A coleta conserva sua animação própria e os mesmos critérios e bônus.
+
+Validação: 22/22 grupos de mecânicas e 5/5 de apresentação passaram (`output/fish-tests.log`). O novo teste verifica altura de contato, subida/descida e retorno à água. Smoke em 360 × 788 aprovado, incluindo capturas de ambos os peixes em três momentos, inspecionadas em `output/visual-smoke-20261014-150954/21-fish-leap.png`, `22-fish-apex.png` e `23-fish-return.png`. A cena de inspeção usa um percurso isolado, sem obstáculos, para observar peixes não coletados. Sensação em aparelho físico permanece pendente.
+
+## Revisão 0.8.2 — primeira rodada de UX/UI
+
+Em 14/10/2026, a loja passou a mostrar miniaturas do Jaca com cada visual antes da compra, usando o mesmo desenho do personagem sem modificar o equipamento salvo. Botões de compra, paginação e retorno foram ampliados. Nomes do catálogo e textos da interface receberam correções de acentuação.
+
+O menu oferece “Como jogar”, também exibido antes da primeira corrida até o jogador confirmar o início. É um guia estático; um tutorial com prática guiada continua pendente. A preferência de leitura é local e os testes não a alteram. A corrida ganhou botão de pausa visível, preservando o gesto de dois dedos. O resultado identifica o recorde em pontos e permite mudar manualmente as páginas de recompensas.
+
+Validação: 22/22 grupos de mecânicas e 4/4 de apresentação aprovados (`output/ux-tests.log`). Smoke visual aprovado em 432 × 810 e 360 × 788, incluindo abertura/fechamento da ajuda, pausa por toque, compras, equipamentos, objetivos, save e paginação manual dos resultados. Capturas inspecionadas; o posicionamento dos botões superiores foi corrigido após a primeira inspeção. Evidências em `output/visual-smoke-20261014-135128` e `output/visual-smoke-20261014-135324`.
+
+APK Android: `output/JacaRun-0.8.2-debug.apk`, versionCode 11. Build e verificações do helper aprovados (`output/ux-android.log`). Avisos existentes da engine/toolchain permanecem nos logs. Sem alteração de preços, recompensas ou formato do save. Instalação e conforto dos controles em aparelho físico ainda não foram validados nesta revisão.
+
+Próximas melhorias: tutorial com prática, identidade visual das conquistas e balanceamento da economia com jogadores. Esta rodada não representa aceite de produção.
+
+Conferência final em 360 × 788: `output/visual-smoke-20261014-135504`, PASS. A captura do resultado foi separada dos cliques de paginação no smoke para registrar o texto já renderizado; imagem final inspecionada com recompensas e controles visíveis.
+
 ## Revisão 0.8.1 — ícone do aplicativo
 
 Em 05/10/2026, o ícone padrão foi substituído por uma ilustração original do Jaca, criada com imagegen e preservada em `assets/branding/jaca-icon-source.png`. Android inclui cinco densidades legadas, variante circular e camadas adaptativas; Windows inclui ICO de sete tamanhos. Exportação reproduzível por `scripts/export-app-icons.ps1`. Prévia dos recortes e tamanhos pequenos inspecionada em `docs/images/app-icon-preview.png`.

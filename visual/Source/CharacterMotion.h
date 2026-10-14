@@ -6,11 +6,15 @@
 struct CharacterMotion {
     float time = 0, phase = 0, slide = 0, landing = 0, lift = 0;
     bool grounded = true;
+    float bite = 0;
+    void Eat() { bite = .42f; }
+    float Mouth() const { return std::sin(3.14159265f * std::clamp(bite / .42f, 0.0f, 1.0f)); }
     void Reset() { *this = {}; }
     void Update(float dt, bool active, bool onGround, bool sliding, double speed) {
         if (!active || !std::isfinite(dt) || dt <= 0) return;
         dt = std::min(dt, .1f);
         time += dt;
+        bite = std::max(0.0f, bite - dt);
         phase += dt * (9.0f + static_cast<float>(speed) * .36f);
         if (!grounded && onGround) landing = 1;
         if (grounded && !onGround) lift = 1;

@@ -40,7 +40,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
+    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -55,8 +55,11 @@ private:
     ax::Label* resultGoals = nullptr;
     float toastTime = 0;
     bool goals = false, achievementTab = false;
+    bool help = false;
     int goalPage = 0;
+    std::size_t resultPage = 0;
     bool soundEnabled = true;
+    int musicId = -1;
     float soundCooldown = 0;
     float viewHeight = 900;
     float floorY = 220;
@@ -98,7 +101,7 @@ private:
     void drawWorld();
     void drawEntity(const VisualEntity& entity);
     void handleGesture(Gesture gesture);
-    void drawCrocodile(ax::Vec2 feet, float scale = 1);
+    void drawCrocodile(ax::Vec2 feet, float scale = 1, ax::DrawNode* target = nullptr, int previewAccessory = -1);
     void burst(ax::Vec2 point, ax::Color4F color, int count, float strength = 1);
     void sound(const char* name);
     ax::Label* text(const std::string& value, float size, ax::Vec2 point,

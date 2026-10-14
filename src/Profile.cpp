@@ -17,10 +17,10 @@ const std::array<ProgressGoal, MissionCount>& MissionCatalog() {
     static const std::array<ProgressGoal, MissionCount> goals{{
         {"Primeiros passos", "Percorra 250 m", GoalMetric::Distance, 250, 80},
         {"Bolso cheio", "Colete 15 moedas", GoalMetric::Coins, 15, 100},
-        {"Jogo de cintura", "Supere 8 obstaculos", GoalMetric::Obstacles, 8, 100},
+        {"Jogo de cintura", "Supere 8 obst\u00e1culos", GoalMetric::Obstacles, 8, 100},
         {"Passeio no mangue", "Percorra 500 m", GoalMetric::Distance, 500, 120},
         {"Hora do lanche", "Coma 5 alimentos", GoalMetric::Foods, 5, 100},
-        {"Caminho livre", "Supere 15 obstaculos", GoalMetric::Obstacles, 15, 150},
+        {"Caminho livre", "Supere 15 obst\u00e1culos", GoalMetric::Obstacles, 15, 150},
         {"Explorador", "Percorra 750 m", GoalMetric::Distance, 750, 160},
         {"Tesouro do mangue", "Colete 30 moedas", GoalMetric::Coins, 30, 150},
         {"Bom apetite", "Coma 8 alimentos", GoalMetric::Foods, 8, 140}
@@ -32,7 +32,7 @@ const std::array<ProgressGoal, AchievementCount>& AchievementCatalog() {
     static const std::array<ProgressGoal, AchievementCount> goals{{
         {"O mangue e seu", "Percorra 500 m no total", GoalMetric::Distance, 500, 200},
         {"Colecionador", "Colete 100 moedas no total", GoalMetric::Coins, 100, 250},
-        {"Sem perder o passo", "Supere 25 obstaculos no total", GoalMetric::Obstacles, 25, 250},
+        {"Sem perder o passo", "Supere 25 obst\u00e1culos no total", GoalMetric::Obstacles, 25, 250},
         {"Banquete tropical", "Coma 30 alimentos no total", GoalMetric::Foods, 30, 300},
         {"Sempre de volta", "Termine 10 corridas de 50 m ou mais", GoalMetric::Runs, 10, 400},
         {"Rei do percurso", "Alcance 2.000 m em uma corrida", GoalMetric::BestDistance, 2000, 600}
@@ -90,15 +90,15 @@ ProgressRewards Profile::ApplyRunProgress(const RunProgress& run) {
 const std::array<Accessory, ShopItemCount>& AccessoryCatalog() {
     static const std::array<Accessory, ShopItemCount> catalog{{
         {"Jaca original", 0, "O classico do mangue. Visual."},
-        {"Bone do mangue", 2000, "Estilo de quem corre todo dia. Visual."},
-        {"Oculos tropicais", 5000, "Lentes escuras, sangue frio. Visual."},
-        {"Chapeu de pescador", 9000, "Para veteranos do mangue. Visual."},
+        {"Bon\u00e9 do mangue", 2000, "Estilo de quem corre todo dia. Visual."},
+        {"\u00d3culos tropicais", 5000, "Lentes escuras, sangue frio. Visual."},
+        {"Chap\u00e9u de pescador", 9000, "Para veteranos do mangue. Visual."},
         {"Bandana vermelha", 15000, "Uma marca de persistencia. Visual."},
         {"Coroa do mangue", 30000, "Conquiste seu reinado. Visual."},
         {"Capacete lunar", 50000, "Para quem foi longe demais. Visual."},
-        {"Folego do combo", 12000, "Combo dura +2 s sem comer."},
-        {"Ima duradouro", 20000, "Cada ima coletado dura +4 s."},
-        {"Frenesi prolongado", 35000, "Bonus dos peixes dura +3 s."}
+        {"F\u00f4lego do combo", 12000, "Combo dura +2 s sem comer."},
+        {"\u00cdm\u00e3 duradouro", 20000, "Cada \u00edm\u00e3 coletado dura +4 s."},
+        {"Frenesi prolongado", 35000, "B\u00f4nus dos peixes dura +3 s."}
     }};
     return catalog;
 }

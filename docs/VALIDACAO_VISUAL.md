@@ -1,5 +1,43 @@
 # Registro de validação — protótipo visual
 
+## Revisão 0.8.9 — pulo interrompe o deslize
+
+O gesto para cima durante o deslize cancela seu tempo restante e aplica imediatamente a força normal do salto. A mesma regra vale para teclado e terminal. O deslize anterior não reaparece após aterrissar. Pulo no ar continua bloqueado, inclusive durante a queda rápida; é preciso tocar o chão para saltar novamente.
+
+24/24 grupos de mecânicas e 6/6 de apresentação aprovados (`output/slide-jump-tests.log`). O novo grupo cobre interrupção no início/meio/fim do deslize a 10/24/60 m/s, sequência pulo → queda → deslize → pulo, ausência de pulo duplo, pausa e colisões com raízes/galhos. O guia de controles e o README foram atualizados.
+
+Smoke por gestos aprovado em 360 × 788 (`output/visual-smoke-20261015-095110`); captura `31-slide-to-jump.png` inspecionada. APK `output/JacaRun-0.8.9-debug.apk`, versionCode 18, compilado com assinatura/alinhamento verificados pelo helper (`output/slide-jump-android.log`). Teste físico ainda pendente.
+
+## Revisão 0.8.8 — queda rápida e deslize automático
+
+O comando de deslize no ar agora cancela a subida e inicia uma queda rápida (`DiveSpeed = 24`, na escala de tempo das ações). Na aterrissagem começa o deslize. O núcleo calcula o instante de contato com o chão e desconta apenas o tempo restante do passo, preservando duração consistente entre diferentes tamanhos de atualização. Repetir o comando durante queda/deslize não estende a ação; salto duplo continua bloqueado. Reiniciar limpa a queda pendente.
+
+A apresentação comprime o corpo já durante a queda e mantém o gesto e o som de deslize. “Como jogar” explica a nova ação. Obstáculos continuam usando as regras existentes: galhos/cipós exigem chão e deslize; a queda não concede imunidade. Pausa congela a ação.
+
+23/23 grupos de mecânicas e 6/6 de apresentação aprovados (`output/dive-tests.log`). O novo grupo cobre subida/ápice/descida a 10/24/60 m/s, bloqueio de repetição, duração após aterrissagem, reset, passos de tempo diferentes, pausa, passagem sob galho e colisão se ainda estiver no ar.
+
+Smoke por gestos aprovado em 360 × 788 (`output/visual-smoke-20261015-094616`), com capturas da queda e aterrissagem inspecionadas. APK `output/JacaRun-0.8.8-debug.apk`, versionCode 17, compilado com assinatura/alinhamento verificados pelo helper (`output/dive-android.log`). Conforto da nova ação ainda precisa de teste físico.
+
+## Revisão 0.8.7 — close e afastamento da câmera
+
+A abertura agora começa com zoom de 3× e afasta a câmera suavemente durante 3,6 segundos. O cenário e a camada recortada do personagem compartilham uma transformação, com foco acompanhando a cabeça na saída da água. A posição da câmera é limitada para não revelar áreas fora do cenário. A interface permanece estável e interativa, e iniciar a partida restaura imediatamente a escala normal. Abrir loja, objetivos ou ajuda também mostra o enquadramento normal.
+
+O recorde foi reposicionado para liberar o rosto durante o close. A instrução de deslizar aparece apenas no trecho final do afastamento. Os testes verificam zoom inicial/final, redução monotônica e encerramento antecipado: 22/22 grupos de mecânicas e 6/6 de apresentação aprovados (`output/zoom-tests.log`).
+
+Smoke final aprovado e capturas inspecionadas em 432 × 810 (`output/visual-smoke-20261015-090424`) e 360 × 788 (`output/visual-smoke-zoom-final-tall`). APK `output/JacaRun-0.8.7-debug.apk`, versionCode 16, compilado com verificações de assinatura/alinhamento do helper (`output/zoom-android-final.log`). Fluidez em aparelho físico permanece pendente.
+
+## Revisão 0.8.6 — entrada do Jaca pelo canal
+
+APK `output/JacaRun-0.8.6-debug.apk`, versionCode 15, compilado com verificações de assinatura/alinhamento do helper (`output/entrance-android-final.log`).
+
+Em 15/10/2026, o menu ganhou uma entrada de aproximadamente dois segundos: olhos acima da água, bolhas e ondulações, corpo emergindo com respingos e chegada à margem. Uma máscara de desenho revela o personagem progressivamente, sem alterar física ou controles. O estado de entrada pertence à sessão; iniciar a corrida conclui a animação imediatamente e voltar ao menu não a repete.
+
+Na espera, o Jaca respira, pisca, mexe a cauda, olha para baixo periodicamente e sacode gotas a cada sete segundos. Botões continuam ativos durante a entrada. O estado é congelado quando a aplicação deixa de atualizar em segundo plano.
+
+22/22 grupos de mecânicas e 6/6 de apresentação passaram (`output/entrance-tests.log`), incluindo progressão monotônica, conclusão e encerramento antecipado da entrada. Smoke em 360 × 788 aprovado (`output/visual-smoke-20261015-085442`); capturas `27-menu-water.png`, `28-menu-emerge.png` e `01-menu.png` inspecionadas. Teste de instalação e fluidez em aparelho físico ainda pendente.
+
+Smoke em 432 × 810 também aprovado. A instrução de deslizar foi reposicionada acima do personagem após a inspeção, evitando sobreposição durante a saída da água. Capturas finais conferidas em `output/visual-smoke-20261015-085734` (`output/entrance-final.log`).
+
 ## Revisão 0.8.5 — fuga, mordida e trilha do mangue
 
 APK `output/JacaRun-0.8.5-debug.apk`, versionCode 14, compilado e verificado pelo helper (`output/bite-android.log`). Os dois novos WAVs foram conferidos byte a byte dentro do APK. Picos PCM abaixo de 32767 e continuidade da borda do loop verificados; isso não substitui audição.
@@ -228,3 +266,16 @@ No Android usado para o vídeo:
 6. Jogar por 15 minutos e verificar notch, navegação por gestos, estabilidade e save após reabrir.
 
 [Voltar ao cronograma](../CRONOGRAMA_PRODUCAO.md).
+## 0.8.10 — legibilidade e alertas (18/10/2026)
+
+- Ritmo em 23 unidades, efeitos em 22 e missões em 21, sobre painéis escuros; coleta com aviso de 30 unidades, agrupamento e desaparecimento gradual.
+- Moeda com efeito mais longo e volume maior; novo WAV original para mudanças de faixa de ritmo. Controle SOM preservado.
+- 24/24 grupos de mecânicas e 6/6 de apresentação passaram. Smoke Windows Tall passou, incluindo a sequência pulo/queda/deslize/pulo e save. Captura `output/visual-smoke-20261018-103329/02-jump.png` inspecionada visualmente.
+- Android compilado: `output/JacaRun-0.8.10-debug.apk`. Sons de moeda e ritmo verificados dentro do pacote. Volume e latência no aparelho continuam pendentes de teste humano; smoke desativa áudio.
+
+## 0.8.11 — escudo animado (18/10/2026)
+
+- Bolha translúcida em camadas, halo pulsante, reflexo curvo, três trilhas orbitais e oito faíscas. Usa o relógio de animação existente, congelado na pausa. Pulsação de aviso nos três segundos finais.
+- Impacto protegido emite partículas azuis e fragmentos da bolha; regras de proteção e movimentos preservados.
+- Build Windows e smoke Tall aprovados: coleta do escudo, duas fases da animação e absorção de obstáculo com consumo da proteção e corrida ativa. Capturas 32, 33 e 34 de `output/visual-smoke-20261018-103809/` inspecionadas.
+- Android compilado: `output/JacaRun-0.8.11-debug.apk`. Fluidez e aparência no aparelho físico ainda precisam de validação humana.

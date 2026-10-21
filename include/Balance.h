@@ -19,6 +19,7 @@ inline double RunSpeed(double distance, double score) {
 inline constexpr double SpeedPerMeter = 0.012;
 inline constexpr double Gravity = -22.0;
 inline constexpr double JumpForce = 9.5;
+inline constexpr double DiveSpeed = 24.0;
 inline constexpr double SlideSeconds = 0.9;
 inline constexpr double GroundClearance = 0.7;
 inline constexpr double PickupReach = 0.85;

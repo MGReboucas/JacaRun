@@ -1,6 +1,18 @@
 # JACARUN
 
+**Atualização 0.8.11:** escudo com bolha translúcida, halo pulsante, reflexo, trilhas de energia orbitais e faíscas. A pulsação acelera nos três segundos finais; ao absorver um obstáculo, a bolha se desfaz em fragmentos azuis. Animação acompanha o Jaca e congela na pausa. APK: `output/JacaRun-0.8.11-debug.apk`.
+
+**Atualização 0.8.10:** avisos de ritmo, efeitos ativos e missões maiores, com fundo escuro para contraste. A coleta exibe “+N MOEDAS”, agrupando moedas consecutivas. Som de moeda mais presente e novo alerta sonoro nas mudanças de ritmo; ambos respeitam o controle SOM. Movimentos e animações preservados. APK: `output/JacaRun-0.8.10-debug.apk`.
+
 **Corra. Coma. Compita.**
+
+**Atualização 0.8.9:** deslizar para cima enquanto o Jaca está agachado cancela o deslize e inicia o salto imediatamente. É possível encadear pulo → queda rápida → deslize → pulo. Não há pulo duplo nem salto durante a queda antes de tocar o chão. APK: `output/JacaRun-0.8.9-debug.apk`.
+
+**Atualização 0.8.8:** deslizar para baixo durante o pulo cancela a subida, provoca uma queda rápida e inicia o deslize automaticamente ao aterrissar. A duração do deslize começa no chão; repetir o gesto não renova a ação. A mesma regra vale para seta para baixo e comando `agachar`. APK: `output/JacaRun-0.8.8-debug.apk`.
+
+**Atualização 0.8.7:** abertura com close de 3× no Jaca e afastamento suave da câmera, revelando o mangue em aproximadamente 3,6 segundos enquanto ele emerge. Cenário e personagem compartilham o movimento; botões permanecem estáveis e disponíveis. Iniciar a corrida encerra o close imediatamente. APK: `output/JacaRun-0.8.7-debug.apk`.
+
+**Atualização 0.8.6:** ao abrir o app, o Jaca emerge do canal com bolhas, ondulações e respingos em uma entrada de aproximadamente dois segundos. Na margem, respira, pisca, move a cauda, olha para baixo e ocasionalmente sacode gotinhas. O menu permanece interativo; iniciar uma corrida encerra a apresentação, que não se repete ao voltar ao menu na mesma sessão. APK: `output/JacaRun-0.8.6-debug.apk`.
 
 **Atualização 0.8.5:** caranguejos fogem com passos acelerados e poeira ao perceber o Jaca; coletar alimentos anima a mandíbula e toca uma mordida original. A corrida tem uma trilha original em loop, com inspiração leve em baião, baixo e melodia dedilhada sintetizados. O botão SOM controla música e efeitos; pausa e segundo plano interrompem o áudio. Gere os novos WAVs com `python scripts/generate-music.py`. APK: `output/JacaRun-0.8.5-debug.apk`.
 
@@ -57,7 +69,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.8.5-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.8.11-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 
@@ -128,7 +140,7 @@ Digite o comando e pressione Enter.
 | Qualquer tela | `ajuda` | Exibe os comandos |
 | Qualquer tela | `sair` | Encerra a corrida, salva e sai |
 
-Pulo e deslize precisam aguardar o fim da ação anterior. Tentar uma ação indisponível ainda consome o turno. Comandos desconhecidos não avançam o tempo.
+Pular durante o deslize cancela o agachamento e inicia o salto imediatamente. Agachar durante o pulo provoca queda rápida seguida de deslize ao aterrissar. Tentar uma ação indisponível ainda consome o turno. Comandos desconhecidos não avançam o tempo.
 
 O painel informa distância, velocidade, pontuação, moedas, combo, altura do personagem, efeitos ativos e os próximos objetos. Use o tempo estimado até o obstáculo para reagir: iniciar um pulo ou deslize cerca de **0,3 segundo antes** da chegada é uma referência útil com o balanceamento atual.
 
@@ -146,8 +158,8 @@ A simulação divide cada atualização em passos de até **1/120 segundo**. As 
 
 - **Raiz:** exige altura de pelo menos 0,7 unidade no momento do encontro.
 - **Galho:** exige estar no chão e deslizando.
-- **Pulo:** só começa no chão, fora de um deslize; não há pulo duplo.
-- **Deslize:** cobre 21,6 metros; dura cerca de 2,16 s a 10 m/s e 0,9 s a 24 m/s. Não pode começar no ar nem ser renovado enquanto está ativo.
+- **Pulo:** só começa no chão; pode interromper o deslize imediatamente. O deslize cancelado não volta depois do salto. Não há pulo duplo.
+- **Deslize:** cobre 21,6 metros no chão; dura cerca de 2,16 s a 10 m/s e 0,9 s a 24 m/s. No ar, o comando cancela a subida e provoca queda rápida; o deslize começa na aterrissagem. Repetir o comando durante a queda rápida ou o deslize não renova a ação. Galhos e cipós ainda exigem estar no chão e deslizando.
 - **Colisão:** encerra a corrida, exceto quando um escudo ativo absorve a batida.
 
 Pulo e deslize avançam conforme a distância percorrida. O salto cobre aproximadamente 20,7 m, com a mesma altura e duração maior na corrida lenta. Moedas formam um arco correspondente a um salto iniciado 6 m antes da raiz; os coletáveis ficam separados por pelo menos 5,5 m. A pausa congela movimento, combo, efeitos e geração do percurso.

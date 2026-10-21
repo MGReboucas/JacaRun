@@ -2,6 +2,7 @@
 #include "../visual/Source/CharacterMotion.h"
 #include "../visual/Source/GestureInput.h"
 #include <iostream>
+#include "../visual/Source/MenuEntrance.h"
 #include "../visual/Source/FishMotion.h"
 #include <stdexcept>
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while(false)
@@ -116,6 +117,20 @@ void FishLeavesAndReturnsToWater() {
         CHECK(FishLeap(12,22,catchHeight).height==FishLeap(-12,22,catchHeight).height);
     }
 }
+void MenuEntranceCompletesAndSkips() {
+    MenuEntrance intro;
+    CHECK(intro.Progress()==0); CHECK(intro.Zoom()==3);
+    float previousZoom=intro.Zoom();
+    float previous=0;
+    for(int i=0;i<40;++i) {
+        intro.Update(.1f); CHECK(intro.Progress()>=previous);
+        previous=intro.Progress();
+        CHECK(intro.Zoom()<=previousZoom); previousZoom=intro.Zoom();
+    }
+    CHECK(intro.Progress()==1); CHECK(intro.Zoom()==1);
+    intro.Update(.1f); CHECK(intro.Progress()==1);
+    MenuEntrance skipped; skipped.Finish(); CHECK(skipped.Progress()==1); CHECK(skipped.Zoom()==1);
+}
 int main() {
     try {
         PersistenceAndCollection();
@@ -123,7 +138,8 @@ int main() {
         SwipesAndTwoFingerPause();
         AnimationPausesAndRecovers();
         FishLeavesAndReturnsToWater();
-        std::cout << "5/5 presentation, gesture and animation groups passed.\n";
+        MenuEntranceCompletesAndSkips();
+        std::cout << "6/6 presentation, gesture and animation groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

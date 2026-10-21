@@ -45,6 +45,12 @@ try {
                 }
             }
             Write-Host ($lines -join [Environment]::NewLine)
+            foreach ($capture in @('32-shield-shell-a.png','33-shield-shell-b.png','34-shield-shatter.png')) {
+                $imagePath = Join-Path $dir $capture
+                if (!(Test-Path $imagePath) -or (Get-Item $imagePath).Length -eq 0) {
+                    throw "Captura do escudo ausente: $imagePath"
+                }
+            }
             Write-Host "Evidencias: $dir"
         } finally { $env:JACARUN_VISUAL_SMOKE = $oldSmoke }
     }

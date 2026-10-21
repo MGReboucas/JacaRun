@@ -5,7 +5,8 @@ New-Item -ItemType Directory -Path $destination -Force | Out-Null
 $sounds = @(
     @{Name='jump'; Duration=.20; Start=260; End=620},
     @{Name='slide'; Duration=.18; Start=260; End=90},
-    @{Name='coin'; Duration=.12; Start=1000; End=1500},
+    @{Name='coin'; Duration=.20; Start=1200; End=1800},
+    @{Name='pace'; Duration=.65; Start=440; End=880},
     @{Name='food'; Duration=.20; Start=620; End=940},
     @{Name='hit'; Duration=.25; Start=155; End=45},
     @{Name='reward'; Duration=.54; Start=523; End=1046}
@@ -37,4 +38,4 @@ foreach ($sound in $sounds) {
         }
     } finally { $writer.Dispose() }
 }
-Write-Output 'Generated six original PCM WAV effects.'
+Write-Output 'Generated seven original PCM WAV effects.'

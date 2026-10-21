@@ -29,6 +29,7 @@
 #include "RunPresentation.h"
 #include "GestureInput.h"
 #include "CharacterMotion.h"
+#include "MenuEntrance.h"
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -46,14 +47,23 @@ private:
     RunPresentation presentation;
     GestureInput gestures;
     CharacterMotion motion;
+    MenuEntrance entrance;
+    ax::Node* scenery = nullptr;
+    ax::Label* menuHint = nullptr;
+    ax::DrawNode* menuActor = nullptr;
+    ax::DrawNode* menuMask = nullptr;
     struct Particle { ax::Vec2 position, velocity; float life, duration, radius; ax::Color4F color; };
     std::vector<Particle> particles;
     float dustTime = 0, pickupPulse = 0, impactTime = 0, resultTime = 0;
+    bool shieldImpact = false;
     unsigned int notifiedMissions = 0;
     ax::Label* missionHud = nullptr;
     ax::Label* missionToast = nullptr;
     ax::Label* resultGoals = nullptr;
     float toastTime = 0;
+    ax::Label* coinNotice = nullptr;
+    float coinNoticeTime = 0, paceNoticeTime = 0;
+    int coinNoticeCount = 0, lastPace = -1;
     bool goals = false, achievementTab = false;
     bool help = false;
     int goalPage = 0;

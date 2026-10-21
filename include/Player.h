@@ -12,12 +12,14 @@ public:
     double GetVelocityY() const { return velocityY; }
     bool IsSliding() const { return slideRemaining > 0.0; }
     bool IsGrounded() const { return grounded; }
+    bool IsDiving() const { return diving; }
 
 private:
     double positionY = 0.0;
     double velocityY = 0.0;
     double slideRemaining = 0.0;
     bool grounded = true;
+    bool diving = false;
 };
 
 #endif

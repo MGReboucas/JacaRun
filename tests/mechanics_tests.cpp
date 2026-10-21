@@ -22,14 +22,12 @@ void PlayerActions() {
     CHECK(player.IsGrounded());
     CHECK(player.Jump());
     CHECK(!player.Jump());
-    CHECK(!player.Slide());
     player.Update(0.4);
     CHECK(player.GetPositionY() > Balance::GroundClearance);
     player.Update(0.6);
     CHECK(player.IsGrounded());
     CHECK(Near(player.GetPositionY(), 0));
     CHECK(player.Slide());
-    CHECK(!player.Jump());
     CHECK(!player.Slide());
     player.Update(Balance::SlideSeconds / 2);
     CHECK(player.IsSliding());
@@ -38,6 +36,66 @@ void PlayerActions() {
     CHECK(player.Jump());
     player.Reset();
     CHECK(player.IsGrounded() && !player.IsSliding());
+}
+
+void DiveIntoSlide() {
+    for(double speed : {10.0,24.0,60.0}) {
+        for(double age : {.15,.43,.70}) {
+            Player p; p.Jump(); p.Update(age*24/speed,speed);
+            CHECK(!p.IsGrounded());
+            CHECK(p.Slide() && p.IsDiving() && !p.IsSliding());
+            CHECK(p.GetVelocityY()<=-Balance::DiveSpeed);
+            CHECK(!p.Slide() && !p.Jump());
+            for(int i=0;i<100 && !p.IsGrounded();++i) p.Update(.001,speed);
+            // At low speed allow the full physical descent from the apex.
+            for(int i=0;i<300 && !p.IsGrounded();++i) p.Update(.001,speed);
+            CHECK(p.IsGrounded() && p.IsSliding() && !p.IsDiving());
+            CHECK(p.GetPositionY()==0 && p.GetVelocityY()==0);
+            CHECK(!p.Slide());
+            p.Update(20.0/speed,speed); CHECK(p.IsSliding());
+            p.Update(2.0/speed,speed); CHECK(!p.IsSliding());
+            CHECK(p.Jump()); p.Slide(); p.Reset(); CHECK(!p.IsDiving() && !p.IsSliding());
+        }
+    }
+    Player a,b; a.Jump(); b.Jump(); a.Update(.4); b.Update(.4); a.Slide(); b.Slide();
+    a.Update(.3); for(int i=0;i<30;++i) b.Update(.01);
+    CHECK(a.IsGrounded() && b.IsGrounded() && a.IsSliding() && b.IsSliding());
+    a.Update(.65); b.Update(.65); CHECK(a.IsSliding()==b.IsSliding());
+    GameManager game; game.StartGame(1,false); game.Jump(); game.Update(.7); game.Slide();
+    const double height=game.GetPlayer().GetPositionY();
+    game.TogglePause(); game.Update(2); CHECK(game.GetPlayer().IsDiving());
+    CHECK(Near(height,game.GetPlayer().GetPositionY())); CHECK(!game.Slide());
+    game.TogglePause(); game.Spawn(EntityType::High,game.GetDistance()+5); game.Update(.6);
+    CHECK(game.IsPlaying() && game.GetObstaclesPassed()==1);
+    GameManager hit; hit.StartGame(1,false); hit.Jump(); hit.Update(.7); hit.Slide();
+    hit.Spawn(EntityType::High,hit.GetDistance()+.01); hit.Update(.02);
+    CHECK(hit.GetState()==GameState::GameOver); // A dive is not airborne immunity.
+}
+
+void SlideIntoJump() {
+    for(double speed : {10.0,24.0,60.0}) {
+        for(double elapsed : {0.0,.2,.85}) {
+            Player p; CHECK(p.Slide()); p.Update(elapsed*24/speed,speed);
+            CHECK(p.IsSliding() && p.Jump());
+            CHECK(!p.IsSliding() && !p.IsGrounded() && !p.IsDiving());
+            CHECK(Near(p.GetVelocityY(),Balance::JumpForce));
+            CHECK(!p.Jump());
+            p.Update(.3*24/speed,speed);
+            CHECK(p.GetPositionY()>Balance::GroundClearance);
+            CHECK(p.Slide()); CHECK(!p.Jump());
+            for(int i=0;i<400 && !p.IsGrounded();++i) p.Update(.001,speed);
+            CHECK(p.IsSliding() && p.Jump());
+            p.Update(1.0*24/speed,speed);
+            CHECK(p.IsGrounded() && !p.IsSliding()); // Cancelled slide never resumes.
+        }
+    }
+    GameManager g; g.StartGame(1,false); g.Slide(); g.TogglePause();
+    CHECK(!g.Jump()); g.TogglePause(); CHECK(g.Jump());
+    g.Spawn(EntityType::Ground,3); g.Update(.4);
+    CHECK(g.IsPlaying() && g.GetObstaclesPassed()==1);
+    GameManager hit; hit.StartGame(1,false); hit.Slide(); hit.Jump();
+    hit.Spawn(EntityType::High,3); hit.Update(.4);
+    CHECK(hit.GetState()==GameState::GameOver);
 }
 
 void TimeBasedPhysics() {
@@ -637,7 +695,7 @@ void MissionSettlementIsIdempotent() {
 
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
-        {"acoes do jogador", PlayerActions}, {"fisica por tempo", TimeBasedPhysics},
+        {"acoes do jogador", PlayerActions}, {"queda rapida e deslize automatico", DiveIntoSlide}, {"pulo interrompe deslize", SlideIntoJump}, {"fisica por tempo", TimeBasedPhysics},
         {"cruzamento e consumo unico", CrossingAndConsumption}, {"colisao terrestre", GroundCollisions},
         {"colisao superior", HighCollisions}, {"alimentos e combos", FoodAndCombos},
         {"coleta aerea e ima", AirPickupsAndMagnet}, {"escudo", ShieldAbsorbsOnceAndExpires},

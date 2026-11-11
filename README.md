@@ -1,5 +1,7 @@
 # JACARUN
 
+**Atualização 0.9.2 — Jaca mais expressivo:** corrida em oito poses, descanso com respiração, piscadas, aceno e ajuste do boné; entrada com preparação, salto da água, aterrissagem e saudação. Pulo diferencia subida, ápice e queda. Deslize, mordida, mastigação, impacto e derrota têm poses próprias, com compressão/alongamento e inclinação. A poeira acompanha as passadas. A derrota aparece por 0,72 s antes do placar; reiniciar continua disponível. Física, colisões e ambientes automáticos preservados. [Artes e prompts](visual/Content/art/animation-prompts.json). APK: `output/JacaRun-0.9.2-debug.apk`.
+
 **Atualização 0.9.1 — ambientes durante a corrida:** seleção removida do menu. Cada partida começa no mangue e alterna a cada 500 m: mangue → vila de pescadores → floresta tropical → mangue, repetindo o ciclo. Fundo e piso fazem uma transição gradual nos primeiros 40 m de cada novo trecho. A pausa congela a transição, e reiniciar volta ao mangue. APK: `output/JacaRun-0.9.1-debug.apk`.
 
 **Atualização 0.9.0 — direção visual ilustrada:** novo Jaca com boné, bandana e mochila, quatro poses de corrida e estados de salto, deslize, mordida e derrota. Mangue, vila de pescadores e floresta tropical podem ser escolhidos no menu; a escolha é lembrada no aparelho. Fundos com movimento mais lento que o piso, obstáculos e alimentos ilustrados, marca própria no menu, botões em tons de madeira e HUD menos intrusivo. Os três ambientes compartilham as mecânicas existentes. Saves e compras preservados; acessórios sobrepostos ao novo personagem. [Artes e prompts](visual/Content/art/README.md). APK: `output/JacaRun-0.9.0-debug.apk`.
@@ -47,7 +49,7 @@ JacaRun é um **endless runner 2D em desenvolvimento**, pensado para celulares e
 
 Este repositório contém um **protótipo visual em C++/Axmol**, com corrida em tempo real, mangue em tela cheia, controles por gestos, cenário provisório, loja, pausa, save e reinício. A interface de terminal continua disponível e compartilha as mesmas regras. A versão 0.7 reformula a loja com sete visuais e três melhorias permanentes, preços de longo prazo e peixes difíceis que aceleram a pontuação. Os vídeos Android orientaram os ajustes; esta revisão ainda precisa de reteste físico.
 
-![JacaRun 0.9.1 — menu ilustrado](docs/images/jacarun-0.9.1-menu.png)
+![JacaRun 0.9.2 — novo Jaca animado](docs/images/jacarun-0.9.2-menu.png)
 
 ## Jogar a versão visual no Windows
 
@@ -73,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.9.1-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.9.2-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 

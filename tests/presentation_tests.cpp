@@ -5,6 +5,7 @@
 #include "../visual/Source/MenuEntrance.h"
 #include "../visual/Source/FishMotion.h"
 #include "../visual/Source/EnvironmentCycle.h"
+#include "../visual/Source/CharacterAnimation.h"
 #include <stdexcept>
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while(false)
 
@@ -157,6 +158,49 @@ void EnvironmentsFollowDistance() {
     CHECK(game.GetDistance()==0);
     CHECK(EnvironmentAtDistance(game.GetDistance()).current==0);
 }
+void ExpressiveCharacterStates() {
+    CharacterMotion motion;
+    unsigned frames=0;
+    for(int i=0;i<100;++i) {
+        motion.Update(.01f,true,true,false,24);
+        const auto p=AnimateJaca(motion,false,true,false,false,false,0);
+        CHECK(p.atlas==JacaAtlas::Run && p.frame>=0 && p.frame<8);
+        CHECK(p.scaleX>.8f && p.scaleY>.8f);
+        frames|=1u<<p.frame;
+    }
+    CHECK(frames==255);
+    const auto frozen=motion;
+    motion.Update(5,false,false,true,60,-20,true);
+    CHECK(motion.phase==frozen.phase && motion.time==frozen.time && motion.lean==frozen.lean && motion.defeat==frozen.defeat);
+    motion.Update(.1f,true,false,false,24,12);
+    CHECK(motion.phase==frozen.phase);
+    CHECK(AnimateJaca(motion,false,false,false,false,false,12).frame==0);
+    CHECK(AnimateJaca(motion,false,false,false,false,false,0).frame==1);
+    CHECK(AnimateJaca(motion,false,false,false,false,false,-12).frame==2);
+    motion.Eat();
+    CHECK(AnimateJaca(motion,false,false,false,false,false,0).frame==4);
+    auto slide=AnimateJaca(motion,false,true,true,false,false,0);
+    CHECK(slide.frame==3 && slide.height==43);
+    CHECK(AnimateJaca(motion,false,false,true,true,false,-12).frame==3);
+    motion.bite=.1f;
+    CHECK(AnimateJaca(motion,false,true,false,false,false,0).frame==5);
+    motion.Reset();
+    motion.time=2.35f; CHECK(AnimateJaca(motion,true,true,false,false,false,0).frame==2);
+    motion.time=4.3f; CHECK(AnimateJaca(motion,true,true,false,false,false,0).frame==4);
+    motion.time=5.8f; CHECK(AnimateJaca(motion,true,true,false,false,false,0).frame==5);
+    CHECK(AnimateJaca(motion,true,true,false,false,false,0,.2f).frame==6);
+    CHECK(AnimateJaca(motion,true,true,false,false,false,0,1.2f).frame==7);
+    CHECK(AnimateJaca(motion,true,true,false,false,false,0,3.0f).frame==4);
+    motion.Reset(); motion.Hit(); motion.Update(.1f,true,true,false,24,0,true);
+    CHECK(AnimateJaca(motion,false,true,false,false,true,0).frame==6);
+    for(int i=0;i<4;++i) motion.Update(.1f,true,true,false,24,0,true);
+    CHECK(AnimateJaca(motion,false,true,false,false,true,0).frame==7);
+    const float defeat=motion.defeat;
+    motion.Update(1,false,true,false,24,0,true); CHECK(motion.defeat==defeat);
+    motion.Reset(); CHECK(motion.defeat==0 && motion.hurt==0 && motion.lean==0);
+    MenuEntrance intro; intro.time=1.2f; CHECK(intro.Hop()>30);
+    intro.Finish(); CHECK(intro.Hop()==0);
+}
 int main() {
     try {
         PersistenceAndCollection();
@@ -166,7 +210,8 @@ int main() {
         FishLeavesAndReturnsToWater();
         MenuEntranceCompletesAndSkips();
         EnvironmentsFollowDistance();
-        std::cout << "7/7 presentation, gesture, animation and environment groups passed.\n";
+        ExpressiveCharacterStates();
+        std::cout << "8/8 presentation, gesture, animation and environment groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

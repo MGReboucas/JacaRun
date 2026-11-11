@@ -1,5 +1,15 @@
 # Direção visual — JacaRun
 
+## Animação 0.9.2
+
+Três novos atlas de oito poses, gerados com imagegen a partir da identidade original:
+
+- `jaca-run-v2.png`: oito poses de corrida, com densidade de pixels estável e cadência limitada para leitura em alta velocidade.
+- `jaca-idle-v2.png`: descanso, respiração, piscada, aceno, ajuste do boné, preparação e salto de entrada.
+- `jaca-actions-v2.png`: subida, ápice, queda, deslize baixo, mordida, mastigação, impacto e derrota.
+
+Os prompts completos estão em [animation-prompts.json](animation-prompts.json). `scripts/inspect-character-atlases.ps1` lê os limites do canal alpha e gera `CharacterAtlas.h`, sem modificar os PNGs. `CharacterAnimation.h` escolhe poses e transformações; a física e as colisões permanecem no núcleo. O atlas original abaixo fica preservado como referência de identidade.
+
 Artes produzidas em 10/11/2026 com o gerador integrado imagegen, a partir da referência de personagem e ambientes fornecida pelo usuário. Os PNGs ficam neste diretório e são empacotados pelo fluxo normal de Content do Axmol.
 
 - `jaca-atlas.png`: corrida em quatro poses, salto, deslize, mordida e derrota; transparência preservada. Os recortes explícitos estão em `MainScene::drawCrocodile`.

@@ -33,7 +33,7 @@ try {
             $dir = Join-Path $PSScriptRoot ('output/visual-smoke-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
             $env:JACARUN_VISUAL_SMOKE = $dir
             $process = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru
-            if (!$process.WaitForExit(45000)) { throw "Teste nao terminou em 45s. Processo $($process.Id); confira o aplicativo." }
+            if (!$process.WaitForExit(60000)) { throw "Teste nao terminou em 60s. Processo $($process.Id); confira o aplicativo." }
             $result = Join-Path $dir 'result.txt'
             if (!(Test-Path $result)) { throw 'Teste nao produziu relatorio; confira se o sistema permitiu executar o aplicativo.' }
             $lines = Get-Content $result
@@ -45,7 +45,7 @@ try {
                 }
             }
             Write-Host ($lines -join [Environment]::NewLine)
-            foreach ($capture in @('32-shield-shell-a.png','33-shield-shell-b.png','34-shield-shatter.png','35-village-run.png','36-forest-run.png','37-mangrove-return.png','38-environment-transition.png')) {
+            foreach ($capture in @('32-shield-shell-a.png','33-shield-shell-b.png','34-shield-shatter.png','35-village-run.png','36-forest-run.png','37-mangrove-return.png','38-environment-transition.png','39-menu-wave.png','40-impact.png','41-collapse.png','42-idle-blink.png','43-idle-cap.png')) {
                 $imagePath = Join-Path $dir $capture
                 if (!(Test-Path $imagePath) -or (Get-Item $imagePath).Length -eq 0) {
                     throw "Captura visual ausente: $imagePath"

@@ -26,6 +26,8 @@
 #include "MainScene.h"
 #include "FishMotion.h"
 #include "EnvironmentCycle.h"
+#include "CharacterAnimation.h"
+#include "CharacterAtlas.h"
 #include "audio/AudioEngine.h"
 #include <algorithm>
 #include <chrono>
@@ -96,6 +98,8 @@ bool MainScene::init() {
     soundEnabled=UserDefault::getInstance()->getBoolForKey("sound-enabled",true);
     // Decode all backgrounds before the run, avoiding loading stalls at biome boundaries.
     for(const char* file:EnvironmentFiles) Director::getInstance()->getTextureCache()->addImage(file);
+    for(const char* file:{"art/jaca-run-v2.png","art/jaca-idle-v2.png","art/jaca-actions-v2.png"})
+        Director::getInstance()->getTextureCache()->addImage(file);
     AudioEngine::setMaxAudioInstance(8);
     if (smokeStep < 0 && !game.GetProfile().Load(savePath, error)) {
         saveAllowed = false;
@@ -285,7 +289,7 @@ void MainScene::suspend() {
 }
 
 void MainScene::rebuildUI() {
-    ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr;
+    ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr; menuBrand=nullptr;
     score = distance = coins = status = pace = gestureHint = coinNotice = nullptr;
     missionHud = missionToast = resultGoals = nullptr;
     gestures.Cancel(); activeTouch = -1; touchAction = Action::None;
@@ -380,11 +384,17 @@ void MainScene::rebuildUI() {
     if (state == GameState::Menu) {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{302,top-24,154,44},Action::Sound);
         button("COMO JOGAR",{24,top-24,184,44},Action::Help);
-        art(panels,"art/logo.png",{15,140,1510,780},{50,top-237},{380,196},1);
-        text("CORRA. COMA. EXPLORE.", 18, {240, top - 260}, Cream,true)->enableOutline(Color4B(28,55,22,255),2);
-        pill(panels, {85, viewHeight * .62f, 310, 43}, Color4F(.04f,.22f,.22f,.82f));
-        text("RECORDE  " + whole(game.GetProfile().bestScore) + "  /  N\u00cdVEL " +
-             whole(game.GetProfile().GetLevel()), 16, {240, viewHeight * .62f + 22}, Cream);
+        menuBrand=Node::create(); menuBrand->setCascadeOpacityEnabled(true); ui->addChild(menuBrand);
+        auto brandChild=[&](Node* child) {
+            child->retain(); child->removeFromParent(); menuBrand->addChild(child); child->release();
+        };
+        brandChild(art(panels,"art/logo.png",{15,140,1510,780},{50,top-237},{380,196},1));
+        auto tagline=text("CORRA. COMA. EXPLORE.",18,{240,top-260},Cream,true);
+        tagline->enableOutline(Color4B(28,55,22,255),2); brandChild(tagline);
+        auto plaque=DrawNode::create(); menuBrand->addChild(plaque,-1);
+        pill(plaque, {85, viewHeight * .62f, 310, 43}, Color4F(.04f,.22f,.22f,.82f));
+        brandChild(text("RECORDE  " + whole(game.GetProfile().bestScore) + "  /  N\u00cdVEL " +
+             whole(game.GetProfile().GetLevel()), 16, {240, viewHeight * .62f + 22}, Cream));
         button("VAMOS CORRER", {55, bottom +  90, 370, 65}, Action::Play, true);
         button("SEU JACA  /  " + whole(game.GetProfile().coins) + " moedas",
                {55, bottom + 22, 370, 52}, Action::Shop);
@@ -424,6 +434,8 @@ void MainScene::rebuildUI() {
         gestureHint->enableOutline(Color4B(13,47,42,210), 1);
         return;
     }
+    // Let the impact, recoil and collapse read before covering the lane with results.
+    if(state==GameState::GameOver && motion.defeat<.72f) return;
     rect(panels, {0,0,480,viewHeight}, Color4F(.015f,.09f,.11f,.49f));
     pill(panels, {28, center - 300, 424, 560}, Color4F(.035f,.17f,.18f,.96f));
     if (state == GameState::Paused) {
@@ -523,9 +535,7 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     const bool sliding = !target && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()) && game.GetState() != GameState::Menu;
     const bool airborne = !target && !game.GetPlayer().IsGrounded() && game.GetState()!=GameState::Menu;
     const bool idle = target || game.GetState()==GameState::Menu;
-    const float cycle = motion.phase;
-    const float bob = idle ? std::sin(motion.time*2.5f)*1.8f :
-        airborne || sliding ? 0 : std::abs(std::sin(cycle))*2.8f;
+    const float bob = idle ? 0 : airborne || sliding ? 0 : std::max(0.0f,std::sin(motion.phase*2))*2.6f;
     const float lean = airborne ? std::clamp(static_cast<float>(game.GetPlayer().GetVelocityY())*.012f,-.12f,.12f) : -.035f*motion.slide;
     const float sx=motion.Width(), sy=motion.Height();
     auto point = [&](float x, float y) {
@@ -547,20 +557,38 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
                     Color4F(.18f,.80f,1,(.025f+shieldPulse*.006f)*shieldAlpha));
         ellipse(drawing,shieldCenter,shieldX*.94f,shieldY*.94f,Color4F(.16f,.64f,.88f,.13f*shieldAlpha));
     }
-    const Rect poses[]={{20,80,340,350},{400,90,330,340},{785,80,335,350},{1170,75,350,350},
-                        {25,555,335,340},{365,725,390,215},{780,600,335,340},{1110,670,420,280}};
-    int frame=idle?0:static_cast<int>(cycle/1.5707963f)%4;
-    if(!idle && airborne) frame=4;
-    if(sliding) frame=5;
-    if(!idle && motion.Mouth()>.2f) frame=6;
-    if(!target && game.GetState()==GameState::GameOver) frame=7;
-    const Rect crop=poses[frame];
-    const float width=(frame==5?115:frame==7?131:100)*scale;
-    const float height=frame==5?43*scale:width*crop.size.height/crop.size.width;
-    auto actor=art(drawing,"art/jaca-atlas.png",crop,{feet.x+55*scale-width,feet.y+bob*scale},{width,height},2);
+    const bool defeated=!target && game.GetState()==GameState::GameOver;
+    auto pose=AnimateJaca(motion,idle,!airborne,sliding,game.GetPlayer().IsDiving(),defeated,
+        game.GetPlayer().GetVelocityY(),target==menuActor?entrance.time:-1);
+    const auto& bounds=pose.atlas==JacaAtlas::Run?RunCrops[pose.frame]:
+                       pose.atlas==JacaAtlas::Idle?IdleCrops[pose.frame]:ActionCrops[pose.frame];
+    const char* file=pose.atlas==JacaAtlas::Run?"art/jaca-run-v2.png":
+                     pose.atlas==JacaAtlas::Idle?"art/jaca-idle-v2.png":"art/jaca-actions-v2.png";
+    const Rect crop(static_cast<float>(bounds.x),static_cast<float>(bounds.y),
+                    static_cast<float>(bounds.width),static_cast<float>(bounds.height));
+    // Keep pixel density stable across stride frames instead of stretching every pose to a box.
+    if(pose.atlas==JacaAtlas::Run) { pose.width=bounds.width*.30f; pose.height=bounds.height*.30f; }
+    const float width=pose.width*scale*pose.scaleX, height=pose.height*scale*pose.scaleY;
+    auto actor=art(drawing,file,crop,{0,0},{width,height},2);
+    // Transform around the planted feet; the contact coordinate remains independent of the sprite.
+    actor->setAnchorPoint({.65f,0});
+    actor->setPosition({feet.x+20*scale,feet.y+pose.bob*scale});
+    actor->setRotation(pose.angle);
     auto decor=static_cast<DrawNode*>(actor->getChildByTag(100));
     if(!decor) { decor=DrawNode::create(); actor->addChild(decor,1,100); }
     decor->clear(); decor->setVisible(true);
+    if(defeated && motion.defeat>.28f) {
+        for(int i=0;i<3;++i) {
+            const float a=motion.time*3+i*2.0944f;
+            const Vec2 p(crop.size.width*.72f+std::cos(a)*54,crop.size.height+23+std::sin(a)*12);
+            Vec2 star[8];
+            for(int j=0;j<8;++j) {
+                const float angle=j*.785398f;
+                star[j]=p+Vec2(std::cos(angle),std::sin(angle))*(j%2?4.0f:12.0f);
+            }
+            decor->drawSolidPoly(star,8,Color4F(1,.82f,.13f,1));
+        }
+    }
     const int accessory=previewAccessory>=0?previewAccessory:game.GetProfile().equipped;
     // Cosmetic overlays use atlas-local coordinates, so previews and gameplay share the same look.
     const Vec2 eye(crop.size.width*.73f,crop.size.height*.67f);
@@ -865,10 +893,11 @@ void MainScene::drawWorld() {
     const float zoom=opening?entrance.Zoom():1;
     const float camera=opening?entrance.CameraProgress():1;
     scenery->setScale(zoom);
-    const Vec2 focus(245+75*entrance.Progress(),h*.29f+36);
+    const Vec2 focus(245+75*entrance.Progress(),h*.29f+36+64*entrance.Progress());
     const Vec2 desired=(Vec2(240,h*.48f)-focus*zoom)*(1-camera);
     scenery->setPosition({std::clamp(desired.x,480*(1-zoom),0.0f),std::clamp(desired.y,h*(1-zoom),0.0f)});
-    if(menuHint) menuHint->setOpacity(static_cast<uint8_t>(255*std::clamp((camera-.8f)/.2f,0.0f,1.0f)));
+    if(menuHint) menuHint->setOpacity(static_cast<uint8_t>(255*std::clamp((entrance.time-2.4f)/.5f,0.0f,1.0f)));
+    if(menuBrand) menuBrand->setOpacity(static_cast<uint8_t>(255*std::clamp((camera-.65f)/.35f,0.0f,1.0f)));
     const float ground=game.GetState()==GameState::Menu ? h*.29f : floorY;
     const float travel=static_cast<float>(game.GetDistance());
     drawBackdrop(ground);
@@ -887,8 +916,9 @@ void MainScene::drawWorld() {
     const float idleCycle=std::fmod(motion.time,7.0f);
     const float shake=menu && arrival>=1 && idleCycle>6.4f?std::sin((idleCycle-6.4f)*38):0;
     const float playerX=menu?215+35*arrival+shake*2:Contact-55*scale;
-    const float playerY=ground+(menu?-65*(1-arrival):static_cast<float>(game.GetPlayer().GetPositionY())*HeightScale);
-    const float altitude=menu?0:static_cast<float>(game.GetPlayer().GetPositionY());
+    const float fall=game.GetState()==GameState::GameOver?1-std::clamp(motion.defeat/.28f,0.0f,1.0f):1;
+    const float altitude=menu?0:static_cast<float>(game.GetPlayer().GetPositionY())*fall;
+    const float playerY=ground+(menu?-90*(1-arrival)+entrance.Hop():altitude*HeightScale);
     ellipse(world,{playerX-4,ground+1},menu?100:59-altitude*8,6-altitude,Color4F(.04f,.13f,.10f,menu?.36f*arrival:.36f-altitude*.07f));
     if(!menu && game.GetFrenzySeconds()>0) {
         for(int i=0;i<3;++i) {
@@ -975,7 +1005,14 @@ void MainScene::update(float dt) {
     clock += dt;
     soundCooldown=std::max(0.0f,soundCooldown-dt);
     const auto before=game.GetState();
-    if(before==GameState::Menu) entrance.Update(dt);
+    if(before==GameState::Menu) {
+        const float previousIntro=entrance.time;
+        entrance.Update(dt);
+        if(previousIntro<.85f && entrance.time>=.85f)
+            burst({235,viewHeight*.29f+20},Color4F(.60f,.93f,1,.8f),18,1.3f);
+        if(previousIntro<1.65f && entrance.time>=1.65f)
+            burst({250,viewHeight*.29f+4},Color4F(.88f,.80f,.53f,.65f),10,.8f);
+    }
     if(soundEnabled && smokeStep<0 && before==GameState::Playing) {
         if(musicId<0) musicId=AudioEngine::play2d("audio/mangue-loop.wav",true,.16f);
     } else if(musicId>=0) {
@@ -987,9 +1024,11 @@ void MainScene::update(float dt) {
     presentation.Resolve(game.GetFrameResolutions());
     presentation.Sync(game.GetLevel().GetEntities());
     const float activeDt = before == GameState::Playing ? dt : 0;
-    motion.Update(dt,before==GameState::Playing || before==GameState::Menu,
+    const float previousPhase=motion.phase;
+    motion.Update(dt,before==GameState::Playing || before==GameState::Menu || before==GameState::GameOver,
                   before==GameState::Menu || game.GetPlayer().IsGrounded(),
-                  before!=GameState::Menu && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()),before==GameState::Menu?0:game.GetSpeed());
+                  before!=GameState::Menu && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()),before==GameState::Menu?0:game.GetSpeed(),
+                  game.GetPlayer().GetVelocityY(),game.GetState()==GameState::GameOver);
     const float effectDt=before==GameState::Paused?0:dt;
     pickupPulse=std::max(0.0f,pickupPulse-effectDt*4);
     impactTime=std::max(0.0f,impactTime-effectDt);
@@ -1004,7 +1043,9 @@ void MainScene::update(float dt) {
         if(!wasGrounded && game.GetPlayer().IsGrounded())
             burst({Contact-60,floorY+4},Color4F(.83f,.80f,.53f,.75f),12,.85f);
         dustTime+=dt;
-        if(game.GetPlayer().IsGrounded() && dustTime>.10f) {
+        const bool footstep=motion.phase<previousPhase || (previousPhase<3.14159265f && motion.phase>=3.14159265f);
+        const bool slidingDust=game.GetPlayer().IsSliding() && dustTime>.08f;
+        if(game.GetPlayer().IsGrounded() && (slidingDust || (!game.GetPlayer().IsSliding() && footstep))) {
             dustTime=0;
             burst({Contact-106,floorY+5},Color4F(.74f,.73f,.49f,.45f),2,.35f);
         }
@@ -1025,6 +1066,7 @@ void MainScene::update(float dt) {
             else if(soundCooldown<=0) { sound(coin?"coin":"food"); soundCooldown=.07f; }
         } else if(resolution.outcome==EntityOutcome::Shielded || resolution.outcome==EntityOutcome::Hit) {
             shieldImpact=resolution.outcome==EntityOutcome::Shielded;
+            motion.Hit();
             burst({Contact-30,floorY+32},shieldImpact?Color4F(.45f,.92f,1,1):Color4F(1,.70f,.38f,1),20,1.3f);
             impactTime=.35f;
             sound("hit");
@@ -1036,6 +1078,8 @@ void MainScene::update(float dt) {
         save(); rebuildUI();
         if(game.GetState()==GameState::GameOver && game.GetProgressRewards().coins>0) sound("reward");
     }
+    if(game.GetState()==GameState::GameOver && !shop && !goals && !help && !resultGoals && motion.defeat>=.72f)
+        rebuildUI();
     for(auto& message:game.TakeMessages()) {
         feedback=std::move(message); feedbackTime=2.5f;
     }
@@ -1175,11 +1219,12 @@ void MainScene::smokeTick(float dt) {
         if(smokeTime>1) Director::getInstance()->end();
         return;
     }
-    if(smokeTime>35) { finishSmoke(false,"Timed out"); return; }
+    if(smokeTime>50) { finishSmoke(false,"Timed out"); return; }
     const double d=game.GetDistance();
     if(smokeStep==0 && smokeTime>.25f) { capture("27-menu-water.png"); smokeStep=60; }
     else if(smokeStep==60 && smokeTime>1.45f) { capture("28-menu-emerge.png"); smokeStep=61; }
-    else if(smokeStep==61 && smokeTime>3.75f) { capture("01-menu.png"); smokeStep=40; }
+    else if(smokeStep==61 && smokeTime>3.1f) { capture("39-menu-wave.png"); smokeStep=62; }
+    else if(smokeStep==62 && smokeTime>3.75f) { capture("01-menu.png"); smokeStep=40; }
     else if(smokeStep==40 && smokeTime>0.55f) { act(Action::Help); smokeStep=41; }
     else if(smokeStep==41 && smokeTime>0.7f) {
         if(!help) { finishSmoke(false,"Help did not open"); return; }
@@ -1236,6 +1281,11 @@ void MainScene::smokeTick(float dt) {
         }
         capture("08-slide-clearance.png"); smokeStep=10;
     } else if(smokeStep==10 && game.GetState()==GameState::GameOver) {
+        if(motion.defeat<.1f) return;
+        capture("40-impact.png"); smokeStep=63;
+    } else if(smokeStep==63 && motion.defeat>.42f) {
+        capture("41-collapse.png"); smokeStep=64;
+    } else if(smokeStep==64 && motion.defeat>.8f) {
         capture("04-game-over.png");
         const auto bank=game.GetProfile().coins;
         save();
@@ -1354,7 +1404,7 @@ void MainScene::smokeTick(float dt) {
         game.EndRun();
         if(game.GetProfile().coins!=19681) { finishSmoke(false,"Duplicate rewards"); return; }
         smokeStep=30;
-    } else if(smokeStep==30) {
+    } else if(smokeStep==30 && motion.defeat>.8f) {
         capture("17-reward-result.png"); smokeStep=31;
     } else if(smokeStep==31) {
         const float center=viewHeight*.52f;
@@ -1471,12 +1521,18 @@ void MainScene::smokeTick(float dt) {
         act(Action::Menu); start(false); smokeStep=89;
     } else if(smokeStep==89) {
         if(d>2 || EnvironmentAtDistance(d).current!=0) { finishSmoke(false,"Environment restart failed"); return; }
-        for(const char* file:{"art/jaca-atlas.png","art/ground-atlas.png","art/objects-atlas.png","art/mangue.png","art/vila.png","art/floresta.png"}) {
+        for(const char* file:{"art/jaca-run-v2.png","art/jaca-idle-v2.png","art/jaca-actions-v2.png","art/ground-atlas.png","art/objects-atlas.png","art/mangue.png","art/vila.png","art/floresta.png"}) {
             if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) {
                 finishSmoke(false,std::string("Art not loaded: ")+file); return;
             }
         }
-        finishSmoke(true,"Gameplay, save, gestures, shield, recurring environments, transition and restart passed.");
+        act(Action::Menu); smokeStep=90;
+    } else if(smokeStep==90) {
+        motion.time=2.35f; drawWorld(); capture("42-idle-blink.png"); smokeStep=91;
+    } else if(smokeStep==91) {
+        motion.time=5.8f; drawWorld(); capture("43-idle-cap.png"); smokeStep=92;
+    } else if(smokeStep==92) {
+        finishSmoke(true,"Gameplay, save, environments, expressive entrance, action poses and defeat passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

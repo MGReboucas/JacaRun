@@ -1,5 +1,7 @@
 # JacaRun — protótipo visual 0.9
 
+**0.9.2:** três atlas de oito poses para corrida, descanso/entrada e ações. `CharacterAnimation.h` decide o estado visual; `CharacterMotion.h` controla tempos, inclinação e compressão. As transições e os efeitos congelam na pausa. A introdução pode ser pulada iniciando a corrida. A derrota tem uma reação curta antes do placar. Os recortes de alpha estão em `CharacterAtlas.h`, gerado pelo script de inspeção sem alterar as imagens. [Prompts das animações](Content/art/animation-prompts.json).
+
 **0.9.1:** ambientes automáticos, sem seletor no menu. A cada 500 m, o ciclo avança por mangue, vila e floresta, retornando ao mangue aos 1.500 m. Fundo e piso se misturam nos primeiros 40 m de cada trecho. A distância controla a transição, que congela na pausa; menu e nova partida começam no mangue. Os obstáculos e as regras permanecem iguais. Veja [artes e prompts](Content/art/README.md). O smoke verifica os três trechos, transição, retorno e reinício, com capturas `35` a `38`.
 
 Patch **0.8.1**: ícone próprio do Jaca no Android e Windows. Veja [arte, prompt e exportação](../assets/branding/README.md). APK atualizado: `output/JacaRun-0.8.1-debug.apk`.

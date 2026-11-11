@@ -55,6 +55,7 @@ private:
                     ax::Size size, int order = 0);
     void drawBackdrop(float ground);
     ax::Label* menuHint = nullptr;
+    ax::Node* menuBrand = nullptr;
     ax::DrawNode* menuActor = nullptr;
     ax::DrawNode* menuMask = nullptr;
     struct Particle { ax::Vec2 position, velocity; float life, duration, radius; ax::Color4F color; };

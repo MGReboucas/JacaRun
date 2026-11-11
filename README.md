@@ -1,5 +1,7 @@
 # JACARUN
 
+**Atualização 0.9.15 — margens dos menus:** mais espaço nos rodapés de missões/conquistas, loja e ajuda; conteúdo dos cartões limitado à área interna; botões com margens mínimas de 16 na horizontal e 10 na vertical. Textos longos e páginas de recompensas respeitam seus limites. APK: `output/JacaRun-0.9.15-debug.apk`.
+
 **Atualização 0.9.14 — retrato da derrota:** a tela “Boa, Jaca!” usa somente o personagem com olhos em espiral, recortado do atlas transparente, sem o print e sem moldura. APK: `output/JacaRun-0.9.14-debug.apk`.
 
 **Atualização 0.9.13 — menu por toque:** recorde, Seu Jaca/moedas e missões no alto; Como jogar, Intro e Configurações no rodapé. Configurações reúne o controle de música e efeitos. Toque para começar substitui o gesto de deslizar no menu. APK: `output/JacaRun-0.9.13-debug.apk`.

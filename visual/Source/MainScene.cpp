@@ -72,6 +72,12 @@ void pill(DrawNode* d, Rect r, Color4F color) {
     // One convex surface: translucent corners never overlap the center.
     d->drawSolidPoly(outline.data(), static_cast<int>(outline.size()), color);
 }
+// Keep glyphs inside their allocated content box, including long balances/translations.
+Label* fitLabel(Label* label,float width,float height) {
+    const auto size=label->getContentSize();
+    label->setScale(std::min({1.0f,width/std::max(1.0f,size.width),height/std::max(1.0f,size.height)}));
+    return label;
+}
 std::string whole(double value) { return std::to_string(static_cast<long long>(value)); }
 }
 
@@ -179,7 +185,9 @@ void MainScene::button(const std::string& title, Rect bounds, Action action, boo
     pill(panels, {bounds.origin.x-2,bounds.origin.y-5,bounds.size.width+4,bounds.size.height+7}, Color4F(.16f,.075f,.025f,1));
     pill(panels, bounds, primary ? Color4F(1,.68f,.12f,1) : Color4F(.48f,.23f,.075f,1));
     panels->drawSegment({bounds.getMinX()+18,bounds.getMaxY()-4},{bounds.getMaxX()-18,bounds.getMaxY()-4},1.2f,Color4F(1,.83f,.36f,.65f));
-    text(title, fontSize, {bounds.getMidX(), bounds.getMidY() + 1}, primary ? Dark : Cream, true)->setAlignment(TextHAlignment::CENTER);
+    auto caption=text(title,fontSize,{bounds.getMidX(),bounds.getMidY()},primary?Dark:Cream,true);
+    caption->setAlignment(TextHAlignment::CENTER);
+    fitLabel(caption,bounds.size.width-32,bounds.size.height-20);
     buttons.push_back({bounds, action});
 }
 MainScene::Action MainScene::hit(Vec2 point) const {
@@ -524,7 +532,7 @@ void MainScene::rebuildUI() {
         return;
     }
     if(help) {
-        pill(panels,{20,center-320,440,650},Ink);
+        pill(panels,{20,center-354,440,684},Ink);
         text("COMO JOGAR",32,{240,center+270},Cream,true);
         text("Aprenda no seu ritmo",20,{240,center+227},Muted);
         const char* titles[]={"1. PULE","2. DESLIZE","3. PAUSE"};
@@ -534,8 +542,9 @@ void MainScene::rebuildUI() {
         for(int row=0;row<3;++row) {
             const float y=center+105-row*110.0f;
             pill(panels,{40,y-32,400,99},Color4F(.08f,.25f,.24f,1));
-            text(titles[row],22,{240,y+41},Color4B(199,240,100,255),true);
-            text(details[row],19,{240,y-1},Cream)->setAlignment(TextHAlignment::CENTER);
+            fitLabel(text(titles[row],22,{240,y+41},Color4B(199,240,100,255),true),368,28);
+            auto instructions=text(details[row],19,{240,y-1},Cream);
+            instructions->setAlignment(TextHAlignment::CENTER); fitLabel(instructions,368,40);
         }
         text("Moedas compram visuais e melhorias.\nPegue os peixes que saltam da \u00e1gua.",17,{240,center-186},Muted)->setAlignment(TextHAlignment::CENTER);
         button("VAMOS CORRER",{55,center-273,370,56},Action::Play,true);
@@ -544,7 +553,7 @@ void MainScene::rebuildUI() {
     }
     if (goals) {
         const auto& profile = game.GetProfile();
-        pill(panels, {20, center-320, 440, 650}, Color4F(.035f,.17f,.18f,1));
+        pill(panels, {20, center-360, 440, 690}, Color4F(.035f,.17f,.18f,1));
         text("CADA CORRIDA CONTA", 16, {240,center+293}, Muted);
         text("Trilhas do mangue", 32, {240,center+254}, Cream, true);
         text(whole(profile.missionsCompleted)+" miss\u00f5es completas  /  "+whole(profile.coins)+" moedas",
@@ -556,14 +565,14 @@ void MainScene::rebuildUI() {
             const auto& goal = achievementTab ? AchievementCatalog()[id] : MissionCatalog()[id];
             const auto value = achievementTab ? profile.AchievementProgress(id) : profile.missionProgress[row];
             const bool done = achievementTab && (profile.achievements & (1u<<id));
-            const float y = center+17-row*115.0f;
+            const float y = center+17-row*110.0f;
             pill(panels,{36,y,408,105},Color4F(.08f,.25f,.24f,1));
-            text(goal.title,21,{52,y+83},done?Color4B(199,240,100,255):Cream,true)->setAnchorPoint({0,.5f});
-            text(goal.description,15,{52,y+59},Muted)->setAnchorPoint({0,.5f});
-            text(done?"CONQUISTADA":whole(value)+" / "+whole(goal.target),14,{52,y+36},Cream)->setAnchorPoint({0,.5f});
-            text(done?"B\u00d4NUS RECEBIDO":"+"+whole(goal.reward)+" moedas",14,{427,y+36},Color4B(255,219,122,255))->setAnchorPoint({1,.5f});
+            fitLabel(text(goal.title,21,{52,y+77},done?Color4B(199,240,100,255):Cream,true),376,26)->setAnchorPoint({0,.5f});
+            fitLabel(text(goal.description,15,{52,y+53},Muted),376,20)->setAnchorPoint({0,.5f});
+            fitLabel(text(done?"CONQUISTADA":whole(value)+" / "+whole(goal.target),14,{52,y+32},Cream),180,18)->setAnchorPoint({0,.5f});
+            fitLabel(text(done?"B\u00d4NUS RECEBIDO":"+"+whole(goal.reward)+" moedas",14,{428,y+32},Color4B(255,219,122,255)),180,18)->setAnchorPoint({1,.5f});
             pill(panels,{52,y+13,376,8},Color4F(.035f,.16f,.17f,1));
-            const float fill=376*static_cast<float>(done?1.0:static_cast<double>(value)/goal.target);
+            const float fill=376*std::clamp(static_cast<float>(done?1.0:static_cast<double>(value)/goal.target),0.0f,1.0f);
             if(fill>.1f) pill(panels,{52,y+13,fill,8},Lime);
         }
         if(achievementTab) {
@@ -572,7 +581,7 @@ void MainScene::rebuildUI() {
             button(">",{385,center-263,55,44},Action::Next);
         } else text("Progresso acumulado. Novas miss\u00f5es ao concluir.",14,{240,center-242},Muted);
         button("VOLTAR",{150,center-301,180,44},Action::Back);
-        text(saveWarning.empty()?"B\u00f4nus creditados ao encerrar a corrida.":saveWarning,13,{240,center-315},Muted);
+        fitLabel(text(saveWarning.empty()?"B\u00f4nus creditados ao encerrar a corrida.":saveWarning,13,{240,center-330},Muted),392,22);
         return;
     }
     if (shop) {
@@ -580,15 +589,15 @@ void MainScene::rebuildUI() {
         const int pages=(CosmeticCount+2)/3;
         const Color4B gold(255,219,122,255), mint(199,240,100,255);
         rect(panels,{0,0,480,viewHeight},Color4F(.015f,.07f,.08f,.48f));
-        pill(panels,{18,center-330,444,666},Color4F(.25f,.39f,.24f,1));
-        pill(panels,{21,center-327,438,660},Color4F(.035f,.14f,.15f,1));
+        pill(panels,{18,center-367,444,703},Color4F(.25f,.39f,.24f,1));
+        pill(panels,{21,center-364,438,697},Color4F(.035f,.14f,.15f,1));
         art(panels,"art/jaca-portrait.png",{0,0,512,512},{39,center+237},{72,72},1);
         text("LOJA DO MANGUE",14,{126,center+296},gold,true)->setAnchorPoint({0,.5f});
-        text("Seu Jaca, seu estilo",28,{126,center+266},Cream,true)->setAnchorPoint({0,.5f});
+        fitLabel(text("Seu Jaca, seu estilo",28,{126,center+266},Cream,true),310,36)->setAnchorPoint({0,.5f});
         pill(panels,{40,center+198,400,34},Color4F(.09f,.26f,.23f,1));
         ellipse(panels,{62,center+215},8,10,Color4F(1,.77f,.22f,1));
-        text(whole(profile.coins)+" MOEDAS",19,{80,center+215},gold,true)->setAnchorPoint({0,.5f});
-        text("SUAS CONQUISTAS RENDEM",12,{425,center+215},Muted)->setAnchorPoint({1,.5f});
+        fitLabel(text(whole(profile.coins)+" MOEDAS",19,{80,center+215},gold,true),170,24)->setAnchorPoint({0,.5f});
+        fitLabel(text("SUAS CONQUISTAS RENDEM",12,{424,center+215},Muted),164,20)->setAnchorPoint({1,.5f});
         button("VISUAIS",{40,center+145,192,44},Action::Looks,!upgradeShop);
         button("MELHORIAS",{248,center+145,192,44},Action::Upgrades,upgradeShop);
         const char* descriptions[]={"O parceiro de toda aventura.","Sol na cara? Vai de boné.",
@@ -613,11 +622,11 @@ void MainScene::rebuildUI() {
                 text(effects[row],12,{94,y+23},mint,true);
             } else drawCrocodile({91,y+14},.68f,panels,id);
             auto name=text(item.name,20,{155,y+80},Cream,true);
-            name->setAnchorPoint({0,.5f});
+            fitLabel(name,272,26)->setAnchorPoint({0,.5f});
             auto detail=text(upgradeShop?item.description:descriptions[id],13,{155,y+57},Muted);
-            detail->setAnchorPoint({0,.5f});
+            fitLabel(detail,272,21)->setAnchorPoint({0,.5f});
             const std::string price=owned?(equipped?"SEU FAVORITO":upgradeShop?"PERMANENTE":"NA COLECAO"):whole(item.price)+" moedas";
-            text(price,14,{155,y+24},owned?mint:gold,true)->setAnchorPoint({0,.5f});
+            fitLabel(text(price,14,{155,y+24},owned?mint:gold,true),133,22)->setAnchorPoint({0,.5f});
             const std::string caption=active?(upgradeShop?"ATIVA":"EM USO"):owned?"EQUIPAR":"COMPRAR";
             if(active) {
                 pill(panels,{300,y+5,130,40},Color4F(.17f,.36f,.25f,1));
@@ -634,8 +643,8 @@ void MainScene::rebuildUI() {
             }
         } else text("Compre uma vez. Aproveite em toda corrida.",14,{240,center-232},Muted);
         button("VOLTAR",{150,center-293,180,40},Action::Back);
-        status=text(shopNotice,13,{240,center-313},Muted);
-        status->setWidth(408); status->setAlignment(TextHAlignment::CENTER);
+        status=text(shopNotice,13,{240,center-328},Muted);
+        status->setWidth(390); status->setAlignment(TextHAlignment::CENTER); fitLabel(status,390,36);
         return;
     }
     if (state == GameState::Menu) {
@@ -646,7 +655,7 @@ void MainScene::rebuildUI() {
         brandChild(art(panels,"art/logo.png",{15,140,1510,780},{80,top-165},{320,165},1));
         pill(panels,{24,top-255,208,68},Color4F(.04f,.22f,.22f,.92f));
         text("RECORDE",13,{128,top-207},Muted,true);
-        text(whole(game.GetProfile().bestScore),24,{128,top-233},Cream,true);
+        fitLabel(text(whole(game.GetProfile().bestScore),24,{128,top-233},Cream,true),176,28);
         button("SEU JACA\n"+whole(game.GetProfile().coins)+" MOEDAS",{248,top-255,208,68},Action::Shop,false,19);
         button("MISS\u00d5ES E CONQUISTAS",{24,top-314,432,44},Action::Goals,false,18);
         menuHint=text("TOQUE NO JACA OU NO BOT\u00c3O",14,{240,viewHeight*.53f},Cream);
@@ -675,7 +684,7 @@ void MainScene::rebuildUI() {
         pace->enableOutline(Color4B(13,47,42,210), 1);
         pill(panels, {22,bottom+105,436,48}, Color4F(.025f,.12f,.14f,.76f));
         missionHud = text("",17,{240,bottom+130},Cream);
-        missionHud->setWidth(412); missionHud->setAlignment(TextHAlignment::CENTER);
+        missionHud->setWidth(404); missionHud->setAlignment(TextHAlignment::CENTER);
         missionHud->enableOutline(Color4B(13,47,42,230),2);
         missionToast = text("",28,{240,top-225},Color4B(220,255,145,255),true);
         missionToast->setWidth(430); missionToast->setAlignment(TextHAlignment::CENTER);
@@ -708,12 +717,13 @@ void MainScene::rebuildUI() {
         text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
         text("Boa, Jaca!",40,{240,center+149},Cream,true);
         text(whole(game.GetScore())+" pontos",32,{240,center+108},Cream,true);
-        text(whole(game.GetDistance())+" m  /  Recorde: "+whole(game.GetProfile().bestScore)+" pontos",16,{240,center+77},Muted);
+        fitLabel(text(whole(game.GetDistance())+" m  /  Recorde: "+whole(game.GetProfile().bestScore)+" pontos",16,{240,center+77},Muted),376,22);
         pill(panels,{49,center+8,382,58},Color4F(.10f,.29f,.25f,1));
         text("+"+whole(game.GetRunCoins()+rewards.coins)+" MOEDAS",25,{240,center+44},Color4B(255,219,122,255),true);
         text("Coleta: "+whole(game.GetRunCoins())+"  /  Objetivos: "+whole(rewards.coins),15,{240,center+21},Muted);
         resultGoals=text("",16,{240,center-37},Cream);
         resultGoals->setAlignment(TextHAlignment::CENTER);
+        resultGoals->setWidth(game.GetCompletedGoals().size()>2?240:376);
         if(game.GetCompletedGoals().size()>2) {
             button("<",{59,center-66,48,44},Action::Previous);
             button(">",{373,center-66,48,44},Action::Next);
@@ -721,7 +731,7 @@ void MainScene::rebuildUI() {
         button("CORRER DE NOVO",{59,center-145,362,60},Action::Play,true);
         button("VER OBJETIVOS",{59,center-205,362,46},Action::Goals);
         button("VOLTAR AO IN\u00cdCIO",{59,center-259,362,42},Action::Menu);
-        if(!saveWarning.empty()) text(saveWarning,13,{240,center-281},Color4B(255,194,116,255));
+        if(!saveWarning.empty()) fitLabel(text(saveWarning,13,{240,center-278},Color4B(255,194,116,255)),376,20);
     }
 }
 
@@ -1424,6 +1434,7 @@ void MainScene::update(float dt) {
             if(completed.size()>2) summary+="\n"+whole(page+1)+" / "+whole((completed.size()+1)/2);
             resultGoals->setString(summary);
         }
+        fitLabel(resultGoals,completed.size()>2?240:376,76);
     }
     if (pace) {
         const double meters = game.GetDistance();

@@ -249,6 +249,7 @@ void MainScene::act(Action action) {
         if (game.Slide()) { burst({Contact-80, floorY+5}, Color4F(.80f,.78f,.49f,.8f), 9, .7f); sound("slide"); }
         break;
     case Action::Pause:
+        if(settings) break;
         if (game.IsPlaying() || game.GetState() == GameState::Paused) {
             game.TogglePause(); AudioEngine::stopAll(); musicId=-1; rebuildUI();
         }
@@ -708,7 +709,7 @@ void MainScene::rebuildUI() {
         button("CONTINUAR", {59, center - 66, 362, 66}, Action::Pause, true);
         button("ENCERRAR E VOLTAR", {59, center - 149, 362, 58}, Action::Menu);
         text("As moedas coletadas ser\u00e3o guardadas.", 16, {240, center - 198}, Muted);
-        button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{160,center-262,160,38},Action::Sound);
+        button("CONFIGURA\u00c7\u00d5ES",{130,center-262,220,44},Action::Settings,false,18);
     } else {
         const auto& rewards=game.GetProgressRewards();
         const auto& dizzy=ActionCrops[7];
@@ -1603,6 +1604,20 @@ void MainScene::smokeTick(float dt) {
         if(game.GetState()!=GameState::Paused || game.GetDistance()!=pausedDistance) {
             finishSmoke(false,"Background pause moved the simulation"); return;
         }
+        smokeTouch({240,viewHeight*.52f-240},{240,viewHeight*.52f-240});
+        if(!settings || game.GetState()!=GameState::Paused) { finishSmoke(false,"Pause settings did not open"); return; }
+        smokeStep=115;
+    } else if(smokeStep==115) {
+        if(game.GetDistance()!=pausedDistance) { finishSmoke(false,"Settings advanced the paused run"); return; }
+        capture("61-pause-settings.png"); smokeStep=116;
+    } else if(smokeStep==116) {
+        const bool previous=soundEnabled;
+        smokeTouch({240,viewHeight*.52f-5},{240,viewHeight*.52f-5});
+        if(previous==soundEnabled) { finishSmoke(false,"Pause settings sound toggle failed"); return; }
+        act(Action::Sound); act(Action::Pause);
+        if(game.GetState()!=GameState::Paused) { finishSmoke(false,"Settings resumed gameplay"); return; }
+        smokeTouch({240,viewHeight*.52f-131},{240,viewHeight*.52f-131});
+        if(settings || game.GetState()!=GameState::Paused) { finishSmoke(false,"Settings did not return to pause"); return; }
         suspend();
         smokeTouch({240,viewHeight*.52f+80},{240,viewHeight*.52f+150}); smokeStep=5;
     } else if(smokeStep==5 && d>56) {

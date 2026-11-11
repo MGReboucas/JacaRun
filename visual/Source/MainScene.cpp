@@ -136,11 +136,13 @@ bool MainScene::init() {
         }
         if (t->getID() != activeTouch) return;
         activeTouch = -1;
-        if (!shop && !goals && !help && p.y - touchStart.y > 35 && p.y - touchStart.y > std::abs(p.x-touchStart.x)*1.15f) {
+        if (game.GetState()!=GameState::Menu && !shop && !goals && !help && !settings && p.y - touchStart.y > 35 && p.y - touchStart.y > std::abs(p.x-touchStart.x)*1.15f) {
             if (game.GetState() == GameState::Paused) act(Action::Pause);
             else act(Action::Play);
         } else if (touchAction != Action::None) {
-            if (hit(p) == touchAction) act(touchAction);
+            if (hit(p) == touchAction && p.distance(touchStart)<18) act(touchAction);
+        } else if(game.GetState()==GameState::Menu && !story.active && !shop && !goals && !help && !settings && p.distance(touchStart)<18) {
+            act(Action::Play);
         }
     };
     touch->onTouchCancelled = [this](Touch*, Event*) {
@@ -153,7 +155,7 @@ bool MainScene::init() {
         if (key == Key::KEY_SPACE || key == Key::KEY_UP_ARROW || key == Key::KEY_W) act(Action::Jump);
         if (key == Key::KEY_DOWN_ARROW || key == Key::KEY_S) act(Action::Slide);
         if (key == Key::KEY_P || key == Key::KEY_ESCAPE || key == Key::KEY_BACK) {
-            if (shop || goals || help) act(Action::Back); else act(Action::Pause);
+            if (shop || goals || help || settings) act(Action::Back); else act(Action::Pause);
         }
         if (key == Key::KEY_ENTER) {
             if (game.GetState() == GameState::Paused) act(Action::Pause);
@@ -173,11 +175,11 @@ Label* MainScene::text(const std::string& value, float size, Vec2 point, Color4B
     ui->addChild(label);
     return label;
 }
-void MainScene::button(const std::string& title, Rect bounds, Action action, bool primary) {
+void MainScene::button(const std::string& title, Rect bounds, Action action, bool primary, float fontSize) {
     pill(panels, {bounds.origin.x-2,bounds.origin.y-5,bounds.size.width+4,bounds.size.height+7}, Color4F(.16f,.075f,.025f,1));
     pill(panels, bounds, primary ? Color4F(1,.68f,.12f,1) : Color4F(.48f,.23f,.075f,1));
     panels->drawSegment({bounds.getMinX()+18,bounds.getMaxY()-4},{bounds.getMaxX()-18,bounds.getMaxY()-4},1.2f,Color4F(1,.83f,.36f,.65f));
-    text(title, 21, {bounds.getMidX(), bounds.getMidY() + 1}, primary ? Dark : Cream, true);
+    text(title, fontSize, {bounds.getMidX(), bounds.getMidY() + 1}, primary ? Dark : Cream, true)->setAlignment(TextHAlignment::CENTER);
     buttons.push_back({bounds, action});
 }
 MainScene::Action MainScene::hit(Vec2 point) const {
@@ -191,7 +193,7 @@ void MainScene::handleGesture(Gesture gesture) {
 }
 void MainScene::start(bool procedural) {
     entrance.Finish();
-    shop = goals = false;
+    shop = goals = settings = false;
     motion.Reset(); particles.clear();
     dustTime = pickupPulse = impactTime = resultTime = toastTime = 0;
     shieldImpact = false;
@@ -217,6 +219,7 @@ void MainScene::act(Action action) {
     }
     switch (action) {
     case Action::Play:
+        if(settings) break;
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
             if(!help && smokeStep<0 && !UserDefault::getInstance()->getBoolForKey("controls-seen",false)) {
                 help=true; rebuildUI();
@@ -229,7 +232,8 @@ void MainScene::act(Action action) {
             }
         }
         break;
-    case Action::Help: help=true; rebuildUI(); break;
+    case Action::Settings: settings=true; shop=goals=help=false; rebuildUI(); break;
+    case Action::Help: settings=false; help=true; rebuildUI(); break;
     case Action::Jump:
         if (game.Jump()) { burst({Contact-60, floorY+4}, Color4F(.80f,.78f,.49f,.8f), 7, .65f); sound("jump"); }
         break;
@@ -242,13 +246,13 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::ReplayStory:
-        if(game.GetState()==GameState::Menu) { shop=goals=help=false; story=StoryIntro{}; rebuildUI(); }
+        if(game.GetState()==GameState::Menu) { shop=goals=help=settings=false; story=StoryIntro{}; rebuildUI(); }
         break;
-    case Action::Menu: game.ReturnToMenu(); shop = goals = false; save(); rebuildUI(); break;
+    case Action::Menu: game.ReturnToMenu(); shop = goals = help = settings = false; save(); rebuildUI(); break;
     case Action::Shop:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; shopNotice="Escolha seu visual. Deixe sua marca!"; rebuildUI(); }
         break;
-    case Action::Back: shop = goals = help = false; rebuildUI(); break;
+    case Action::Back: shop = goals = help = settings = false; rebuildUI(); break;
     case Action::Goals:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
             shop = false; goals = true; goalPage = 0; rebuildUI();
@@ -509,6 +513,16 @@ void MainScene::rebuildUI() {
     const float bottom = std::max(26.0f, safe.getMinY() + 18.0f);
     const float center = viewHeight * .52f;
     if(story.active) { drawStory(center); return; }
+    if(settings) {
+        pill(panels,{24,center-200,432,390},Ink);
+        text("CONFIGURA\u00c7\u00d5ES",30,{240,center+135},Cream,true);
+        text("Deixe o jogo do seu jeito",18,{240,center+93},Muted);
+        text("\u00c1UDIO",16,{240,center+42},Color4B(255,218,126,255),true);
+        button(soundEnabled?"SOM: LIGADO":"SOM: DESLIGADO",{55,center-33,370,56},Action::Sound,true);
+        text("M\u00fasica e efeitos sonoros",17,{240,center-65},Muted);
+        button("VOLTAR",{140,center-155,200,48},Action::Back);
+        return;
+    }
     if(help) {
         pill(panels,{20,center-320,440,650},Ink);
         text("COMO JOGAR",32,{240,center+270},Cream,true);
@@ -625,27 +639,23 @@ void MainScene::rebuildUI() {
         return;
     }
     if (state == GameState::Menu) {
-        button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{302,top-24,154,44},Action::Sound);
-        button("COMO JOGAR",{24,top-24,184,44},Action::Help);
-        button("INTRO",{216,top-24,78,44},Action::ReplayStory);
         menuBrand=Node::create(); menuBrand->setCascadeOpacityEnabled(true); ui->addChild(menuBrand);
         auto brandChild=[&](Node* child) {
             child->retain(); child->removeFromParent(); menuBrand->addChild(child); child->release();
         };
-        brandChild(art(panels,"art/logo.png",{15,140,1510,780},{50,top-237},{380,196},1));
-        auto tagline=text("CORRA. COMA. EXPLORE.",18,{240,top-260},Cream,true);
-        tagline->enableOutline(Color4B(28,55,22,255),2); brandChild(tagline);
-        auto plaque=DrawNode::create(); menuBrand->addChild(plaque,-1);
-        pill(plaque, {85, viewHeight * .62f, 310, 43}, Color4F(.04f,.22f,.22f,.82f));
-        brandChild(text("RECORDE  " + whole(game.GetProfile().bestScore) + "  /  N\u00cdVEL " +
-             whole(game.GetProfile().GetLevel()), 16, {240, viewHeight * .62f + 22}, Cream));
-        button("VAMOS CORRER", {55, bottom +  90, 370, 65}, Action::Play, true);
-        button("SEU JACA  /  " + whole(game.GetProfile().coins) + " moedas",
-               {55, bottom + 22, 370, 52}, Action::Shop);
-        button("MISS\u00d5ES E CONQUISTAS", {55,bottom+173,370,48}, Action::Goals);
-        menuHint=text("DESLIZE PARA CIMA PARA COME\u00c7AR", 14, {240, viewHeight*.54f}, Cream);
+        brandChild(art(panels,"art/logo.png",{15,140,1510,780},{80,top-165},{320,165},1));
+        pill(panels,{24,top-255,208,68},Color4F(.04f,.22f,.22f,.92f));
+        text("RECORDE",13,{128,top-207},Muted,true);
+        text(whole(game.GetProfile().bestScore),24,{128,top-233},Cream,true);
+        button("SEU JACA\n"+whole(game.GetProfile().coins)+" MOEDAS",{248,top-255,208,68},Action::Shop,false,19);
+        button("MISS\u00d5ES E CONQUISTAS",{24,top-314,432,44},Action::Goals,false,18);
+        menuHint=text("TOQUE NO JACA OU NO BOT\u00c3O",14,{240,viewHeight*.53f},Cream);
         menuHint->enableOutline(Color4B(28,55,22,255),2);
-        if (!saveWarning.empty()) text(saveWarning, 14, {240, bottom + 2}, Color4B(255,194,116,255));
+        button("TOQUE PARA COME\u00c7AR",{44,bottom+105,392,64},Action::Play,true,22);
+        button("COMO JOGAR",{24,bottom+14,144,54},Action::Help,false,16);
+        button("INTRO",{176,bottom+14,84,54},Action::ReplayStory,false,16);
+        button("CONFIGURA\u00c7\u00d5ES",{268,bottom+14,188,54},Action::Settings,false,16);
+        if (!saveWarning.empty()) text(saveWarning, 13, {240, bottom-7}, Color4B(255,194,116,255));
         return;
     }
     // A compact HUD floats over the forest; there are no gameplay buttons or reserved panels.
@@ -692,8 +702,9 @@ void MainScene::rebuildUI() {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{160,center-262,160,38},Action::Sound);
     } else {
         const auto& rewards=game.GetProgressRewards();
-        pill(panels,{166,center+190,148,128.1f},Color4F(.45f,.62f,.31f,1));
-        art(panels,"art/jaca-defeat-user.png",{0,0,232,199},{170,center+194},{140,140*199.0f/232},1);
+        const auto& dizzy=ActionCrops[7];
+        art(panels,"art/jaca-actions-v2.png",Rect(dizzy.x,dizzy.y,dizzy.width,dizzy.height),
+            {130,center+202},{220,220.0f*dizzy.height/dizzy.width},1);
         text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
         text("Boa, Jaca!",40,{240,center+149},Cream,true);
         text(whole(game.GetScore())+" pontos",32,{240,center+108},Cream,true);
@@ -798,7 +809,7 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     auto* drawing = target ? target : world;
     const bool sliding = !target && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()) && game.GetState() != GameState::Menu;
     const bool airborne = !target && !game.GetPlayer().IsGrounded() && game.GetState()!=GameState::Menu;
-    const bool chaseRunner=target==menuActor && chaseEntry && entrance.time<1.1f && !shop && !goals && !help;
+    const bool chaseRunner=target==menuActor && chaseEntry && entrance.time<1.1f && !shop && !goals && !help && !settings;
     const bool idle = !chaseRunner && (target || game.GetState()==GameState::Menu);
     const float bob = idle ? 0 : airborne || sliding ? 0 : std::max(0.0f,std::sin(motion.phase*2))*2.6f;
     const float lean = airborne ? std::clamp(static_cast<float>(game.GetPlayer().GetVelocityY())*.012f,-.12f,.12f) : -.035f*motion.slide;
@@ -1154,7 +1165,7 @@ void MainScene::drawWorld() {
     for(auto sprite:artPool) sprite->setVisible(false);
     artUsed=0;
     const float h=viewHeight;
-    const bool opening=game.GetState()==GameState::Menu && !shop && !goals && !help;
+    const bool opening=game.GetState()==GameState::Menu && !shop && !goals && !help && !settings;
     scenery->setVisible(!story.active);
     const float zoom=opening && !chaseEntry?entrance.Zoom():1;
     const float camera=opening && !chaseEntry?entrance.CameraProgress():1;
@@ -1367,7 +1378,7 @@ void MainScene::update(float dt) {
         save(); rebuildUI();
         if(game.GetState()==GameState::GameOver && game.GetProgressRewards().coins>0) sound("reward");
     }
-    if(game.GetState()==GameState::GameOver && !shop && !goals && !help && !resultGoals && motion.defeat>=.72f)
+    if(game.GetState()==GameState::GameOver && !shop && !goals && !help && !settings && !resultGoals && motion.defeat>=.72f)
         rebuildUI();
     for(auto& message:game.TakeMessages()) {
         feedback=std::move(message); feedbackTime=2.5f;
@@ -1514,7 +1525,26 @@ void MainScene::smokeTick(float dt) {
     else if(smokeStep==60 && smokeTime>1.45f) { capture("28-menu-emerge.png"); smokeStep=61; }
     else if(smokeStep==61 && smokeTime>3.1f) { capture("39-menu-wave.png"); smokeStep=62; }
     else if(smokeStep==62 && smokeTime>3.75f) { capture("01-menu.png"); smokeStep=40; }
-    else if(smokeStep==40 && smokeTime>0.55f) { act(Action::Help); smokeStep=41; }
+    else if(smokeStep==40 && smokeTime>0.55f) {
+        const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
+        smokeTouch({362,bottom+41},{362,bottom+41});
+        if(!settings || game.IsPlaying()) { finishSmoke(false,"Settings footer failed"); return; }
+        smokeStep=113;
+    } else if(smokeStep==113) {
+        capture("60-settings.png"); smokeStep=114;
+    } else if(smokeStep==114) {
+        const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
+        const bool previous=soundEnabled;
+        smokeTouch({240,viewHeight*.52f-5},{240,viewHeight*.52f-5});
+        if(soundEnabled==previous || !settings) { finishSmoke(false,"Settings audio toggle failed"); return; }
+        act(Action::Sound); act(Action::Back);
+        smokeTouch({240,viewHeight*.45f},{240,viewHeight*.45f+70});
+        if(game.GetState()!=GameState::Menu) { finishSmoke(false,"Menu swipe started a run"); return; }
+        smokeTouch({240,viewHeight*.45f},{240,viewHeight*.45f});
+        if(!game.IsPlaying()) { finishSmoke(false,"Menu tap did not start"); return; }
+        act(Action::Menu);
+        smokeTouch({96,bottom+41},{96,bottom+41}); smokeStep=41;
+    }
     else if(smokeStep==41 && smokeTime>0.7f) {
         if(!help) { finishSmoke(false,"Help did not open"); return; }
         capture("20-help.png"); smokeStep=42;
@@ -1649,7 +1679,8 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==21) {
         act(Action::Back);
         const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
-        smokeTouch({240,bottom+196},{240,bottom+196});
+        const float menuTop=std::min(viewHeight-28.0f,Director::getInstance()->getSafeAreaRect().getMaxY()-24.0f);
+        smokeTouch({240,menuTop-292},{240,menuTop-292});
         if(!goals || shop) { finishSmoke(false,"Mission entry button failed"); return; }
         smokeStep=22;
     } else if(smokeStep==22) {
@@ -1891,7 +1922,7 @@ void MainScene::smokeTick(float dt) {
         if(story.active || storyMusicId>=0) { finishSmoke(false,"Story skip did not stop presentation"); return; }
         start(false); act(Action::Menu);
         if(story.active) { finishSmoke(false,"Story repeated after run"); return; }
-        for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png","art/jaca-defeat-user.png"})
+        for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png","art/jaca-actions-v2.png"})
             if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) { finishSmoke(false,"Story or defeat art missing"); return; }
         finishSmoke(true,"Gameplay, defeat image, integrated Dourado poses, bite sequence, protective Bento, chase, replay and skip passed.");
     }

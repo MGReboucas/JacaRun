@@ -1,5 +1,9 @@
 # JACARUN
 
+**Atualização 0.9.14 — retrato da derrota:** a tela “Boa, Jaca!” usa somente o personagem com olhos em espiral, recortado do atlas transparente, sem o print e sem moldura. APK: `output/JacaRun-0.9.14-debug.apk`.
+
+**Atualização 0.9.13 — menu por toque:** recorde, Seu Jaca/moedas e missões no alto; Como jogar, Intro e Configurações no rodapé. Configurações reúne o controle de música e efeitos. Toque para começar substitui o gesto de deslizar no menu. APK: `output/JacaRun-0.9.13-debug.apk`.
+
 **Atualização 0.9.12:** Jaca entra correndo e fica parado ao chegar ao menu; Bento foi removido do fundo do menu e do início da partida. A história e o salto continuam como estavam. APK: `output/JacaRun-0.9.12-debug.apk`.
 
 **Atualização 0.9.11 — perseguição conectada:** salto com subida, ápice e aterrissagem; Jaca entra correndo no menu e Bento chega ao fundo. [Detalhes](docs/VALIDACAO_0.9.11.md). APK: `output/JacaRun-0.9.11-debug.apk`.

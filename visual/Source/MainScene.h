@@ -42,7 +42,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
+    enum class Action { None, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -95,6 +95,7 @@ private:
     int coinNoticeCount = 0, lastPace = -1;
     bool goals = false, achievementTab = false;
     bool help = false;
+    bool settings = false;
     int goalPage = 0;
     std::size_t resultPage = 0;
     bool soundEnabled = true;
@@ -145,7 +146,7 @@ private:
     void sound(const char* name);
     ax::Label* text(const std::string& value, float size, ax::Vec2 point,
                     ax::Color4B color = ax::Color4B(247, 243, 219, 255), bool bold = false);
-    void button(const std::string& title, ax::Rect bounds, Action action, bool primary = false);
+    void button(const std::string& title, ax::Rect bounds, Action action, bool primary = false, float fontSize = 21);
     void smokeTick(float dt);
     void capture(const std::string& name);
     void smokeTouch(ax::Vec2 from, ax::Vec2 to);

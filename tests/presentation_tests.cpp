@@ -222,19 +222,27 @@ int main() {
         StoryIntro story;
         CHECK(story.active && story.Beat()==0);
         story.Update(-1); CHECK(story.time==0);
-        story.time=2.5f; CHECK(story.Beat()==1);
-        story.time=5.0f; CHECK(story.Beat()==2);
-        for(int i=0;i<100;++i) story.Update(.1f);
+        story.time=StoryIntro::Start(1); CHECK(story.Beat()==1);
+        story.time=StoryIntro::Start(2); CHECK(story.Beat()==2);
+        for(int i=0;i<200;++i) story.Update(.1f);
         CHECK(!story.active && story.time==StoryIntro::Duration);
         for(int beat=0;beat<StoryIntro::BeatCount;++beat) {
-            StoryIntro shot; shot.time=beat*StoryIntro::BeatSeconds;
+            StoryIntro shot; shot.time=StoryIntro::Start(beat);
             CHECK(shot.Beat()==beat && shot.Phase()==0);
             shot.Update(.1f); CHECK(shot.Phase()>0 && shot.Beat()==beat);
-            shot.Skip(); CHECK(!shot.active && shot.Beat()==4 && shot.Phase()==1);
+            shot.Skip(); CHECK(!shot.active && shot.Beat()==StoryIntro::BeatCount-1 && shot.Phase()==1);
         }
         StoryIntro skipped; skipped.Skip(); skipped.Update(.1f); CHECK(!skipped.active);
 
-        std::cout << "9/9 presentation, gesture, animation, environment and story groups passed.\n";
+        int previous=-1; bool seen[4]={};
+        for(int tick=0;tick<=190;++tick) {
+            const int frame=StoryIntro::BiteFrame(tick/190.0f);
+            CHECK(frame>=previous && frame>=0 && frame<4);
+            seen[frame]=true; previous=frame;
+        }
+        for(bool pose:seen) CHECK(pose);
+        CHECK(StoryIntro::BiteFrame(1)==3);
+        std::cout << "10/10 presentation, gesture, animation, environment and story groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

@@ -1,5 +1,17 @@
 # JACARUN
 
+**Atualização 0.9.12:** Jaca entra correndo e fica parado ao chegar ao menu; Bento foi removido do fundo do menu e do início da partida. A história e o salto continuam como estavam. APK: `output/JacaRun-0.9.12-debug.apk`.
+
+**Atualização 0.9.11 — perseguição conectada:** salto com subida, ápice e aterrissagem; Jaca entra correndo no menu e Bento chega ao fundo. [Detalhes](docs/VALIDACAO_0.9.11.md). APK: `output/JacaRun-0.9.11-debug.apk`.
+
+**Atualização 0.9.10 — novo começo:** Dourado aparece sozinho na água; Bento chega pela esquerda e a história continua com a aproximação do Jaca. [Artes e validação](docs/VALIDACAO_0.9.10.md). APK: `output/JacaRun-0.9.10-debug.apk`.
+
+**Atualização 0.9.9 — contato ilustrado:** Bento segura Dourado nas próprias poses; aproximação, mordida e proteção usam composições integradas. Quatro poses encenam a mordida, e Bento carrega o amigo durante a perseguição. [Artes, roteiro e validação](docs/VALIDACAO_0.9.9.md). APK: `output/JacaRun-0.9.9-debug.apk`.
+
+**Atualização 0.9.8 — Dourado participa da cena:** o peixe acompanha as mãos do Bento, mergulha para fugir da aproximação do Jaca, prende-se ao focinho durante a mordida e volta à água. Não gira sozinho nem acompanha a perseguição pelo ar. [Validação](docs/VALIDACAO_0.9.8.md). APK: `output/JacaRun-0.9.8-debug.apk`.
+
+**Atualização 0.9.7 — derrota e abertura com mais vida:** imagem de derrota fornecida pelo usuário preservada integralmente. A história ganhou seis momentos em 15,2 s, mordida do Dourado, reações, pausa cômica, trilha original sincronizada e aterrissagem seguida de corrida. APK: `output/JacaRun-0.9.7-debug.apk`.
+
 **Atualização 0.9.6 — Bento, o Barão do Brejo:** abertura ilustrada em tela inteira, com cinco cortes em 12,5 segundos. Novo rival, quatro poses do Jaca, cenário vertical e fuga com movimentos de câmera. Botões PULAR e INTRO para rever no menu. [Roteiro, artes e prompts](docs/BENTO_E_A_ABERTURA.md). APK: `output/JacaRun-0.9.6-debug.apk`.
 
 **Atualização 0.9.5 — historinha inicial:** abertura de 7,2 segundos em três cenas: Jaca pega o peixe do hipopótamo, leva uma bronca e salta para a margem para fugir. Botão PULAR HISTÓRIA (ou Enter/Esc); aparece uma vez por abertura do app e termina no menu, sem iniciar a corrida. APK: `output/JacaRun-0.9.5-debug.apk`.
@@ -83,7 +95,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.9.6-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.9.8-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 

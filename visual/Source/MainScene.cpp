@@ -29,6 +29,7 @@
 #include "CharacterAnimation.h"
 #include "CharacterAtlas.h"
 #include "StoryAtlas.h"
+#include "StoryContactAtlas.h"
 #include "audio/AudioEngine.h"
 #include <algorithm>
 #include <chrono>
@@ -102,6 +103,7 @@ bool MainScene::init() {
     for(const char* file:{"art/jaca-run-v2.png","art/jaca-idle-v2.png","art/jaca-actions-v2.png"})
         Director::getInstance()->getTextureCache()->addImage(file);
     AudioEngine::setMaxAudioInstance(8);
+    if(soundEnabled && smokeStep<0) AudioEngine::preload("audio/story-score.wav");
     if (smokeStep < 0 && !game.GetProfile().Load(savePath, error)) {
         saveAllowed = false;
         saveWarning = "Save indisponivel. Original preservado.";
@@ -209,7 +211,7 @@ void MainScene::start(bool procedural) {
 void MainScene::act(Action action) {
     if(story.active) {
         if(action==Action::SkipStory || action==Action::Play || action==Action::Pause || action==Action::Back) {
-            story.Skip(); entrance.time=1.65f; rebuildUI();
+            story.Skip(); if(storyMusicId>=0) AudioEngine::stop(storyMusicId); storyMusicId=-1; chaseEntry=true; entrance.time=0; rebuildUI();
         }
         return;
     }
@@ -307,6 +309,7 @@ void MainScene::drawStory(float) {
     // One edge-to-edge illustrated stage. UI stays outside the camera transform.
     storyStage=Node::create(); ui->addChild(storyStage);
     auto background=Sprite::create("art/story-creek-v1.png");
+    storyBackground=background;
     background->setPosition({240,h*.5f});
     background->setScale(std::max(532.0f/1024,(h+70)/1536));
     storyStage->addChild(background,-10);
@@ -324,22 +327,33 @@ void MainScene::drawStory(float) {
         sprite->setFlippedX(flip); root->addChild(sprite); return root;
     };
     const float size=std::min(1.12f,h/900);
-    const int hippoPose[]={0,1,2,1,3};
-    const float hippoHeight[]={350,300,410,290,300};
-    const float hippoX[]={222,47,240,-100,75};
-    storyHippoBase={hippoX[beat],h*(beat==4?.34f:.39f)};
+    const int hippoPose[]={0,1,1,2,1,3};
+    const float hippoHeight[]={350,300,270,410,290,300};
+    const float hippoX[]={222,47,-110,240,-90,75};
+    storyHippoBase={hippoX[beat],h*(beat==5?.34f:.39f)};
     storyHippo=actor("art/bento-story-v1.png",BentoStoryCrops[hippoPose[beat]],hippoHeight[beat]*size,storyHippoBase,false,true);
-    storyHippo->setVisible(beat!=3);
-    const int jacaPose[]={0,0,1,2,3};
-    const float jacaHeight[]={250,265,200,340,245};
-    const float jacaX[]={520,335,510,250,285};
-    storyJacaBase={jacaX[beat],h*(beat==4?.47f:.405f)};
-    storyJaca=actor("art/jaca-story-v1.png",JacaStoryCrops[jacaPose[beat]],jacaHeight[beat]*size,storyJacaBase,beat==3,beat!=4);
-    storyJaca->setVisible(beat!=0 && beat!=2);
-    storyFish=Sprite::create("art/objects-atlas.png",Rect(785,625,355,280));
-    storyFish->setScale(62.0f/355); storyStage->addChild(storyFish,4);
-    const float fishX[]={260,235,195,130,110};
-    storyFishBase={fishX[beat],h*(beat==0?.62f:beat==1?.54f:.43f)};
+    storyHippo->setVisible(beat==5);
+    storyHippoSprite=static_cast<Sprite*>(storyHippo->getChildren().at(0));
+    const int jacaPose[]={0,0,2,1,1,3};
+    const float jacaHeight[]={250,265,340,200,330,245};
+    const float jacaX[]={520,335,255,510,250,285};
+    storyJacaBase={jacaX[beat],h*(beat==5?.47f:.405f)};
+    storyJaca=actor("art/jaca-story-v1.png",JacaStoryCrops[jacaPose[beat]],jacaHeight[beat]*size,storyJacaBase,beat==2,beat!=5);
+    storyJaca->setVisible(beat>=4);
+    storyJacaSprite=static_cast<Sprite*>(storyJaca->getChildren().at(0));
+    // Each contact is illustrated together: hands, mouth and fish cannot drift apart.
+    storyContactBase={240,h*.405f};
+    const int interaction=beat==0?0:beat==1?1:3;
+    const auto& contactCrop=beat==2?JacaBiteCrops[0]:StoryInteractionCrops[interaction];
+    const float contactHeight=beat==1?std::min(310*size,470.0f*contactCrop.height/contactCrop.width):std::min(350*size,420.0f*contactCrop.height/contactCrop.width);
+    storyContact=actor(beat==2?"art/jaca-bite-sequence.png":"art/story-interactions-v2.png",contactCrop,contactHeight,storyContactBase,false,beat!=2);
+    storyContactSprite=static_cast<Sprite*>(storyContact->getChildren().at(0));
+    storyContact->setVisible(beat>0 && beat<4);
+    if(beat==0) {
+        storyOpeningFish=actor("art/story-arrival-v1.png",StoryArrivalCrops[0],72*size,{310,h*.42f-19*size},false,true);
+        storyHippoBase={-200,h*.39f};
+        storyHippoSprite->setTexture("art/story-arrival-v1.png");
+    }
     storyEffects=DrawNode::create(); storyStage->addChild(storyEffects,5);
     // Soft top/bottom scrims preserve the full-screen painting and readable dialogue.
     auto scrim=DrawNode::create(); ui->addChild(scrim,20);
@@ -358,17 +372,18 @@ void MainScene::drawStory(float) {
     pill(scrim,skip,Color4F(.035f,.15f,.15f,.80f));
     auto skipLabel=label("PULAR  >",16,{407,top-19},Cream,true); skipLabel->setWidth(100);
     buttons.push_back({skip,Action::SkipStory});
-    const char* speakers[]={"BENTO, O BAR\u00c3O DO BREJO","JACA","BENTO","JACA","E FOI ASSIM QUE TUDO COME\u00c7OU"};
-    const char* lines[]={"Todo grand\u00e3o tem\num ponto fraco.","S\u00f3 uma mordidinha...","TIRA A M\u00c3O\nDO MEU DOURADO!","Eu? Tava s\u00f3...\ndando um cheiro!","O lanche virou persegui\u00e7\u00e3o."};
-    const char* notes[]={"O dele era Dourado. Seu peixe de estima\u00e7\u00e3o.","Jaca ainda n\u00e3o sabia desse detalhe.","Era peixe. Mas n\u00e3o era lanche.","A desculpa n\u00e3o convenceu.","\u201cVOLTA AQUI, BON\u00c9 VERMELHO!\u201d"};
+    const char* speakers[]={"ENQUANTO ISSO, NO BREJO...","JACA","JACA","BENTO","JACA","QUANDO A CONVERSA N\u00c3O RESOLVE..."};
+    const char* lines[]={"Dourado estava sozinho.\nMas n\u00e3o por muito tempo.","S\u00f3 um lanchinho.\nNingu\u00e9m vai perceber.","AI! O LANCHE\nME MORDEU!","\u00c9 MEU AMIGO,\nSEU FOMINHA!","Eu tava s\u00f3...\ndando um beijinho!","CORRE, JACA!"};
+    const char* notes[]={"Bento vinha buscar seu pequeno amigo.","Jaca escolheu o peixe errado.","Dourado sabia se defender.","Dourado fica protegido nos bra\u00e7os do Bento.","A pausa mais longa da vida do Jaca.","\u201cVOLTA AQUI, BON\u00c9 VERMELHO!\u201d"};
     label(speakers[beat],15,{240,bottom+169},Color4B(255,218,126,255),true);
-    label(lines[beat],beat==2?32:27,{240,bottom+115},Cream,true);
-    label(notes[beat],16,{240,bottom+54},Color4B(205,232,215,255),false);
-    for(int i=0;i<StoryIntro::BeatCount;++i) {
-        const float x=24+i*87;
-        pill(scrim,{x,bottom,78,3},Color4F(.58f,.72f,.65f,.3f));
-        if(i<=beat) pill(scrim,{x,bottom,78,3},Color4F(.91f,.77f,.36f,1));
-    }
+    storyLine=label(lines[beat],beat==3?32:27,{240,bottom+115},Cream,true);
+    storyNote=label(notes[beat],16,{240,bottom+54},Color4B(205,232,215,255),false);
+    const char* exclamations[]={"","","NHAC!","\u00d4\u00d4\u00d4!","...","FUI!"};
+    storyExclamation=Label::createWithTTF(exclamations[beat],"fonts/Kanit-SemiBold.ttf",beat==3?43:34);
+    storyExclamation->setTextColor(Color4B(255,227,139,255));
+    storyExclamation->enableOutline(Color4B(33,51,24,255),3);
+    storyStage->addChild(storyExclamation,6);
+    storyProgress=DrawNode::create(); ui->addChild(storyProgress,20);
     storyFade=DrawNode::create(); ui->addChild(storyFade,19);
     animateStory();
 }
@@ -376,48 +391,114 @@ void MainScene::drawStory(float) {
 void MainScene::animateStory() {
     if(!storyStage || !storyEffects) return;
     const int beat=story.Beat(); const float t=story.Phase();
-    const float ease=t*t*(3-2*t), h=viewHeight;
-    const float push=beat==4?1.035f-.035f*ease:1+.045f*ease;
-    const float shake=beat==2?std::sin(t*65)*3*(1-t):0;
-    storyStage->setScale(push);
-    storyStage->setPosition({240*(1-push)+shake,h*.52f*(1-push)});
+    const float h=viewHeight,size=std::min(1.12f,h/900);
+    auto smooth=[](float x) { x=std::clamp(x,0.0f,1.0f); return x*x*(3-2*x); };
+    const float ease=smooth(t), water=h*.42f;
+    float push=1+.04f*ease,shake=0;
+    if(beat==2) { push=1.02f+.065f*smooth((t-.08f)/.18f); shake=std::sin(t*95)*4*std::max(0.0f,1-std::abs(t-.12f)*6); }
+    if(beat==3) { push=1.07f-.025f*ease; shake=std::sin(t*80)*6*std::max(0.0f,1-t*3); }
+    if(beat==5) push=1.035f-.035f*ease;
+    storyStage->setScale(push); storyStage->setPosition({240*(1-push)+shake,h*.52f*(1-push)});
+    storyBackground->setPosition({240-(beat==5?18*ease:0),h*.5f});
     Vec2 jacaOffset,hippoOffset;
-    if(beat==0) hippoOffset={0,std::sin(t*6.283185f)*3};
-    if(beat==1) { jacaOffset={-28*ease,std::sin(t*8)*4}; hippoOffset={6*ease,0}; }
-    if(beat==2) hippoOffset={0,std::sin(t*3.14159f)*14};
-    if(beat==3) jacaOffset={std::sin(t*16)*3,std::sin(t*6.283185f)*4};
-    if(beat==4) {
-        jacaOffset={112*ease,100*std::sin(t*3.14159f)+h*.085f*ease};
-        hippoOffset={47*ease,11*std::abs(std::sin(t*14))};
-        storyJaca->setRotation(-8*std::sin(t*3.14159f));
+    float jump=0;
+    if(beat==0) {
+        const float arrival=smooth((t-.38f)/.58f);
+        storyHippo->setVisible(t>.38f);
+        hippoOffset={355*arrival,arrival>0 && arrival<1?3*std::abs(std::sin(t*25)):0};
+        const auto& hippoCrop=StoryArrivalCrops[1+(static_cast<int>(story.time*5)%2)*2];
+        storyHippoSprite->setTextureRect(Rect(hippoCrop.x,hippoCrop.y,hippoCrop.width,hippoCrop.height));
+        storyHippoSprite->setScale(290*size/hippoCrop.height);
+        auto fish=static_cast<Sprite*>(storyOpeningFish->getChildren().at(0));
+        const auto& fishCrop=StoryArrivalCrops[(static_cast<int>(story.time*4)%2)*2];
+        fish->setTextureRect(Rect(fishCrop.x,fishCrop.y,fishCrop.width,fishCrop.height));
+        fish->setScale(72*size/fishCrop.height);
+        storyOpeningFish->setPosition({310+3*std::sin(t*6.283185f),water-19*size+2*std::sin(t*12)});
     }
-    storyJaca->setPosition(storyJacaBase+jacaOffset);
-    storyHippo->setPosition(storyHippoBase+hippoOffset);
-    storyFish->setPosition(storyFishBase+Vec2(beat==1?35*ease:std::sin(t*5)*8,std::sin(t*6.283185f)*10));
-    storyFish->setRotation(std::sin(t*6.283185f)*12);
-    storyFish->setVisible(beat!=3);
+    if(beat==1) { jacaOffset={-45*smooth(t/.72f),std::sin(t*9)*3}; hippoOffset={8*ease,0}; storyJaca->setRotation(-3*std::sin(t*3.14159f)); }
+    if(beat==2) {
+        const float recoil=smooth((t-.28f)/.13f)*(1-.6f*smooth((t-.6f)/.4f));
+        jacaOffset={45*recoil,22*recoil}; storyJaca->setRotation(12*recoil);
+    }
+    if(beat==3) hippoOffset={0,18*std::sin(std::min(1.0f,t*3)*3.14159f)};
+    if(beat==4) { jacaOffset={-5*std::sin(t*5),std::sin(t*6.283185f)*3}; storyJaca->setRotation(t<.35f?0:std::sin((t-.35f)*9)*3); }
+    if(beat==5) {
+        jump=std::clamp((t-.12f)/.58f,0.0f,1.0f);
+        const float run=smooth((t-.76f)/.24f);
+        jacaOffset={55*jump+260*run,std::min(155.0f,h*.135f)*4*jump*(1-jump)+h*.085f*smooth(jump)};
+        if(t<.12f) jacaOffset.y=-10*std::sin(t/.12f*3.14159f);
+        hippoOffset={55*ease,10*std::abs(std::sin(t*22))};
+        const bool running=t>=.70f;
+        const int frame=running?static_cast<int>(story.time*12)%8:jump<.40f?0:jump<.60f?1:2;
+        const auto& crop=running?RunCrops[frame]:ActionCrops[frame];
+        storyJacaSprite->setTexture(running?"art/jaca-run-v2.png":"art/jaca-actions-v2.png");
+        storyJacaSprite->setTextureRect(Rect(crop.x,crop.y,crop.width,crop.height));
+        const float density=running?245*size/345:245*size/crop.height;
+        const float settle=running?std::sin(std::clamp((t-.70f)/.08f,0.0f,1.0f)*3.14159f):0;
+        storyJacaSprite->setScaleX(density*(1+.12f*settle));
+        storyJacaSprite->setScaleY(density*(1-.18f*settle)*(t<.12f?.88f:1));
+        storyJaca->setRotation(running?0:-9+18*jump);
+        storyJacaSprite->setFlippedX(false);
+    }
+    storyJaca->setPosition(storyJacaBase+jacaOffset); storyHippo->setPosition(storyHippoBase+hippoOffset);
+    Vec2 contactOffset(0,std::sin(t*6.283185f)*3);
+    if(beat==2) {
+        const auto& crop=JacaBiteCrops[StoryIntro::BiteFrame(t)];
+        storyContactSprite->setTextureRect(Rect(crop.x,crop.y,crop.width,crop.height));
+        storyContactSprite->setScale(280*size/476);
+        const float recoil=smooth((t-.08f)/.16f)*(1-.65f*smooth((t-.55f)/.45f));
+        contactOffset={18*recoil,12*recoil}; storyContact->setRotation(4*recoil);
+    }
+    if(beat==3) contactOffset=hippoOffset;
+    storyContact->setPosition(storyContactBase+contactOffset);
+    if(beat==5) {
+        const auto& crop=BentoGuardianCrops[static_cast<int>(story.time*8)%4];
+        storyHippoSprite->setTexture("art/bento-guardian-run.png");
+        storyHippoSprite->setTextureRect(Rect(crop.x,crop.y,crop.width,crop.height));
+        storyHippoSprite->setScale(300*size/489);
+    }
     storyEffects->clear();
-    const float water=h*.42f;
     for(int ring=0;ring<3;++ring) {
         const float cycle=std::fmod(t+ring*.32f,1.0f);
-        const Vec2 origin(beat==0?220.0f:beat==2?240.0f:beat==3?250.0f:storyHippoBase.x+hippoOffset.x,water+3);
-        storyEffects->drawCircle(origin,1,0,64,false,65+cycle*70,5+cycle*8,Color4F(.69f,.96f,.89f,(1-cycle)*.65f));
+        const Vec2 origin(beat==0?310.0f:beat==3?240.0f:beat==2 || beat==4?250.0f:storyHippoBase.x+hippoOffset.x,water+3);
+        storyEffects->drawCircle(origin,1,0,64,false,65+cycle*70,5+cycle*8,Color4F(.69f,.96f,.89f,(1-cycle)*.45f));
     }
-    if(beat==2 || beat==4) for(int i=0;i<18;++i) {
-        const float f=std::fmod(t*1.6f+i*.063f,1.0f);
-        const float side=i%2?-1.0f:1.0f;
-        const float origin=beat==4?245.0f:240.0f;
-        ellipse(storyEffects,{origin+side*(30+f*(55+i*4)),water+std::sin(f*3.14159f)*(35+i*4)},
-                2.5f,4.5f,Color4F(.72f,.97f,.94f,(1-f)*.80f));
+    const float burst=beat==3?std::clamp(t*2.5f,0.0f,1.0f):beat==5?jump:beat==2?std::clamp((t-.3f)*2,0.0f,1.0f):0;
+    if(burst>0 && burst<1) for(int i=0;i<20;++i) {
+        const float side=i%2?-1.0f:1.0f,origin=beat==5?285.0f:240.0f;
+        ellipse(storyEffects,{origin+side*(25+burst*(60+i*4)),water+std::sin(burst*3.14159f)*(40+i*4)},
+                2.5f,4.5f,Color4F(.72f,.97f,.94f,(1-burst)*.85f));
     }
-    // Brief dark cut on each shot, not a card appearing over the old menu.
+    if(beat==5 && t>.35f) for(int i=0;i<7;++i) {
+        const float y=h*.5f+i*29;
+        storyEffects->drawSegment({420-i*23.0f,y},{456-i*23.0f,y},1.4f,Color4F(.92f,1,.79f,.30f));
+    }
+    float pop=0;
+    if(beat==2) pop=smooth((t-.08f)/.06f)*(1-smooth((t-.67f)/.16f));
+    if(beat==3) pop=smooth(t/.08f)*(1-smooth((t-.4f)/.18f));
+    if(beat==4) pop=1-smooth((t-.3f)/.2f);
+    if(beat==5) pop=smooth((t-.16f)/.08f)*(1-smooth((t-.65f)/.2f));
+    storyExclamation->setOpacity(static_cast<uint8_t>(255*pop));
+    storyExclamation->setScale(.8f+.2f*pop);
+    storyExclamation->setRotation(beat==3?-7:6);
+    storyExclamation->setPosition(beat==3?Vec2(340,h*.76f):beat==5?Vec2(110,h*.73f):Vec2(155,h*.77f));
+    // Let reactions land before explanatory text; the dialogue itself stays immediately readable.
+    storyNote->setOpacity(static_cast<uint8_t>(255*smooth((t-.22f)/.18f)));
+    const float bottom=std::max(24.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18);
+    storyProgress->clear();
+    for(int i=0;i<StoryIntro::BeatCount;++i) {
+        const float x=24+i*73;
+        pill(storyProgress,{x,bottom,65,3},Color4F(.58f,.72f,.65f,.3f));
+        const float fill=i<beat?1:i==beat?t:0;
+        if(fill>0) pill(storyProgress,{x,bottom,65*fill,3},Color4F(.91f,.77f,.36f,1));
+    }
     storyFade->clear();
-    const float fade=.28f*(1-std::clamp(t/.10f,0.0f,1.0f));
+    const float fade=.20f*(1-std::clamp(t/.07f,0.0f,1.0f));
     if(fade>0) rect(storyFade,{0,0,480,h},Color4F(.015f,.07f,.08f,fade));
 }
 
 void MainScene::rebuildUI() {
-    storyJaca=storyHippo=storyStage=nullptr; storyFish=nullptr; storyEffects=storyFade=nullptr;
+    storyJaca=storyHippo=storyStage=storyContact=storyOpeningFish=nullptr; storyContactSprite=storyHippoSprite=storyJacaSprite=storyBackground=nullptr; storyLine=storyNote=storyExclamation=nullptr; storyEffects=storyFade=storyProgress=nullptr;
     ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr; menuBrand=nullptr;
     score = distance = coins = status = pace = gestureHint = coinNotice = nullptr;
     missionHud = missionToast = resultGoals = nullptr;
@@ -600,7 +681,7 @@ void MainScene::rebuildUI() {
     // Let the impact, recoil and collapse read before covering the lane with results.
     if(state==GameState::GameOver && motion.defeat<.72f) return;
     rect(panels, {0,0,480,viewHeight}, Color4F(.015f,.09f,.11f,.49f));
-    pill(panels, {28, center - 300, 424, state==GameState::Paused?560.0f:610.0f}, Color4F(.035f,.17f,.18f,.96f));
+    pill(panels, {28, center - 300, 424, state==GameState::Paused?560.0f:626.0f}, Color4F(.035f,.17f,.18f,.96f));
     if (state == GameState::Paused) {
         text("RESPIRE UM POUCO", 16, {240, center + 187}, Muted);
         text("Corrida pausada", 36, {240, center + 135}, Cream, true);
@@ -611,8 +692,8 @@ void MainScene::rebuildUI() {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{160,center-262,160,38},Action::Sound);
     } else {
         const auto& rewards=game.GetProgressRewards();
-        ellipse(panels,{240,center+247},49,49,Color4F(.72f,.83f,.33f,1));
-        art(panels,"art/jaca-portrait.png",{0,0,512,512},{194,center+201},{92,92},1);
+        pill(panels,{166,center+190,148,128.1f},Color4F(.45f,.62f,.31f,1));
+        art(panels,"art/jaca-defeat-user.png",{0,0,232,199},{170,center+194},{140,140*199.0f/232},1);
         text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
         text("Boa, Jaca!",40,{240,center+149},Cream,true);
         text(whole(game.GetScore())+" pontos",32,{240,center+108},Cream,true);
@@ -717,7 +798,8 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     auto* drawing = target ? target : world;
     const bool sliding = !target && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()) && game.GetState() != GameState::Menu;
     const bool airborne = !target && !game.GetPlayer().IsGrounded() && game.GetState()!=GameState::Menu;
-    const bool idle = target || game.GetState()==GameState::Menu;
+    const bool chaseRunner=target==menuActor && chaseEntry && entrance.time<1.1f && !shop && !goals && !help;
+    const bool idle = !chaseRunner && (target || game.GetState()==GameState::Menu);
     const float bob = idle ? 0 : airborne || sliding ? 0 : std::max(0.0f,std::sin(motion.phase*2))*2.6f;
     const float lean = airborne ? std::clamp(static_cast<float>(game.GetPlayer().GetVelocityY())*.012f,-.12f,.12f) : -.035f*motion.slide;
     const float sx=motion.Width(), sy=motion.Height();
@@ -742,7 +824,7 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     }
     const bool defeated=!target && game.GetState()==GameState::GameOver;
     auto pose=AnimateJaca(motion,idle,!airborne,sliding,game.GetPlayer().IsDiving(),defeated,
-        game.GetPlayer().GetVelocityY(),target==menuActor?entrance.time:-1);
+        game.GetPlayer().GetVelocityY(),target==menuActor && !chaseEntry?entrance.time:-1);
     const auto& bounds=pose.atlas==JacaAtlas::Run?RunCrops[pose.frame]:
                        pose.atlas==JacaAtlas::Idle?IdleCrops[pose.frame]:ActionCrops[pose.frame];
     const char* file=pose.atlas==JacaAtlas::Run?"art/jaca-run-v2.png":
@@ -1074,8 +1156,8 @@ void MainScene::drawWorld() {
     const float h=viewHeight;
     const bool opening=game.GetState()==GameState::Menu && !shop && !goals && !help;
     scenery->setVisible(!story.active);
-    const float zoom=opening?entrance.Zoom():1;
-    const float camera=opening?entrance.CameraProgress():1;
+    const float zoom=opening && !chaseEntry?entrance.Zoom():1;
+    const float camera=opening && !chaseEntry?entrance.CameraProgress():1;
     scenery->setScale(zoom);
     const Vec2 focus(245+75*entrance.Progress(),h*.29f+36+64*entrance.Progress());
     const Vec2 desired=(Vec2(240,h*.48f)-focus*zoom)*(1-camera);
@@ -1099,10 +1181,11 @@ void MainScene::drawWorld() {
     const float arrival=entrance.Progress();
     const float idleCycle=std::fmod(motion.time,7.0f);
     const float shake=menu && arrival>=1 && idleCycle>6.4f?std::sin((idleCycle-6.4f)*38):0;
-    const float playerX=menu?215+35*arrival+shake*2:Contact-55*scale;
+    const float entry=std::clamp(entrance.time/1.1f,0.0f,1.0f);
+    const float playerX=menu?(chaseEntry?-100+350*(1-std::pow(1-entry,3)):215+35*arrival+shake*2):Contact-55*scale;
     const float fall=game.GetState()==GameState::GameOver?1-std::clamp(motion.defeat/.28f,0.0f,1.0f):1;
     const float altitude=menu?0:static_cast<float>(game.GetPlayer().GetPositionY())*fall;
-    const float playerY=ground+(menu?-90*(1-arrival)+entrance.Hop():altitude*HeightScale);
+    const float playerY=ground+(menu?(chaseEntry?0:-90*(1-arrival)+entrance.Hop()):altitude*HeightScale);
     ellipse(world,{playerX-4,ground+1},menu?100:59-altitude*8,6-altitude,Color4F(.04f,.13f,.10f,menu?.36f*arrival:.36f-altitude*.07f));
     if(!menu && game.GetFrenzySeconds()>0) {
         for(int i=0;i<3;++i) {
@@ -1112,16 +1195,16 @@ void MainScene::drawWorld() {
     }
     if(menu) {
         // Reveal the swimmer above the waterline, then lower the mask as he steps ashore.
-        const float waterline=ground+21-40*arrival;
+        const float waterline=chaseEntry?ground-20:ground+21-40*arrival;
         rect(menuMask,{0,waterline,480,h-waterline},Color4F(1,1,1,1));
         drawCrocodile({playerX,playerY},scale,menuActor);
-        if(shake!=0) {
+        if(!chaseEntry && shake!=0) {
             const float t=(idleCycle-6.4f)/.6f;
             for(int i=0;i<4;++i) ellipse(menuActor,{playerX-35+i*25.0f+(i-2)*t*12,ground+55+std::sin(t*3.14159f)*23},
                 2,3,Color4F(.70f,.92f,.89f,(1-t)*.7f));
         }
         const float splash=std::sin(arrival*3.14159265f);
-        if(arrival<1) {
+        if(!chaseEntry && arrival<1) {
             for(int i=0;i<3;++i) {
                 world->drawCircle({playerX-15,ground+22},1,0,40,false,45+i*16+arrival*25,4+i*2,
                     Color4F(.70f,.91f,.85f,(1-arrival)*.55f));
@@ -1192,25 +1275,33 @@ void MainScene::update(float dt) {
     if(story.active) {
         const int beat=story.Beat();
         story.Update(dt);
-        if(!story.active) { entrance.time=1.65f; rebuildUI(); }
+        if(!story.active) { chaseEntry=true; entrance.time=0; rebuildUI(); }
         else {
             if(beat!=story.Beat()) {
                 rebuildUI();
-                if(story.Beat()==1) sound("food");
-                if(story.Beat()==2) sound("pace");
-                if(story.Beat()==4) sound("jump");
+
             }
             animateStory();
         }
     }
     if(before==GameState::Menu && !story.active) {
+        if(chaseEntry && entrance.time<1.1f) chaseTravel+=dt*9*std::pow(1-entrance.time/1.1f,2);
         const float previousIntro=entrance.time;
         entrance.Update(dt);
-        if(previousIntro<.85f && entrance.time>=.85f)
+        if(!chaseEntry && previousIntro<.85f && entrance.time>=.85f)
             burst({235,viewHeight*.29f+20},Color4F(.60f,.93f,1,.8f),18,1.3f);
-        if(previousIntro<1.65f && entrance.time>=1.65f)
+        if(!chaseEntry && previousIntro<1.65f && entrance.time>=1.65f)
             burst({250,viewHeight*.29f+4},Color4F(.88f,.80f,.53f,.65f),10,.8f);
     }
+    if(story.active && soundEnabled && smokeStep<0) {
+        if(storyMusicId<0) {
+            storyMusicId=AudioEngine::play2d("audio/story-score.wav",false,.55f);
+            if(storyMusicId>=0) AudioEngine::setCurrentTime(storyMusicId,story.time);
+        } else {
+            const float audioTime=AudioEngine::getCurrentTime(storyMusicId);
+            if(audioTime>=0 && std::abs(audioTime-story.time)>.25f) AudioEngine::setCurrentTime(storyMusicId,story.time);
+        }
+    } else if(storyMusicId>=0) { AudioEngine::stop(storyMusicId); storyMusicId=-1; }
     if(soundEnabled && smokeStep<0 && before==GameState::Playing) {
         if(musicId<0) musicId=AudioEngine::play2d("audio/mangue-loop.wav",true,.16f);
     } else if(musicId>=0) {
@@ -1754,29 +1845,55 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==95) {
         capture("46-shop-upgrades-no-coins.png"); smokeStep=98;
     } else if(smokeStep==98) {
-        act(Action::Back); start(false); act(Action::Menu); story=StoryIntro{}; rebuildUI(); smokeStep=100;
-    } else if(smokeStep==100 && story.time>.7f) {
+        act(Action::Back); start(false); act(Action::Menu); story=StoryIntro{}; rebuildUI(); smokeStep=110;
+    } else if(smokeStep==110 && story.time>.45f) {
+        if(!storyOpeningFish || storyHippo->isVisible() || storyContact->isVisible()) { finishSmoke(false,"Opening must show Dourado alone"); return; }
+        capture("56-story-dourado-alone.png"); smokeStep=100;
+    } else if(smokeStep==100 && story.time>StoryIntro::Start(0)+2.15f) {
+        if(!storyHippo->isVisible() || storyHippo->getPositionX()<130) { finishSmoke(false,"Bento did not arrive beside Dourado"); return; }
         capture("47-story-bento.png"); smokeStep=101;
-    } else if(smokeStep==101 && story.time>3.2f) {
-        capture("48-story-snack.png"); smokeStep=102;
-    } else if(smokeStep==102 && story.time>5.8f) {
-        capture("49-story-roar.png"); smokeStep=103;
-    } else if(smokeStep==103 && story.time>8.2f) {
-        capture("50-story-excuse.png"); smokeStep=104;
-    } else if(smokeStep==104 && story.time>10.9f) {
-        capture("51-story-escape.png"); smokeStep=105;
-    } else if(smokeStep==105 && !story.active) {
+    } else if(smokeStep==101 && story.time>StoryIntro::Start(1)+1.0f) {
+        capture("48-story-snack.png"); smokeStep=108;
+    } else if(smokeStep==108 && story.time>StoryIntro::Start(1)+2.0f) {
+        capture("54-story-temptation.png"); smokeStep=102;
+    } else if(smokeStep==102 && story.time>StoryIntro::Start(2)+.65f) {
+        if(!storyContact->isVisible() || storyJaca->isVisible() ||
+           storyContactSprite->getTexture()!=Director::getInstance()->getTextureCache()->getTextureForKey("art/jaca-bite-sequence.png")) {
+            finishSmoke(false,"Integrated bite pose missing or duplicated"); return;
+        }
+        capture("52-story-fish-bite.png"); smokeStep=109;
+    } else if(smokeStep==109 && story.time>StoryIntro::Start(2)+1.4f) {
+        capture("55-story-release.png"); smokeStep=103;
+    } else if(smokeStep==103 && story.time>StoryIntro::Start(3)+.7f) {
+        capture("49-story-roar.png"); smokeStep=104;
+    } else if(smokeStep==104 && story.time>StoryIntro::Start(4)+1.1f) {
+        capture("50-story-excuse.png"); smokeStep=111;
+    } else if(smokeStep==111 && story.time>StoryIntro::Start(5)+.72f) {
+        capture("58-story-jump-rise.png"); smokeStep=105;
+    } else if(smokeStep==105 && story.time>StoryIntro::Start(5)+1.3f) {
+        if(storyContact->isVisible() || storyHippoSprite->getTexture()!=Director::getInstance()->getTextureCache()->getTextureForKey("art/bento-guardian-run.png")) { finishSmoke(false,"Bento did not protect Dourado during chase"); return; }
+        capture("51-story-escape.png"); smokeStep=112;
+    } else if(smokeStep==112 && story.time>StoryIntro::Start(5)+2.24f) {
+        capture("59-story-jump-land.png"); smokeStep=106;
+    } else if(smokeStep==106 && story.time>StoryIntro::Start(5)+2.6f) {
+        if(!storyJacaSprite || storyJacaSprite->getTexture()!=Director::getInstance()->getTextureCache()->getTextureForKey("art/jaca-run-v2.png")) {
+            finishSmoke(false,"Story leap did not land into run animation"); return;
+        }
+        capture("53-story-run.png"); smokeStep=107;
+    } else if(smokeStep==107 && !story.active && entrance.time>2.3f) {
+        if(!chaseEntry) { finishSmoke(false,"Story did not continue into running entrance"); return; }
+        capture("57-arrived-idle-menu.png");
         if(game.GetState()!=GameState::Menu || game.GetDistance()!=0) { finishSmoke(false,"Story advanced gameplay"); return; }
         act(Action::ReplayStory);
         if(!story.active || story.time!=0) { finishSmoke(false,"Story replay failed"); return; }
         const float top=std::min(viewHeight-20.0f,Director::getInstance()->getSafeAreaRect().getMaxY()-16);
         smokeTouch({407,top-20},{407,top-20});
-        if(story.active) { finishSmoke(false,"Story skip button failed"); return; }
+        if(story.active || storyMusicId>=0) { finishSmoke(false,"Story skip did not stop presentation"); return; }
         start(false); act(Action::Menu);
         if(story.active) { finishSmoke(false,"Story repeated after run"); return; }
-        for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png"})
-            if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) { finishSmoke(false,"Story art missing"); return; }
-        finishSmoke(true,"Gameplay, shop, five fullscreen story shots, replay, skip and menu passed.");
+        for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png","art/jaca-defeat-user.png"})
+            if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) { finishSmoke(false,"Story or defeat art missing"); return; }
+        finishSmoke(true,"Gameplay, defeat image, integrated Dourado poses, bite sequence, protective Bento, chase, replay and skip passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

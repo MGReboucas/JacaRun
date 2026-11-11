@@ -59,7 +59,10 @@ inline JacaPose AnimateJaca(const CharacterMotion& motion, bool idle, bool groun
     if(!grounded) {
         p.atlas=JacaAtlas::Action; p.frame=velocityY>1.5?0:velocityY<-1.5?2:1;
         p.width=p.frame==1?89:94; p.height=p.frame==1?94:104;
-        p.angle=motion.lean;
+        const float flight=std::clamp(static_cast<float>(velocityY)/12,-1.0f,1.0f);
+        p.angle=-9*flight;
+        p.scaleX*=1-.04f*std::max(0.0f,flight);
+        p.scaleY*=1+.08f*std::max(0.0f,flight);
         if(motion.bite>0) { p.frame=motion.bite>.19f?4:5; p.scaleX+=.04f*motion.Mouth(); }
         return p;
     }

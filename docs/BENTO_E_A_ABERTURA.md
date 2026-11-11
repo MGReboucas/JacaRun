@@ -1,5 +1,7 @@
 # Bento, o Barão do Brejo — abertura 0.9.6
 
+**Revisão atual:** a 0.9.9 substitui o peixe sobreposto por interações desenhadas na mesma pose dos personagens. Veja [artes e validação](VALIDACAO_0.9.9.md). Abaixo está registrada a concepção da 0.9.6.
+
 Bento é grande, vaidoso e protetor. Seu chapéu de palha gasto, lenço azul-petróleo, broche de peixe e dente lascado dão identidade ao rival. Ele não persegue Jaca por maldade: Jaca confunde Dourado, seu peixe de estimação, com comida.
 
 ## Roteiro — 12,5 segundos

@@ -25,6 +25,7 @@
 
 #include "MainScene.h"
 #include "FishMotion.h"
+#include "EnvironmentCycle.h"
 #include "audio/AudioEngine.h"
 #include <algorithm>
 #include <chrono>
@@ -44,7 +45,6 @@ const Color4F Lime(0.78f, 0.94f, 0.39f, 1);
 const Color4B Cream(247, 243, 219, 255);
 const Color4B Muted(168, 205, 185, 255);
 const Color4B Dark(12, 49, 49, 255);
-const char* EnvironmentNames[] = {"MANGUE", "VILA DE PESCADORES", "FLORESTA TROPICAL"};
 const char* EnvironmentFiles[] = {"art/mangue.png", "art/vila.png", "art/floresta.png"};
 void ellipse(DrawNode* d, Vec2 p, float rx, float ry, Color4F color) {
     d->drawSolidCircle(p, 1, 0, 32, rx, ry, color);
@@ -94,7 +94,8 @@ bool MainScene::init() {
 #endif
     std::string error;
     soundEnabled=UserDefault::getInstance()->getBoolForKey("sound-enabled",true);
-    environment=smokeStep>=0?0:std::clamp(UserDefault::getInstance()->getIntegerForKey("environment",0),0,2);
+    // Decode all backgrounds before the run, avoiding loading stalls at biome boundaries.
+    for(const char* file:EnvironmentFiles) Director::getInstance()->getTextureCache()->addImage(file);
     AudioEngine::setMaxAudioInstance(8);
     if (smokeStep < 0 && !game.GetProfile().Load(savePath, error)) {
         saveAllowed = false;
@@ -216,14 +217,6 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::Help: help=true; rebuildUI(); break;
-    case Action::Environment:
-        if(game.GetState()!=GameState::Menu || shop || goals || help) break;
-        environment=(environment+1)%3;
-        if(smokeStep<0) {
-            UserDefault::getInstance()->setIntegerForKey("environment",environment);
-            UserDefault::getInstance()->flush();
-        }
-        rebuildUI(); break;
     case Action::Jump:
         if (game.Jump()) { burst({Contact-60, floorY+4}, Color4F(.80f,.78f,.49f,.8f), 7, .65f); sound("jump"); }
         break;
@@ -396,8 +389,7 @@ void MainScene::rebuildUI() {
         button("SEU JACA  /  " + whole(game.GetProfile().coins) + " moedas",
                {55, bottom + 22, 370, 52}, Action::Shop);
         button("MISS\u00d5ES E CONQUISTAS", {55,bottom+173,370,48}, Action::Goals);
-        button(std::string("<  ")+EnvironmentNames[environment]+"  >",{70,viewHeight*.54f,340,45},Action::Environment);
-        menuHint=text("TOQUE ACIMA PARA TROCAR O AMBIENTE", 12, {240, viewHeight*.54f-20}, Cream);
+        menuHint=text("DESLIZE PARA CIMA PARA COME\u00c7AR", 14, {240, viewHeight*.54f}, Cream);
         menuHint->enableOutline(Color4B(28,55,22,255),2);
         if (!saveWarning.empty()) text(saveWarning, 14, {240, bottom + 2}, Color4B(255,194,116,255));
         return;
@@ -492,18 +484,35 @@ void MainScene::drawBackdrop(float ground) {
     const float width=viewHeight*1.5f;
     const float offset=travel*1.2f+width*.32f;
     const int tile=static_cast<int>(offset/width);
+    const auto blend=EnvironmentAtDistance(game.GetState()==GameState::Menu?0:game.GetDistance());
+    const int environment=blend.progress<1?blend.previous:blend.current;
     for(int i=0;i<2;++i) {
         auto bg=art(scenery,EnvironmentFiles[environment],{0,0,1536,1024},
             {i*width-std::fmod(offset,width),0},{width+1,viewHeight},-10);
         bg->setFlippedX((tile+i)%2!=0);
+        if(blend.progress>0 && blend.progress<1) {
+            auto next=art(scenery,EnvironmentFiles[blend.current],{0,0,1536,1024},
+                {i*width-std::fmod(offset,width),0},{width+1,viewHeight},-9);
+            next->setFlippedX((tile+i)%2!=0);
+            next->setOpacity(static_cast<uint8_t>(255*blend.progress));
+        }
     }
     // The walkable surface scrolls at simulation speed, independently of distant scenery.
     const Rect strips[]={{0,100,1536,220},{0,425,1536,240},{0,735,1536,260}};
     const float surface[]={70,65,110};
-    for(int i=0;i<2;++i)
-        art(scenery,"art/ground-atlas.png",strips[environment],
+    for(int i=0;i<2;++i) {
+        auto previousFloor=art(scenery,"art/ground-atlas.png",strips[environment],
             {i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f),ground-(strips[environment].size.height-surface[environment])*.5f},
             {769,strips[environment].size.height*.5f},-5);
+        if(blend.progress>0 && blend.progress<1) {
+            previousFloor->setOpacity(static_cast<uint8_t>(255*(1-blend.progress)));
+            const int next=blend.current;
+            auto floor=art(scenery,"art/ground-atlas.png",strips[next],
+                {i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f),ground-(strips[next].size.height-surface[next])*.5f},
+                {769,strips[next].size.height*.5f},-4);
+            floor->setOpacity(static_cast<uint8_t>(255*blend.progress));
+        }
+    }
     // A subtle lower vignette keeps mission text readable while leaving the illustration visible.
     for(int i=0;i<12;++i)
         rect(world,{0,i*ground/12,480,ground/12+1},Color4F(.015f,.09f,.065f,.48f*(1-i/12.0f)));
@@ -1428,31 +1437,46 @@ void MainScene::smokeTick(float dt) {
         capture("34-shield-shatter.png");
         act(Action::Menu); smokeStep=80;
     } else if(smokeStep==80) {
-        act(Action::Environment);
-        if(environment!=1) { finishSmoke(false,"Village selection failed"); return; }
+        start(false);
+        while(game.GetDistance()<550) game.Update(.1);
         smokeStep=81;
     } else if(smokeStep==81) {
-        capture("35-village-menu.png");
+        if(EnvironmentAtDistance(d).current!=1) { finishSmoke(false,"Village cycle failed"); return; }
+        capture("35-village-run.png");
         smokeStep=85;
     } else if(smokeStep==85) {
-        act(Action::Environment); smokeStep=82;
+        while(game.GetDistance()<1050) game.Update(.1);
+        smokeStep=82;
     } else if(smokeStep==82) {
-        if(environment!=2) { finishSmoke(false,"Forest selection failed"); return; }
-        capture("36-forest-menu.png"); smokeStep=86;
+        if(EnvironmentAtDistance(d).current!=2) { finishSmoke(false,"Forest cycle failed"); return; }
+        capture("36-forest-run.png"); smokeStep=86;
     } else if(smokeStep==86) {
-        start(false); smokeStep=83;
-    } else if(smokeStep==83 && d>2) {
-        capture("37-forest-run.png"); smokeStep=87;
+        while(game.GetDistance()<1520) game.Update(.1);
+        smokeStep=83;
+    } else if(smokeStep==83) {
+        const auto blend=EnvironmentAtDistance(d);
+        if(blend.previous!=2 || blend.current!=0 || blend.progress<=0 || blend.progress>=1) {
+            finishSmoke(false,"Environment transition failed"); return;
+        }
+        capture("38-environment-transition.png"); smokeStep=87;
     } else if(smokeStep==87) {
-        act(Action::Menu); act(Action::Environment); smokeStep=84;
+        while(game.GetDistance()<1550) game.Update(.1);
+        smokeStep=84;
     } else if(smokeStep==84) {
-        if(environment!=0) { finishSmoke(false,"Environment wrap failed"); return; }
+        if(EnvironmentAtDistance(d).current!=0 || EnvironmentAtDistance(d).progress!=1) {
+            finishSmoke(false,"Environment wrap failed"); return;
+        }
+        capture("37-mangrove-return.png"); smokeStep=88;
+    } else if(smokeStep==88) {
+        act(Action::Menu); start(false); smokeStep=89;
+    } else if(smokeStep==89) {
+        if(d>2 || EnvironmentAtDistance(d).current!=0) { finishSmoke(false,"Environment restart failed"); return; }
         for(const char* file:{"art/jaca-atlas.png","art/ground-atlas.png","art/objects-atlas.png","art/mangue.png","art/vila.png","art/floresta.png"}) {
             if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) {
                 finishSmoke(false,std::string("Art not loaded: ")+file); return;
             }
         }
-        finishSmoke(true,"Gameplay, save, swipe chain, shield and three illustrated environments passed.");
+        finishSmoke(true,"Gameplay, save, gestures, shield, recurring environments, transition and restart passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

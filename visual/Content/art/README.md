@@ -8,7 +8,7 @@ Artes produzidas em 10/11/2026 com o gerador integrado imagegen, a partir da ref
 - `mangue.png`, `vila.png`, `floresta.png`: fundos ilustrados de 1536 × 1024.
 - `logo.png`: marca ilustrada do menu.
 
-Os ambientes são selecionados no menu. A escolha fica nas preferências locais, separada do save de progresso. Eles compartilham as regras de corrida existentes; novos alimentos, regras e desbloqueios por bioma não fazem parte desta alteração. O deslocamento do piso acompanha a simulação e o fundo se move mais lentamente. Tiles alternados espelhados evitam uma quebra brusca nas bordas dos fundos.
+Desde a 0.9.1, os ambientes alternam automaticamente a cada 500 m: mangue, vila, floresta e novamente mangue. A mistura entre os fundos e pisos ocupa os primeiros 40 m de cada novo trecho. A pausa congela a transição e uma nova partida reinicia o ciclo. Não há seleção no menu nem leitura da preferência antiga. Eles compartilham as regras de corrida existentes; novos alimentos, regras e desbloqueios por bioma não fazem parte desta alteração. O deslocamento do piso acompanha a simulação e o fundo se move mais lentamente. Tiles alternados espelhados evitam uma quebra brusca nas bordas dos fundos.
 
 O personagem usa frames ligados ao estado da simulação. Os acessórios existentes continuam como sobreposições, tanto na loja quanto na corrida. As caixas de colisão e os preços não foram alterados.
 

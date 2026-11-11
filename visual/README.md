@@ -1,6 +1,6 @@
 # JacaRun — protótipo visual 0.9
 
-**0.9.0:** apresentação ilustrada com atlas do Jaca, objetos e pisos, marca do menu e três ambientes selecionáveis. A escolha de ambiente é uma preferência local e não muda as regras nem o save de progresso. Veja [artes e prompts](Content/art/README.md). O smoke também verifica seleção circular dos ambientes e carregamento das texturas, com capturas `35` a `37`.
+**0.9.1:** ambientes automáticos, sem seletor no menu. A cada 500 m, o ciclo avança por mangue, vila e floresta, retornando ao mangue aos 1.500 m. Fundo e piso se misturam nos primeiros 40 m de cada trecho. A distância controla a transição, que congela na pausa; menu e nova partida começam no mangue. Os obstáculos e as regras permanecem iguais. Veja [artes e prompts](Content/art/README.md). O smoke verifica os três trechos, transição, retorno e reinício, com capturas `35` a `38`.
 
 Patch **0.8.1**: ícone próprio do Jaca no Android e Windows. Veja [arte, prompt e exportação](../assets/branding/README.md). APK atualizado: `output/JacaRun-0.8.1-debug.apk`.
 

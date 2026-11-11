@@ -4,6 +4,7 @@
 #include <iostream>
 #include "../visual/Source/MenuEntrance.h"
 #include "../visual/Source/FishMotion.h"
+#include "../visual/Source/EnvironmentCycle.h"
 #include <stdexcept>
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while(false)
 
@@ -131,6 +132,31 @@ void MenuEntranceCompletesAndSkips() {
     intro.Update(.1f); CHECK(intro.Progress()==1);
     MenuEntrance skipped; skipped.Finish(); CHECK(skipped.Progress()==1); CHECK(skipped.Zoom()==1);
 }
+void EnvironmentsFollowDistance() {
+    CHECK(EnvironmentAtDistance(0).current==0);
+    CHECK(EnvironmentAtDistance(499.99).current==0);
+    for(int segment=1;segment<=12;++segment) {
+        const double boundary=segment*500.0;
+        const auto begin=EnvironmentAtDistance(boundary);
+        CHECK(begin.current==segment%3 && begin.previous==(segment+2)%3 && begin.progress==0);
+        CHECK(EnvironmentAtDistance(boundary+20).progress==.5f);
+        CHECK(EnvironmentAtDistance(boundary+40).progress==1);
+        CHECK(EnvironmentAtDistance(boundary+499).current==segment%3);
+    }
+    GameManager game;
+    game.StartGame(1,false);
+    while(game.GetDistance()<520) game.Update(.1);
+    const auto before=EnvironmentAtDistance(game.GetDistance());
+    game.TogglePause(); game.Update(10);
+    const auto paused=EnvironmentAtDistance(game.GetDistance());
+    CHECK(paused.current==before.current && paused.progress==before.progress);
+    game.TogglePause(); game.Update(.1);
+    CHECK(EnvironmentAtDistance(game.GetDistance()).progress>before.progress);
+    game.ReturnToMenu();
+    game.StartGame(1,false);
+    CHECK(game.GetDistance()==0);
+    CHECK(EnvironmentAtDistance(game.GetDistance()).current==0);
+}
 int main() {
     try {
         PersistenceAndCollection();
@@ -139,7 +165,8 @@ int main() {
         AnimationPausesAndRecovers();
         FishLeavesAndReturnsToWater();
         MenuEntranceCompletesAndSkips();
-        std::cout << "6/6 presentation, gesture and animation groups passed.\n";
+        EnvironmentsFollowDistance();
+        std::cout << "7/7 presentation, gesture, animation and environment groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

@@ -41,7 +41,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
+    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Environment, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -49,6 +49,12 @@ private:
     CharacterMotion motion;
     MenuEntrance entrance;
     ax::Node* scenery = nullptr;
+    int environment = 0;
+    std::vector<ax::Sprite*> artPool;
+    std::size_t artUsed = 0;
+    ax::Sprite* art(ax::Node* parent, const char* file, ax::Rect crop, ax::Vec2 position,
+                    ax::Size size, int order = 0);
+    void drawBackdrop(float ground);
     ax::Label* menuHint = nullptr;
     ax::DrawNode* menuActor = nullptr;
     ax::DrawNode* menuMask = nullptr;

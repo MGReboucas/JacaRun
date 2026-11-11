@@ -45,10 +45,10 @@ try {
                 }
             }
             Write-Host ($lines -join [Environment]::NewLine)
-            foreach ($capture in @('32-shield-shell-a.png','33-shield-shell-b.png','34-shield-shatter.png')) {
+            foreach ($capture in @('32-shield-shell-a.png','33-shield-shell-b.png','34-shield-shatter.png','35-village-menu.png','36-forest-menu.png','37-forest-run.png')) {
                 $imagePath = Join-Path $dir $capture
                 if (!(Test-Path $imagePath) -or (Get-Item $imagePath).Length -eq 0) {
-                    throw "Captura do escudo ausente: $imagePath"
+                    throw "Captura visual ausente: $imagePath"
                 }
             }
             Write-Host "Evidencias: $dir"

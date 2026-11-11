@@ -44,6 +44,8 @@ const Color4F Lime(0.78f, 0.94f, 0.39f, 1);
 const Color4B Cream(247, 243, 219, 255);
 const Color4B Muted(168, 205, 185, 255);
 const Color4B Dark(12, 49, 49, 255);
+const char* EnvironmentNames[] = {"MANGUE", "VILA DE PESCADORES", "FLORESTA TROPICAL"};
+const char* EnvironmentFiles[] = {"art/mangue.png", "art/vila.png", "art/floresta.png"};
 void ellipse(DrawNode* d, Vec2 p, float rx, float ry, Color4F color) {
     d->drawSolidCircle(p, 1, 0, 32, rx, ry, color);
 }
@@ -92,6 +94,7 @@ bool MainScene::init() {
 #endif
     std::string error;
     soundEnabled=UserDefault::getInstance()->getBoolForKey("sound-enabled",true);
+    environment=smokeStep>=0?0:std::clamp(UserDefault::getInstance()->getIntegerForKey("environment",0),0,2);
     AudioEngine::setMaxAudioInstance(8);
     if (smokeStep < 0 && !game.GetProfile().Load(savePath, error)) {
         saveAllowed = false;
@@ -163,7 +166,9 @@ Label* MainScene::text(const std::string& value, float size, Vec2 point, Color4B
     return label;
 }
 void MainScene::button(const std::string& title, Rect bounds, Action action, bool primary) {
-    pill(panels, bounds, primary ? Lime : Color4F(0.13f, 0.31f, 0.29f, 1));
+    pill(panels, {bounds.origin.x-2,bounds.origin.y-5,bounds.size.width+4,bounds.size.height+7}, Color4F(.16f,.075f,.025f,1));
+    pill(panels, bounds, primary ? Color4F(1,.68f,.12f,1) : Color4F(.48f,.23f,.075f,1));
+    panels->drawSegment({bounds.getMinX()+18,bounds.getMaxY()-4},{bounds.getMaxX()-18,bounds.getMaxY()-4},1.2f,Color4F(1,.83f,.36f,.65f));
     text(title, 21, {bounds.getMidX(), bounds.getMidY() + 1}, primary ? Dark : Cream, true);
     buttons.push_back({bounds, action});
 }
@@ -211,6 +216,14 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::Help: help=true; rebuildUI(); break;
+    case Action::Environment:
+        if(game.GetState()!=GameState::Menu || shop || goals || help) break;
+        environment=(environment+1)%3;
+        if(smokeStep<0) {
+            UserDefault::getInstance()->setIntegerForKey("environment",environment);
+            UserDefault::getInstance()->flush();
+        }
+        rebuildUI(); break;
     case Action::Jump:
         if (game.Jump()) { burst({Contact-60, floorY+4}, Color4F(.80f,.78f,.49f,.8f), 7, .65f); sound("jump"); }
         break;
@@ -374,17 +387,18 @@ void MainScene::rebuildUI() {
     if (state == GameState::Menu) {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{302,top-24,154,44},Action::Sound);
         button("COMO JOGAR",{24,top-24,184,44},Action::Help);
-        text("MANGUE EM MOVIMENTO", 17, {240, top - 40}, Muted);
-        text("JACARUN", 78, {240, top - 108}, Cream, true);
-        text("Seu caminho passa pelo mangue.", 21, {240, top - 173}, Cream);
-        pill(panels, {85, viewHeight * .68f, 310, 43}, Color4F(.04f,.22f,.22f,.82f));
+        art(panels,"art/logo.png",{15,140,1510,780},{50,top-237},{380,196},1);
+        text("CORRA. COMA. EXPLORE.", 18, {240, top - 260}, Cream,true)->enableOutline(Color4B(28,55,22,255),2);
+        pill(panels, {85, viewHeight * .62f, 310, 43}, Color4F(.04f,.22f,.22f,.82f));
         text("RECORDE  " + whole(game.GetProfile().bestScore) + "  /  N\u00cdVEL " +
-             whole(game.GetProfile().GetLevel()), 16, {240, viewHeight * .68f + 22}, Cream);
+             whole(game.GetProfile().GetLevel()), 16, {240, viewHeight * .62f + 22}, Cream);
         button("VAMOS CORRER", {55, bottom +  90, 370, 65}, Action::Play, true);
         button("SEU JACA  /  " + whole(game.GetProfile().coins) + " moedas",
                {55, bottom + 22, 370, 52}, Action::Shop);
         button("MISS\u00d5ES E CONQUISTAS", {55,bottom+173,370,48}, Action::Goals);
-        menuHint=text("DESLIZE PARA CIMA PARA COME\u00c7AR", 13, {240, viewHeight*.29f+125}, Cream);
+        button(std::string("<  ")+EnvironmentNames[environment]+"  >",{70,viewHeight*.54f,340,45},Action::Environment);
+        menuHint=text("TOQUE ACIMA PARA TROCAR O AMBIENTE", 12, {240, viewHeight*.54f-20}, Cream);
+        menuHint->enableOutline(Color4B(28,55,22,255),2);
         if (!saveWarning.empty()) text(saveWarning, 14, {240, bottom + 2}, Color4B(255,194,116,255));
         return;
     }
@@ -397,14 +411,14 @@ void MainScene::rebuildUI() {
     coins = text(whole(game.GetRunCoins()), 24, {413, top - 29}, Color4B(255,219,122,255), true);
     if (state == GameState::Playing) {
         button("II",{410,top-119,48,48},Action::Pause);
-        pill(panels, {22,top-183,378,110}, Color4F(.025f,.12f,.14f,.94f));
-        status = text("", 22, {211, top - 106}, Cream, true);
+        status = text("", 18, {211, top - 101}, Cream, true);
+        status->enableOutline(Color4B(8,32,23,255),2);
         status->setWidth(354); status->setAlignment(TextHAlignment::CENTER);
-        pace = text("", 23, {211, top - 155}, Color4B(255,219,122,255), true);
+        pace = text("", 18, {211, top - 137}, Color4B(255,219,122,255), true);
         pace->setWidth(354); pace->setAlignment(TextHAlignment::CENTER);
         pace->enableOutline(Color4B(13,47,42,210), 1);
-        pill(panels, {22,bottom+105,436,70}, Color4F(.025f,.12f,.14f,.94f));
-        missionHud = text("",21,{240,bottom+140},Cream);
+        pill(panels, {22,bottom+105,436,48}, Color4F(.025f,.12f,.14f,.76f));
+        missionHud = text("",17,{240,bottom+130},Cream);
         missionHud->setWidth(412); missionHud->setAlignment(TextHAlignment::CENTER);
         missionHud->enableOutline(Color4B(13,47,42,230),2);
         missionToast = text("",28,{240,top-225},Color4B(220,255,145,255),true);
@@ -450,6 +464,51 @@ void MainScene::rebuildUI() {
     }
 }
 
+Sprite* MainScene::art(Node* parent, const char* file, Rect crop, Vec2 position, Size size, int order) {
+    Sprite* sprite=nullptr;
+    if(parent==panels) {
+        sprite=Sprite::create(); ui->addChild(sprite,order);
+    } else {
+        if(artUsed==artPool.size()) {
+            sprite=Sprite::create(); scenery->addChild(sprite); artPool.push_back(sprite);
+        } else sprite=artPool[artUsed];
+        ++artUsed;
+        if(sprite->getParent()!=parent) {
+            sprite->retain(); sprite->removeFromParent(); parent->addChild(sprite); sprite->release();
+        }
+    }
+    sprite->setTexture(file);
+    sprite->setTextureRect(crop);
+    sprite->setAnchorPoint({0,0}); sprite->setPosition(position);
+    sprite->setScaleX(size.width/crop.size.width); sprite->setScaleY(size.height/crop.size.height);
+    sprite->setRotation(0); sprite->setFlippedX(false); sprite->setOpacity(255);
+    sprite->setColor(Color3B::WHITE); sprite->setVisible(true); sprite->setLocalZOrder(order);
+    for(auto child:sprite->getChildren()) child->setVisible(false);
+    return sprite;
+}
+
+void MainScene::drawBackdrop(float ground) {
+    const float travel=static_cast<float>(game.GetDistance());
+    const float width=viewHeight*1.5f;
+    const float offset=travel*1.2f+width*.32f;
+    const int tile=static_cast<int>(offset/width);
+    for(int i=0;i<2;++i) {
+        auto bg=art(scenery,EnvironmentFiles[environment],{0,0,1536,1024},
+            {i*width-std::fmod(offset,width),0},{width+1,viewHeight},-10);
+        bg->setFlippedX((tile+i)%2!=0);
+    }
+    // The walkable surface scrolls at simulation speed, independently of distant scenery.
+    const Rect strips[]={{0,100,1536,220},{0,425,1536,240},{0,735,1536,260}};
+    const float surface[]={70,65,110};
+    for(int i=0;i<2;++i)
+        art(scenery,"art/ground-atlas.png",strips[environment],
+            {i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f),ground-(strips[environment].size.height-surface[environment])*.5f},
+            {769,strips[environment].size.height*.5f},-5);
+    // A subtle lower vignette keeps mission text readable while leaving the illustration visible.
+    for(int i=0;i<12;++i)
+        rect(world,{0,i*ground/12,480,ground/12+1},Color4F(.015f,.09f,.065f,.48f*(1-i/12.0f)));
+}
+
 void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int previewAccessory) {
     auto* drawing = target ? target : world;
     const bool sliding = !target && (game.GetPlayer().IsSliding() || game.GetPlayer().IsDiving()) && game.GetState() != GameState::Menu;
@@ -463,15 +522,12 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     auto point = [&](float x, float y) {
         return feet + Vec2((x*sx-y*lean)*scale,(y*sy+x*lean+bob)*scale);
     };
-    auto oval = [&](float x, float y, float rx, float ry, Color4F c) {
-        ellipse(drawing, point(x,y), rx*scale*sx, ry*scale*sy, c);
-    };
     const bool shield = !target && game.GetState()!=GameState::Menu && game.GetShieldSeconds()>0;
     const float shieldPulse=.5f+.5f*std::sin(motion.time*3.8f);
     const float shieldAlpha=game.GetShieldSeconds()<3 ? .62f+.38f*(.5f+.5f*std::sin(motion.time*9)) : 1;
-    const Vec2 shieldCenter=point(-7,25);
+    const Vec2 shieldCenter=point(5,sliding?25:43);
     const float shieldX=(76+shieldPulse*2)*scale;
-    const float shieldY=(57-12*motion.slide+shieldPulse*2)*scale;
+    const float shieldY=(73-28*motion.slide+shieldPulse*2)*scale;
     auto shieldPoint=[&](float angle,float radius=1.0f) {
         return shieldCenter+Vec2(std::cos(angle)*shieldX,std::sin(angle)*shieldY)*radius;
     };
@@ -482,64 +538,43 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
                     Color4F(.18f,.80f,1,(.025f+shieldPulse*.006f)*shieldAlpha));
         ellipse(drawing,shieldCenter,shieldX*.94f,shieldY*.94f,Color4F(.16f,.64f,.88f,.13f*shieldAlpha));
     }
-    const Color4F green(0.39f, 0.68f, 0.30f, 1), bright(0.72f, 0.88f, 0.39f, 1);
-    const float mouth=target?0:motion.Mouth();
-    const float wag=std::sin(cycle*.65f)*5;
-    Vec2 tail[] = {point(-23, 15), point(-74, 30+wag), point(-45, 2+wag*.4f), point(-7, 7)};
-    drawing->drawSolidPoly(tail, 4, green);
-    oval(-9, 22, 38, 21, Color4F(.19f,.40f,.23f,1));
-    oval(-9, 24, 36, 20, green);
-    oval(-6, 15, 28, 10, Color4F(.63f,.79f,.35f,1));
-    oval(24, 28, 33, 16, bright);
-    oval(29, 17-mouth*12, 27, 8, Color4F(0.86f, 0.92f, 0.56f, 1));
-    for (int i = 0; i < 5; ++i) {
-        float x = -34.0f + i * 12;
-        Vec2 spike[] = {point(x,37), point(x+4,47), point(x+10,38)};
-        drawing->drawSolidPoly(spike, 3, Color4F(0.29f, 0.54f, 0.26f, 1));
-    }
-    oval(12, 45, 10, 11, bright);
-    const bool blink=std::fmod(motion.time,4.3f)>4.13f;
-    oval(14, 47, 6, blink?1.5f:7.0f, Color4F(0.98f,0.98f,0.83f,1));
-    for (int i=0; i<5; ++i) oval(-31+i*9, 26+(i%2)*6, 2, 2, Color4F(.28f,.54f,.26f,1));
-    oval(17, 47-(idle && std::fmod(motion.time,6.0f)>4.5f?2.0f:0), 2.6f, blink?1.0f:4.5f, Ink);
-    oval(49, 32, 2, 2, Ink);
-    if(mouth>.01f) {
-        Vec2 opening[]={point(14,22),point(56,24),point(53,20-mouth*14),point(21,18-mouth*10)};
-        drawing->drawSolidPoly(opening,4,Color4F(.20f,.12f,.10f,1));
-        oval(37,18-mouth*10,10,2,Color4F(.91f,.42f,.36f,1));
-    }
-    drawing->drawSegment(point(23,22), point(55,23), scale, Ink);
-    for (int i=0; i<3; ++i) {
-        const float x = 31.0f + i*8;
-        Vec2 tooth[] = {point(x,22),point(x+5,22),point(x+2,17)};
-        drawing->drawSolidPoly(tooth,3,Color4F(1,0.98f,0.83f,1));
-    }
-    const float step = !idle && !airborne && !sliding ? std::sin(cycle)*8 : 0;
-    const float tuck=airborne?8.0f:0;
-    oval(-25+step,4+tuck+std::max(0.0f,step*.5f),13,5,green);
-    oval(13-step,4+tuck+std::max(0.0f,-step*.5f),13,5,green);
-    const int accessory = previewAccessory >= 0 ? previewAccessory : game.GetProfile().equipped;
-    if (accessory == 1) {
-        drawing->drawSegment(point(3,57), point(29,57), 4*scale, Color4F(1,0.55f,0.29f,1));
-        oval(9,60,12,7,Color4F(1,0.55f,0.29f,1));
-    } else if (accessory == 2) {
-        oval(15,47,9,6,Ink);
-        drawing->drawSegment(point(6,48),point(-6,49),2*scale,Ink);
-    } else if (accessory == 3) {
-        drawing->drawSegment(point(-2,57),point(29,57),4*scale,Color4F(0.85f,0.71f,0.40f,1));
-        drawing->drawSegment(point(8,62),point(18,62),7*scale,Color4F(0.94f,0.83f,0.54f,1));
-    } else if (accessory == 4) {
-        drawing->drawSegment(point(2,55),point(28,55),5*scale,Color4F(.94f,.25f,.22f,1));
-        Vec2 knot[]={point(3,55),point(-20,65),point(-14,44)};
-        drawing->drawSolidPoly(knot,3,Color4F(.94f,.25f,.22f,1));
-    } else if (accessory == 5) {
-        Vec2 crown[]={point(-1,56),point(-3,76),point(8,66),point(16,82),point(23,66),point(34,76),point(30,56)};
-        drawing->drawSolidPoly(crown,7,Color4F(1,.79f,.24f,1));
-        oval(15,61,3,4,Color4F(.97f,.3f,.22f,1));
-    } else if (accessory == 6) {
-        drawing->drawCircle(point(20,41),32*scale,0,40,false,Color4F(.72f,.92f,1,1));
-        drawing->drawSegment(point(-8,14),point(40,14),4*scale,Color4F(.83f,.88f,.89f,1));
-        oval(37,59,4,7,Color4F(.78f,.95f,1,.8f));
+    const Rect poses[]={{20,80,340,350},{400,90,330,340},{785,80,335,350},{1170,75,350,350},
+                        {25,555,335,340},{365,725,390,215},{780,600,335,340},{1110,670,420,280}};
+    int frame=idle?0:static_cast<int>(cycle/1.5707963f)%4;
+    if(!idle && airborne) frame=4;
+    if(sliding) frame=5;
+    if(!idle && motion.Mouth()>.2f) frame=6;
+    if(!target && game.GetState()==GameState::GameOver) frame=7;
+    const Rect crop=poses[frame];
+    const float width=(frame==5?115:frame==7?131:100)*scale;
+    const float height=frame==5?43*scale:width*crop.size.height/crop.size.width;
+    auto actor=art(drawing,"art/jaca-atlas.png",crop,{feet.x+55*scale-width,feet.y+bob*scale},{width,height},2);
+    auto decor=static_cast<DrawNode*>(actor->getChildByTag(100));
+    if(!decor) { decor=DrawNode::create(); actor->addChild(decor,1,100); }
+    decor->clear(); decor->setVisible(true);
+    const int accessory=previewAccessory>=0?previewAccessory:game.GetProfile().equipped;
+    // Cosmetic overlays use atlas-local coordinates, so previews and gameplay share the same look.
+    const Vec2 eye(crop.size.width*.73f,crop.size.height*.67f);
+    const Vec2 cap(crop.size.width*.57f,crop.size.height*.87f);
+    if(accessory==1) {
+        ellipse(decor,cap,43,18,Color4F(1,.58f,.08f,.95f));
+    } else if(accessory==2) {
+        ellipse(decor,eye,26,19,Ink);
+        decor->drawSegment(eye-Vec2(35,-7),eye+Vec2(25,7),5,Ink);
+        decor->drawSegment(eye+Vec2(3,9),eye+Vec2(15,15),3,Color4F(.5f,.9f,1,1));
+    } else if(accessory==3) {
+        ellipse(decor,cap,65,12,Color4F(.85f,.62f,.24f,1));
+        rect(decor,{cap.x-33,cap.y,66,32},Color4F(.97f,.78f,.36f,1));
+    } else if(accessory==4) {
+        decor->drawSegment(cap-Vec2(36,8),cap+Vec2(38,-8),8,Color4F(.9f,.06f,.12f,1));
+        decor->drawSegment(cap-Vec2(30,8),cap-Vec2(62,32),8,Color4F(.9f,.06f,.12f,1));
+    } else if(accessory==5) {
+        Vec2 crown[]={cap+Vec2(-38,0),cap+Vec2(-45,45),cap+Vec2(-17,27),cap+Vec2(0,58),cap+Vec2(18,27),cap+Vec2(44,45),cap+Vec2(37,0)};
+        decor->drawSolidPoly(crown,7,Color4F(1,.8f,.14f,1));
+        ellipse(decor,cap+Vec2(0,12),7,9,Color4F(.95f,.1f,.12f,1));
+    } else if(accessory==6) {
+        decor->drawCircle(eye,82,0,48,false,Color4F(.65f,.92f,1,.9f));
+        ellipse(decor,eye+Vec2(45,45),9,21,Color4F(.8f,.98f,1,.65f));
     }
     if(shield) {
         // Transparent front surface, luminous rim and counter-rotating energy trails.
@@ -625,6 +660,31 @@ void MainScene::drawEntity(const VisualEntity& object) {
         y += 35 * std::sin(t * 3.14159f) + 19 * t;
         scale = 1 - .72f*t;
         opacity = 1 - t*t;
+    }
+    int tile=-1;
+    Size dimensions(54,48);
+    Vec2 origin(x-27,y-24);
+    switch(e.type) {
+    case EntityType::Ground: tile=0; dimensions={62,57}; origin={x-5,floorY}; break;
+    case EntityType::Log: tile=1; dimensions={68,40}; origin={x-5,floorY}; break;
+    case EntityType::Rock: tile=2; dimensions={64,48}; origin={x-5,floorY}; break;
+    case EntityType::High: case EntityType::Vine:
+        tile=3; dimensions={82,80}; origin={x-10,floorY+57}; break;
+    case EntityType::Crab:
+        tile=4; dimensions={42,32}; origin={x-21,floorY+std::abs(std::sin(motion.time*18))*3}; break;
+    case EntityType::Fish: tile=5; break;
+    case EntityType::RareFish: tile=6; break;
+    case EntityType::Coin: tile=7; dimensions={25,28}; origin={x-12.5f,y-14}; break;
+    default: break;
+    }
+    if(tile>=0) {
+        const Rect crops[]={{8,110,365,305},{395,205,365,180},{780,165,360,235},{1155,125,375,295},
+                            {15,650,360,280},{405,635,350,280},{785,625,355,280},{1200,625,295,305}};
+        auto sprite=art(world,"art/objects-atlas.png",crops[tile],origin,{dimensions.width*scale,dimensions.height*scale},1);
+        sprite->setOpacity(static_cast<uint8_t>(255*opacity));
+        if(isFish) sprite->setRotation(-fishAngle*180/3.14159265f);
+        if(e.type==EntityType::Coin) sprite->setScaleX(sprite->getScaleX()*(.35f+.65f*std::abs(std::cos(motion.time*3+static_cast<float>(e.id)))));
+        return;
     }
     auto tint = [opacity](Color4F c) { c.a *= opacity; return c; };
     auto pos = [&](float dx, float dy) { return Vec2(x+(dx*std::cos(fishAngle)-dy*std::sin(fishAngle))*scale, y+(dx*std::sin(fishAngle)+dy*std::cos(fishAngle))*scale); };
@@ -789,6 +849,8 @@ void MainScene::drawEntity(const VisualEntity& object) {
 
 void MainScene::drawWorld() {
     world->clear(); menuActor->clear(); menuMask->clear();
+    for(auto sprite:artPool) sprite->setVisible(false);
+    artUsed=0;
     const float h=viewHeight;
     const bool opening=game.GetState()==GameState::Menu && !shop && !goals && !help;
     const float zoom=opening?entrance.Zoom():1;
@@ -799,66 +861,8 @@ void MainScene::drawWorld() {
     scenery->setPosition({std::clamp(desired.x,480*(1-zoom),0.0f),std::clamp(desired.y,h*(1-zoom),0.0f)});
     if(menuHint) menuHint->setOpacity(static_cast<uint8_t>(255*std::clamp((camera-.8f)/.2f,0.0f,1.0f)));
     const float ground=game.GetState()==GameState::Menu ? h*.29f : floorY;
-    // Sky reaches the real edges of the device; no letterboxed bands or reserved control area.
-    for(int i=0;i<36;++i) {
-        const float t=i/35.0f;
-        rect(world,{0,h*i/36,480,h/36+1},Color4F(.60f-.48f*t,.66f-.37f*t,.43f-.13f*t,1));
-    }
-    const Vec2 sun(351,h*.77f);
-    ellipse(world,sun,64,64,Color4F(.94f,.81f,.43f,.10f));
-    ellipse(world,sun,48,48,Color4F(.98f,.85f,.49f,1));
-    ellipse(world,{sun.x-6,sun.y+3},40,39,Color4F(1,.9f,.61f,.45f));
     const float travel=static_cast<float>(game.GetDistance());
-    for(int layer=0;layer<3;++layer) {
-        const float spacing=164.0f+layer*53;
-        const float shift=std::fmod(travel*(1.05f+layer*1.2f),spacing);
-        const float base=ground+130-layer*40.0f;
-        const Color4F trunk=layer==0 ? Color4F(.30f,.49f,.39f,1) :
-            layer==1 ? Color4F(.17f,.36f,.29f,1) : Color4F(.10f,.27f,.23f,1);
-        const Color4F leaves=layer==0 ? Color4F(.30f,.50f,.38f,1) :
-            layer==1 ? Color4F(.16f,.38f,.28f,1) : Color4F(.09f,.28f,.22f,1);
-        for(int i=-1;i<5;++i) {
-            const float x=i*spacing-shift+37*layer;
-            const float canopy=h*(.70f+layer*.10f)+(i%2)*32;
-            world->drawSegment({x,base},{x+29,canopy},6+layer*3.0f,trunk);
-            world->drawSegment({x+12,base+(canopy-base)*.57f},{x-32,canopy-36},4+layer*2.0f,trunk);
-            world->drawSegment({x+19,canopy-110},{x+71,canopy-35},5+layer*2.0f,trunk);
-            for(int r=-1;r<=1;++r) {
-                world->drawSegment({x+5,base+48},{x+r*27.0f,base+10},3+layer*1.5f,trunk);
-                world->drawSegment({x+r*27.0f,base+10},{x+r*42.0f,base-13},3+layer*1.5f,trunk);
-            }
-            ellipse(world,{x+19,canopy+17},82+layer*8.0f,40+layer*4.0f,leaves);
-            ellipse(world,{x-44,canopy+34},59,34,leaves);
-            ellipse(world,{x+75,canopy+36},64,35,leaves);
-            ellipse(world,{x+14,canopy+52},64,32,leaves);
-        }
-        rect(world,{0,ground+36,480,70+layer*8.0f},Color4F(.43f,.59f,.43f,.06f));
-    }
-    // Tidal channel, reflections and muddy bank stay visible below the running lane.
-    rect(world,{0,ground,480,61},Color4F(.24f,.46f,.38f,1));
-    for(int i=0;i<11;++i) {
-        const float x=std::fmod(i*67.0f-travel*3+100000,560)-40;
-        const float y=ground+11+(i%4)*13.0f;
-        world->drawSegment({x,y},{x+21+(i%3)*12.0f,y},1,Color4F(.67f,.73f,.47f,.36f));
-    }
-    rect(world,{0,0,480,ground},Color4F(.21f,.30f,.20f,1));
-    rect(world,{0,ground-69,480,69},Color4F(.42f,.43f,.25f,1));
-    rect(world,{0,ground-8,480,8},Color4F(.62f,.65f,.34f,1));
-    rect(world,{0,ground-3,480,3},Color4F(.76f,.75f,.43f,1));
-    for(int i=0;i<8;++i) {
-        const float x=i*91.0f-std::fmod(travel*PixelsPerMeter,91.0f)-45;
-        ellipse(world,{x,ground-32},21,3,Color4F(.29f,.35f,.21f,1));
-        world->drawSegment({x+41,ground-21},{x+52,ground-18},1.8f,Color4F(.70f,.64f,.37f,1));
-        world->drawSegment({x+17,ground-3},{x+12,ground+6},1,Color4F(.40f,.57f,.28f,1));
-    }
-    for(int i=0;i<5;++i) {
-        const float x=i*147.0f-std::fmod(travel*6,147.0f)-45;
-        const float y=ground*.43f+(i%2)*20;
-        ellipse(world,{x,y},67,17,Color4F(.11f,.27f,.25f,1));
-        ellipse(world,{x+4,y+4},48,8,Color4F(.20f,.39f,.31f,1));
-        world->drawSegment({x-23,y+5},{x+13,y+5},1,Color4F(.48f,.58f,.38f,.7f));
-        ellipse(world,{x+61,y+29},10,5,Color4F(.48f,.49f,.30f,1));
-    }
+    drawBackdrop(ground);
     // Quiet fireflies and drifting reflections give the mangrove a little life.
     for(int i=0;i<9;++i) {
         const float x=35+i*57.0f+std::sin(motion.time*.6f+i*2)*14;
@@ -945,7 +949,6 @@ void MainScene::drawWorld() {
         const int slot=static_cast<int>(runTime/5)%MissionSlots;
         const auto& goal=MissionCatalog()[game.GetProfile().missionIds[slot]];
         const float progress=static_cast<float>(game.GetMissionProgress(slot))/goal.target;
-        pill(world,{28,bottom+102,424,54},Color4F(.035f,.17f,.18f,.94f));
         pill(world,{44,bottom+111,392,5},Color4F(.12f,.31f,.28f,1));
         if(progress>0) pill(world,{44,bottom+111,392*progress,5},Lime);
     }
@@ -1423,7 +1426,33 @@ void MainScene::smokeTick(float dt) {
             finishSmoke(false,"Shield did not absorb obstacle"); return;
         }
         capture("34-shield-shatter.png");
-        finishSmoke(true,"Gameplay, save, swipe chain and animated shield absorption passed.");
+        act(Action::Menu); smokeStep=80;
+    } else if(smokeStep==80) {
+        act(Action::Environment);
+        if(environment!=1) { finishSmoke(false,"Village selection failed"); return; }
+        smokeStep=81;
+    } else if(smokeStep==81) {
+        capture("35-village-menu.png");
+        smokeStep=85;
+    } else if(smokeStep==85) {
+        act(Action::Environment); smokeStep=82;
+    } else if(smokeStep==82) {
+        if(environment!=2) { finishSmoke(false,"Forest selection failed"); return; }
+        capture("36-forest-menu.png"); smokeStep=86;
+    } else if(smokeStep==86) {
+        start(false); smokeStep=83;
+    } else if(smokeStep==83 && d>2) {
+        capture("37-forest-run.png"); smokeStep=87;
+    } else if(smokeStep==87) {
+        act(Action::Menu); act(Action::Environment); smokeStep=84;
+    } else if(smokeStep==84) {
+        if(environment!=0) { finishSmoke(false,"Environment wrap failed"); return; }
+        for(const char* file:{"art/jaca-atlas.png","art/ground-atlas.png","art/objects-atlas.png","art/mangue.png","art/vila.png","art/floresta.png"}) {
+            if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) {
+                finishSmoke(false,std::string("Art not loaded: ")+file); return;
+            }
+        }
+        finishSmoke(true,"Gameplay, save, swipe chain, shield and three illustrated environments passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

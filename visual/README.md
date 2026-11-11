@@ -1,14 +1,16 @@
-# JacaRun — protótipo visual 0.8
+# JacaRun — protótipo visual 0.9
+
+**0.9.0:** apresentação ilustrada com atlas do Jaca, objetos e pisos, marca do menu e três ambientes selecionáveis. A escolha de ambiente é uma preferência local e não muda as regras nem o save de progresso. Veja [artes e prompts](Content/art/README.md). O smoke também verifica seleção circular dos ambientes e carregamento das texturas, com capturas `35` a `37`.
 
 Patch **0.8.1**: ícone próprio do Jaca no Android e Windows. Veja [arte, prompt e exportação](../assets/branding/README.md). APK atualizado: `output/JacaRun-0.8.1-debug.apk`.
 
 O aplicativo em `Source/` apresenta o mesmo `GameManager`, `Player`, `Level` e `Profile` da interface de terminal. Não existem regras de corrida separadas por plataforma. A cena cuida de desenho, input, menus e ciclo de vida; os diretórios nativos inicializam a aplicação e empacotam os recursos.
 
-![Corrida no mangue](../docs/images/prototipo-corrida.png)
+![Corrida no mangue](../docs/images/jacarun-0.9-corrida.png)
 
 ## Estado desta entrega
 
-- Largura lógica de 480 pontos e altura adaptada ao aparelho: mangue em tela cheia, parallax, raízes, água, vegetação e personagem desenhados com `DrawNode`.
+- Largura lógica de 480 pontos e altura adaptada ao aparelho: fundos e piso ilustrados com deslocamento independente, sprites do personagem e objetos; `DrawNode` continua nos efeitos, acessórios e interface.
 - Corrida contínua, pulo, deslize, obstáculos, coletáveis, power-ups e combos ligados ao núcleo.
 - Menu, placar, pausa, resultado, reinício e loja paginada com sete aparências e três melhorias permanentes; acessórios equipados aparecem no jacaré.
 - Missões acumulativas em três slots, nove cartões em rotação, seis conquistas com bônus únicos e tela de objetivos com progresso. Resultado discrimina coleta e bônus e apresenta todos os objetivos concluídos em páginas automáticas.

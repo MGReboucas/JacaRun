@@ -1,3 +1,4 @@
+#include "../visual/Source/StoryIntro.h"
 #include "../visual/Source/RunPresentation.h"
 #include "../visual/Source/CharacterMotion.h"
 #include "../visual/Source/GestureInput.h"
@@ -134,19 +135,26 @@ void MenuEntranceCompletesAndSkips() {
     MenuEntrance skipped; skipped.Finish(); CHECK(skipped.Progress()==1); CHECK(skipped.Zoom()==1);
 }
 void EnvironmentsFollowDistance() {
+    for(bool foreground : {false,true}) {
+        CHECK(EnvironmentCoverage(0,480,foreground)==0);
+        CHECK(EnvironmentCoverage(1,0,foreground)==1);
+        CHECK(EnvironmentCoverage(.5f,400,foreground)>EnvironmentCoverage(.5f,80,foreground));
+        for(int step=1;step<=100;++step)
+            CHECK(EnvironmentCoverage(step/100.0f,240,foreground)>=EnvironmentCoverage((step-1)/100.0f,240,foreground));
+    }
     CHECK(EnvironmentAtDistance(0).current==0);
-    CHECK(EnvironmentAtDistance(499.99).current==0);
+    CHECK(EnvironmentAtDistance(EnvironmentSegmentMeters-.01).current==0);
     for(int segment=1;segment<=12;++segment) {
-        const double boundary=segment*500.0;
+        const double boundary=segment*EnvironmentSegmentMeters;
         const auto begin=EnvironmentAtDistance(boundary);
         CHECK(begin.current==segment%3 && begin.previous==(segment+2)%3 && begin.progress==0);
-        CHECK(EnvironmentAtDistance(boundary+20).progress==.5f);
-        CHECK(EnvironmentAtDistance(boundary+40).progress==1);
-        CHECK(EnvironmentAtDistance(boundary+499).current==segment%3);
+        CHECK(EnvironmentAtDistance(boundary+EnvironmentTransitionMeters*.5).progress==.5f);
+        CHECK(EnvironmentAtDistance(boundary+EnvironmentTransitionMeters).progress==1);
+        CHECK(EnvironmentAtDistance(boundary+EnvironmentSegmentMeters-1).current==segment%3);
     }
     GameManager game;
     game.StartGame(1,false);
-    while(game.GetDistance()<520) game.Update(.1);
+    while(game.GetDistance()<EnvironmentSegmentMeters+EnvironmentTransitionMeters*.5) game.Update(.1);
     const auto before=EnvironmentAtDistance(game.GetDistance());
     game.TogglePause(); game.Update(10);
     const auto paused=EnvironmentAtDistance(game.GetDistance());
@@ -211,7 +219,22 @@ int main() {
         MenuEntranceCompletesAndSkips();
         EnvironmentsFollowDistance();
         ExpressiveCharacterStates();
-        std::cout << "8/8 presentation, gesture, animation and environment groups passed.\n";
+        StoryIntro story;
+        CHECK(story.active && story.Beat()==0);
+        story.Update(-1); CHECK(story.time==0);
+        story.time=2.5f; CHECK(story.Beat()==1);
+        story.time=5.0f; CHECK(story.Beat()==2);
+        for(int i=0;i<100;++i) story.Update(.1f);
+        CHECK(!story.active && story.time==StoryIntro::Duration);
+        for(int beat=0;beat<StoryIntro::BeatCount;++beat) {
+            StoryIntro shot; shot.time=beat*StoryIntro::BeatSeconds;
+            CHECK(shot.Beat()==beat && shot.Phase()==0);
+            shot.Update(.1f); CHECK(shot.Phase()>0 && shot.Beat()==beat);
+            shot.Skip(); CHECK(!shot.active && shot.Beat()==4 && shot.Phase()==1);
+        }
+        StoryIntro skipped; skipped.Skip(); skipped.Update(.1f); CHECK(!skipped.active);
+
+        std::cout << "9/9 presentation, gesture, animation, environment and story groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

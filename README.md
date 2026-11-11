@@ -1,5 +1,13 @@
 # JACARUN
 
+**Atualização 0.9.6 — Bento, o Barão do Brejo:** abertura ilustrada em tela inteira, com cinco cortes em 12,5 segundos. Novo rival, quatro poses do Jaca, cenário vertical e fuga com movimentos de câmera. Botões PULAR e INTRO para rever no menu. [Roteiro, artes e prompts](docs/BENTO_E_A_ABERTURA.md). APK: `output/JacaRun-0.9.6-debug.apk`.
+
+**Atualização 0.9.5 — historinha inicial:** abertura de 7,2 segundos em três cenas: Jaca pega o peixe do hipopótamo, leva uma bronca e salta para a margem para fugir. Botão PULAR HISTÓRIA (ou Enter/Esc); aparece uma vez por abertura do app e termina no menu, sem iniciar a corrida. APK: `output/JacaRun-0.9.5-debug.apk`.
+
+**Atualização 0.9.4 — carinha e loja:** retrato sorridente do Jaca acima do resultado, loja com cartões destacados, prévias de todos os visuais, descrições, saldo e estados de compra mais claros. Melhorias mostram sua duração extra e os itens ativos deixam de oferecer compra repetida. APK: `output/JacaRun-0.9.4-debug.apk`.
+
+**Atualização 0.9.3 — passagem entre ambientes:** trechos de 1.200 m (antes 500 m), com travessia gradual ao longo de 180 m. O próximo cenário entra pela direita com borda suave; o piso atravessa depois e mais rápido que o fundo. Pausa congela a passagem e reinício retorna ao mangue. APK: `output/JacaRun-0.9.3-debug.apk`.
+
 **Atualização 0.9.2 — Jaca mais expressivo:** corrida em oito poses, descanso com respiração, piscadas, aceno e ajuste do boné; entrada com preparação, salto da água, aterrissagem e saudação. Pulo diferencia subida, ápice e queda. Deslize, mordida, mastigação, impacto e derrota têm poses próprias, com compressão/alongamento e inclinação. A poeira acompanha as passadas. A derrota aparece por 0,72 s antes do placar; reiniciar continua disponível. Física, colisões e ambientes automáticos preservados. [Artes e prompts](visual/Content/art/animation-prompts.json). APK: `output/JacaRun-0.9.2-debug.apk`.
 
 **Atualização 0.9.1 — ambientes durante a corrida:** seleção removida do menu. Cada partida começa no mangue e alterna a cada 500 m: mangue → vila de pescadores → floresta tropical → mangue, repetindo o ciclo. Fundo e piso fazem uma transição gradual nos primeiros 40 m de cada novo trecho. A pausa congela a transição, e reiniciar volta ao mangue. APK: `output/JacaRun-0.9.1-debug.apk`.
@@ -75,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-visual.ps1 -Smoke
 
 O teste usa perfil isolado, envia eventos de gesto e verifica coleta, permanência dos objetos ultrapassados, pausa com dois dedos, save e reinício. Use também `-Aspect Tall` para testar a proporção 360 × 788 do vídeo de referência. As capturas e o relatório ficam em `output/visual-smoke-DATA-HORA/`. Consulte [o guia técnico visual](visual/README.md) para Android, iOS, limitações e licenças.
 
-**APK atual:** `output/JacaRun-0.9.2-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
+**APK atual:** `output/JacaRun-0.9.6-debug.apk`. Transfira ao celular e instale como atualização da versão anterior; o identificador foi preservado e o save antigo é migrado automaticamente. Não é uma versão de loja.
 
 ### Ritmo da corrida
 

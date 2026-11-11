@@ -1,3 +1,4 @@
+#include "StoryIntro.h"
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
  Copyright (c) 2019-present Axmol Engine contributors (see AUTHORS.md).
@@ -41,13 +42,23 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
+    enum class Action { None, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
     GestureInput gestures;
     CharacterMotion motion;
     MenuEntrance entrance;
+    StoryIntro story;
+    ax::Node* storyJaca=nullptr;
+    ax::Node* storyHippo=nullptr;
+    ax::Node* storyStage=nullptr;
+    ax::Sprite* storyFish=nullptr;
+    ax::DrawNode* storyEffects=nullptr;
+    ax::DrawNode* storyFade=nullptr;
+    ax::Vec2 storyJacaBase, storyHippoBase, storyFishBase;
+    void drawStory(float center);
+    void animateStory();
     ax::Node* scenery = nullptr;
     std::vector<ax::Sprite*> artPool;
     std::size_t artUsed = 0;

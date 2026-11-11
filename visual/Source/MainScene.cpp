@@ -28,6 +28,7 @@
 #include "EnvironmentCycle.h"
 #include "CharacterAnimation.h"
 #include "CharacterAtlas.h"
+#include "StoryAtlas.h"
 #include "audio/AudioEngine.h"
 #include <algorithm>
 #include <chrono>
@@ -91,7 +92,7 @@ bool MainScene::init() {
         smokeDirectory = std::filesystem::u8path(directory);
         std::filesystem::create_directories(smokeDirectory);
         savePath = smokeDirectory / "smoke-profile.save";
-        smokeStep = 0;
+        smokeStep = 0; story.Skip();
     }
 #endif
     std::string error;
@@ -206,6 +207,12 @@ void MainScene::start(bool procedural) {
     rebuildUI();
 }
 void MainScene::act(Action action) {
+    if(story.active) {
+        if(action==Action::SkipStory || action==Action::Play || action==Action::Pause || action==Action::Back) {
+            story.Skip(); entrance.time=1.65f; rebuildUI();
+        }
+        return;
+    }
     switch (action) {
     case Action::Play:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
@@ -232,9 +239,12 @@ void MainScene::act(Action action) {
             game.TogglePause(); AudioEngine::stopAll(); musicId=-1; rebuildUI();
         }
         break;
+    case Action::ReplayStory:
+        if(game.GetState()==GameState::Menu) { shop=goals=help=false; story=StoryIntro{}; rebuildUI(); }
+        break;
     case Action::Menu: game.ReturnToMenu(); shop = goals = false; save(); rebuildUI(); break;
     case Action::Shop:
-        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; rebuildUI(); }
+        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; shopNotice="Escolha seu visual. Deixe sua marca!"; rebuildUI(); }
         break;
     case Action::Back: shop = goals = help = false; rebuildUI(); break;
     case Action::Goals:
@@ -252,13 +262,13 @@ void MainScene::act(Action action) {
         }
         if(!soundEnabled) { AudioEngine::stopAll(); musicId=-1; } else sound("coin");
         rebuildUI(); break;
-    case Action::Looks: upgradeShop=false; shopPage=0; rebuildUI(); break;
-    case Action::Upgrades: upgradeShop=true; shopPage=0; rebuildUI(); break;
+    case Action::Looks: upgradeShop=false; shopPage=0; shopNotice="Visuais mudam o estilo do seu Jaca."; rebuildUI(); break;
+    case Action::Upgrades: upgradeShop=true; shopPage=0; shopNotice="Melhorias permanentes para ir mais longe."; rebuildUI(); break;
     case Action::Previous:
         if(goals) goalPage=std::max(0,goalPage-1); else if(shop) shopPage=std::max(0,shopPage-1); else if(resultPage>0) --resultPage;
         rebuildUI(); break;
     case Action::Next:
-        if(goals) goalPage=std::min(1,goalPage+1); else if(shop) shopPage=std::min(2,shopPage+1); else if((resultPage+1)*2<game.GetCompletedGoals().size()) ++resultPage;
+        if(goals) goalPage=std::min(1,goalPage+1); else if(shop) shopPage=std::min((CosmeticCount-1)/3,shopPage+1); else if((resultPage+1)*2<game.GetCompletedGoals().size()) ++resultPage;
         rebuildUI(); break;
     case Action::Item0: case Action::Item1: case Action::Item2: {
         if (!shop) break;
@@ -288,7 +298,126 @@ void MainScene::suspend() {
     save();
 }
 
+void MainScene::drawStory(float) {
+    const int beat=story.Beat();
+    const float h=viewHeight;
+    const auto safe=Director::getInstance()->getSafeAreaRect();
+    const float top=std::min(h-20.0f,safe.getMaxY()-16);
+    const float bottom=std::max(24.0f,safe.getMinY()+18);
+    // One edge-to-edge illustrated stage. UI stays outside the camera transform.
+    storyStage=Node::create(); ui->addChild(storyStage);
+    auto background=Sprite::create("art/story-creek-v1.png");
+    background->setPosition({240,h*.5f});
+    background->setScale(std::max(532.0f/1024,(h+70)/1536));
+    storyStage->addChild(background,-10);
+    auto actor=[&](const char* file,const AtlasCrop& c,float height,Vec2 base,bool flip,bool submerged) {
+        Node* parent=storyStage;
+        if(submerged) {
+            auto mask=DrawNode::create();
+            rect(mask,{-600,h*.42f,1680,h+500},Color4F(1,1,1,1));
+            auto clip=ClippingNode::create(mask); clip->setAlphaThreshold(.5f);
+            storyStage->addChild(clip,2); parent=clip;
+        }
+        auto root=Node::create(); root->setPosition(base); parent->addChild(root,2);
+        auto sprite=Sprite::create(file,Rect(c.x,c.y,c.width,c.height));
+        sprite->setAnchorPoint({.5f,0}); sprite->setScale(height/c.height);
+        sprite->setFlippedX(flip); root->addChild(sprite); return root;
+    };
+    const float size=std::min(1.12f,h/900);
+    const int hippoPose[]={0,1,2,1,3};
+    const float hippoHeight[]={350,300,410,290,300};
+    const float hippoX[]={222,47,240,-100,75};
+    storyHippoBase={hippoX[beat],h*(beat==4?.34f:.39f)};
+    storyHippo=actor("art/bento-story-v1.png",BentoStoryCrops[hippoPose[beat]],hippoHeight[beat]*size,storyHippoBase,false,true);
+    storyHippo->setVisible(beat!=3);
+    const int jacaPose[]={0,0,1,2,3};
+    const float jacaHeight[]={250,265,200,340,245};
+    const float jacaX[]={520,335,510,250,285};
+    storyJacaBase={jacaX[beat],h*(beat==4?.47f:.405f)};
+    storyJaca=actor("art/jaca-story-v1.png",JacaStoryCrops[jacaPose[beat]],jacaHeight[beat]*size,storyJacaBase,beat==3,beat!=4);
+    storyJaca->setVisible(beat!=0 && beat!=2);
+    storyFish=Sprite::create("art/objects-atlas.png",Rect(785,625,355,280));
+    storyFish->setScale(62.0f/355); storyStage->addChild(storyFish,4);
+    const float fishX[]={260,235,195,130,110};
+    storyFishBase={fishX[beat],h*(beat==0?.62f:beat==1?.54f:.43f)};
+    storyEffects=DrawNode::create(); storyStage->addChild(storyEffects,5);
+    // Soft top/bottom scrims preserve the full-screen painting and readable dialogue.
+    auto scrim=DrawNode::create(); ui->addChild(scrim,20);
+    auto lower=LayerGradient::create(Color4B(4,17,19,245),Color4B(4,17,19,0),{0,1});
+    lower->setContentSize({480,bottom+230}); ui->addChild(lower,19);
+    auto upper=LayerGradient::create(Color4B(4,17,19,190),Color4B(4,17,19,0),{0,-1});
+    upper->setContentSize({480,155}); upper->setPosition({0,h-155}); ui->addChild(upper,19);
+    auto label=[&](const std::string& value,float font,Vec2 pos,Color4B color,bool bold) {
+        auto result=text(value,font,pos,color,bold); result->setLocalZOrder(21);
+        result->setWidth(426); result->setAlignment(TextHAlignment::CENTER);
+        result->enableOutline(Color4B(5,30,28,160),1); return result;
+    };
+    auto chapter=label("JACARUN  /  O PRIMEIRO ENCONTRO",13,{24,top-20},Cream,true);
+    chapter->setWidth(295); chapter->setAnchorPoint({0,.5f}); chapter->setAlignment(TextHAlignment::LEFT);
+    const Rect skip(354,top-40,106,40);
+    pill(scrim,skip,Color4F(.035f,.15f,.15f,.80f));
+    auto skipLabel=label("PULAR  >",16,{407,top-19},Cream,true); skipLabel->setWidth(100);
+    buttons.push_back({skip,Action::SkipStory});
+    const char* speakers[]={"BENTO, O BAR\u00c3O DO BREJO","JACA","BENTO","JACA","E FOI ASSIM QUE TUDO COME\u00c7OU"};
+    const char* lines[]={"Todo grand\u00e3o tem\num ponto fraco.","S\u00f3 uma mordidinha...","TIRA A M\u00c3O\nDO MEU DOURADO!","Eu? Tava s\u00f3...\ndando um cheiro!","O lanche virou persegui\u00e7\u00e3o."};
+    const char* notes[]={"O dele era Dourado. Seu peixe de estima\u00e7\u00e3o.","Jaca ainda n\u00e3o sabia desse detalhe.","Era peixe. Mas n\u00e3o era lanche.","A desculpa n\u00e3o convenceu.","\u201cVOLTA AQUI, BON\u00c9 VERMELHO!\u201d"};
+    label(speakers[beat],15,{240,bottom+169},Color4B(255,218,126,255),true);
+    label(lines[beat],beat==2?32:27,{240,bottom+115},Cream,true);
+    label(notes[beat],16,{240,bottom+54},Color4B(205,232,215,255),false);
+    for(int i=0;i<StoryIntro::BeatCount;++i) {
+        const float x=24+i*87;
+        pill(scrim,{x,bottom,78,3},Color4F(.58f,.72f,.65f,.3f));
+        if(i<=beat) pill(scrim,{x,bottom,78,3},Color4F(.91f,.77f,.36f,1));
+    }
+    storyFade=DrawNode::create(); ui->addChild(storyFade,19);
+    animateStory();
+}
+
+void MainScene::animateStory() {
+    if(!storyStage || !storyEffects) return;
+    const int beat=story.Beat(); const float t=story.Phase();
+    const float ease=t*t*(3-2*t), h=viewHeight;
+    const float push=beat==4?1.035f-.035f*ease:1+.045f*ease;
+    const float shake=beat==2?std::sin(t*65)*3*(1-t):0;
+    storyStage->setScale(push);
+    storyStage->setPosition({240*(1-push)+shake,h*.52f*(1-push)});
+    Vec2 jacaOffset,hippoOffset;
+    if(beat==0) hippoOffset={0,std::sin(t*6.283185f)*3};
+    if(beat==1) { jacaOffset={-28*ease,std::sin(t*8)*4}; hippoOffset={6*ease,0}; }
+    if(beat==2) hippoOffset={0,std::sin(t*3.14159f)*14};
+    if(beat==3) jacaOffset={std::sin(t*16)*3,std::sin(t*6.283185f)*4};
+    if(beat==4) {
+        jacaOffset={112*ease,100*std::sin(t*3.14159f)+h*.085f*ease};
+        hippoOffset={47*ease,11*std::abs(std::sin(t*14))};
+        storyJaca->setRotation(-8*std::sin(t*3.14159f));
+    }
+    storyJaca->setPosition(storyJacaBase+jacaOffset);
+    storyHippo->setPosition(storyHippoBase+hippoOffset);
+    storyFish->setPosition(storyFishBase+Vec2(beat==1?35*ease:std::sin(t*5)*8,std::sin(t*6.283185f)*10));
+    storyFish->setRotation(std::sin(t*6.283185f)*12);
+    storyFish->setVisible(beat!=3);
+    storyEffects->clear();
+    const float water=h*.42f;
+    for(int ring=0;ring<3;++ring) {
+        const float cycle=std::fmod(t+ring*.32f,1.0f);
+        const Vec2 origin(beat==0?220.0f:beat==2?240.0f:beat==3?250.0f:storyHippoBase.x+hippoOffset.x,water+3);
+        storyEffects->drawCircle(origin,1,0,64,false,65+cycle*70,5+cycle*8,Color4F(.69f,.96f,.89f,(1-cycle)*.65f));
+    }
+    if(beat==2 || beat==4) for(int i=0;i<18;++i) {
+        const float f=std::fmod(t*1.6f+i*.063f,1.0f);
+        const float side=i%2?-1.0f:1.0f;
+        const float origin=beat==4?245.0f:240.0f;
+        ellipse(storyEffects,{origin+side*(30+f*(55+i*4)),water+std::sin(f*3.14159f)*(35+i*4)},
+                2.5f,4.5f,Color4F(.72f,.97f,.94f,(1-f)*.80f));
+    }
+    // Brief dark cut on each shot, not a card appearing over the old menu.
+    storyFade->clear();
+    const float fade=.28f*(1-std::clamp(t/.10f,0.0f,1.0f));
+    if(fade>0) rect(storyFade,{0,0,480,h},Color4F(.015f,.07f,.08f,fade));
+}
+
 void MainScene::rebuildUI() {
+    storyJaca=storyHippo=storyStage=nullptr; storyFish=nullptr; storyEffects=storyFade=nullptr;
     ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr; menuBrand=nullptr;
     score = distance = coins = status = pace = gestureHint = coinNotice = nullptr;
     missionHud = missionToast = resultGoals = nullptr;
@@ -298,6 +427,7 @@ void MainScene::rebuildUI() {
     const float top = std::min(viewHeight - 28.0f, safe.getMaxY() - 24.0f);
     const float bottom = std::max(26.0f, safe.getMinY() + 18.0f);
     const float center = viewHeight * .52f;
+    if(story.active) { drawStory(center); return; }
     if(help) {
         pill(panels,{20,center-320,440,650},Ink);
         text("COMO JOGAR",32,{240,center+270},Cream,true);
@@ -351,39 +481,72 @@ void MainScene::rebuildUI() {
         return;
     }
     if (shop) {
-        pill(panels, {20, center - 320, 440, 650}, Color4F(.035f,.17f,.18f,1));
-        text("LOJA DO MANGUE", 16, {240, center + 290}, Muted);
-        text("Sua corrida vale mais", 30, {240, center + 254}, Cream, true);
-        text(whole(game.GetProfile().coins) + " MOEDAS", 22, {240, center + 215}, Color4B(255,219,122,255),true);
-        button("VISUAIS", {40,center+145,192,44}, Action::Looks,!upgradeShop);
-        button("MELHORIAS", {248,center+145,192,44}, Action::Upgrades,upgradeShop);
-        for (int row=0;row<3;++row) {
+        const auto& profile=game.GetProfile();
+        const int pages=(CosmeticCount+2)/3;
+        const Color4B gold(255,219,122,255), mint(199,240,100,255);
+        rect(panels,{0,0,480,viewHeight},Color4F(.015f,.07f,.08f,.48f));
+        pill(panels,{18,center-330,444,666},Color4F(.25f,.39f,.24f,1));
+        pill(panels,{21,center-327,438,660},Color4F(.035f,.14f,.15f,1));
+        art(panels,"art/jaca-portrait.png",{0,0,512,512},{39,center+237},{72,72},1);
+        text("LOJA DO MANGUE",14,{126,center+296},gold,true)->setAnchorPoint({0,.5f});
+        text("Seu Jaca, seu estilo",28,{126,center+266},Cream,true)->setAnchorPoint({0,.5f});
+        pill(panels,{40,center+198,400,34},Color4F(.09f,.26f,.23f,1));
+        ellipse(panels,{62,center+215},8,10,Color4F(1,.77f,.22f,1));
+        text(whole(profile.coins)+" MOEDAS",19,{80,center+215},gold,true)->setAnchorPoint({0,.5f});
+        text("SUAS CONQUISTAS RENDEM",12,{425,center+215},Muted)->setAnchorPoint({1,.5f});
+        button("VISUAIS",{40,center+145,192,44},Action::Looks,!upgradeShop);
+        button("MELHORIAS",{248,center+145,192,44},Action::Upgrades,upgradeShop);
+        const char* descriptions[]={"O parceiro de toda aventura.","Sol na cara? Vai de boné.",
+            "Estilo de sangue frio.","Pronto para explorar o mangue.","Um toque de coragem.",
+            "O mangue tem um novo rei.","Seu estilo foi longe demais!"};
+        for(int row=0;row<3;++row) {
             const int id=(upgradeShop?CosmeticCount:shopPage*3)+row;
             if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
             const auto& item=AccessoryCatalog()[id];
-            const auto& profile=game.GetProfile();
-            const float y=center+22-row*110.0f;
-            pill(panels,{36,y,408,101},Color4F(.08f,.25f,.24f,1));
-            text(item.name,21,{upgradeShop?51.0f:155.0f,y+77},Cream,true)->setAnchorPoint({0,.5f});
-            if(upgradeShop) text(item.description,16,{51,y+52},Muted)->setAnchorPoint({0,.5f});
-            else drawCrocodile({94,y+24},.70f,panels,id);
             const bool owned=profile.owned[id], equipped=id<CosmeticCount && profile.equipped==id;
-            std::string caption=owned ? (upgradeShop?"ATIVA":equipped?"EM USO":"EQUIPAR") : "COMPRAR";
-            text(owned?"ADQUIRIDO":whole(item.price)+" moedas",16,{upgradeShop?51.0f:155.0f,upgradeShop?y+25:y+49},Cream)->setAnchorPoint({0,.5f});
-            button(caption,{290,y+5,140,44},static_cast<Action>(static_cast<int>(Action::Item0)+row),owned || profile.coins>=item.price);
+            const bool active=owned && (upgradeShop || equipped);
+            const bool affordable=profile.coins>=item.price;
+            const float y=center+22-row*110.0f;
+            pill(panels,{35,y-1,410,103},active?Color4F(.48f,.67f,.27f,1):Color4F(.16f,.34f,.29f,1));
+            pill(panels,{37,y+1,406,99},active?Color4F(.10f,.29f,.23f,1):Color4F(.065f,.22f,.21f,1));
+            pill(panels,{44,y+8,101,83},Color4F(.035f,.15f,.16f,1));
+            if(upgradeShop) {
+                ellipse(panels,{94,y+53},30,30,Color4F(.13f,.37f,.30f,1));
+                const char* symbols[]={"+2s","+4s","+3s"};
+                const char* effects[]={"COMBO","IMA","FRENESI"};
+                text(symbols[row],25,{94,y+56},gold,true);
+                text(effects[row],12,{94,y+23},mint,true);
+            } else drawCrocodile({91,y+14},.68f,panels,id);
+            auto name=text(item.name,20,{155,y+80},Cream,true);
+            name->setAnchorPoint({0,.5f});
+            auto detail=text(upgradeShop?item.description:descriptions[id],13,{155,y+57},Muted);
+            detail->setAnchorPoint({0,.5f});
+            const std::string price=owned?(equipped?"SEU FAVORITO":upgradeShop?"PERMANENTE":"NA COLECAO"):whole(item.price)+" moedas";
+            text(price,14,{155,y+24},owned?mint:gold,true)->setAnchorPoint({0,.5f});
+            const std::string caption=active?(upgradeShop?"ATIVA":"EM USO"):owned?"EQUIPAR":"COMPRAR";
+            if(active) {
+                pill(panels,{300,y+5,130,40},Color4F(.17f,.36f,.25f,1));
+                text(caption,18,{365,y+25},mint,true);
+            } else button(caption,{300,y+5,130,40},static_cast<Action>(static_cast<int>(Action::Item0)+row),owned || affordable);
         }
         if(!upgradeShop) {
-            button("<",{40,center-253,55,44},Action::Previous);
-            text(whole(shopPage+1)+" / 3",15,{240,center-235},Muted);
-            button(">",{385,center-253,55,44},Action::Next);
-        }
-        button("VOLTAR", {150, center - 293, 180, 34}, Action::Back);
-        status = text(shopNotice,13,{240,center-309},Muted);
+            if(shopPage>0) button("<",{40,center-253,55,44},Action::Previous);
+            text("COLECAO  "+whole(shopPage+1)+" / "+whole(pages),14,{240,center-232},Muted);
+            if(shopPage+1<pages) button(">",{385,center-253,55,44},Action::Next);
+            if(shopPage==pages-1) {
+                text("Cada corrida, um novo estilo.",22,{240,center-40},Cream,true);
+                text("Junte moedas e complete sua colecao!",16,{240,center-73},Muted);
+            }
+        } else text("Compre uma vez. Aproveite em toda corrida.",14,{240,center-232},Muted);
+        button("VOLTAR",{150,center-293,180,40},Action::Back);
+        status=text(shopNotice,13,{240,center-313},Muted);
+        status->setWidth(408); status->setAlignment(TextHAlignment::CENTER);
         return;
     }
     if (state == GameState::Menu) {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{302,top-24,154,44},Action::Sound);
         button("COMO JOGAR",{24,top-24,184,44},Action::Help);
+        button("INTRO",{216,top-24,78,44},Action::ReplayStory);
         menuBrand=Node::create(); menuBrand->setCascadeOpacityEnabled(true); ui->addChild(menuBrand);
         auto brandChild=[&](Node* child) {
             child->retain(); child->removeFromParent(); menuBrand->addChild(child); child->release();
@@ -437,7 +600,7 @@ void MainScene::rebuildUI() {
     // Let the impact, recoil and collapse read before covering the lane with results.
     if(state==GameState::GameOver && motion.defeat<.72f) return;
     rect(panels, {0,0,480,viewHeight}, Color4F(.015f,.09f,.11f,.49f));
-    pill(panels, {28, center - 300, 424, 560}, Color4F(.035f,.17f,.18f,.96f));
+    pill(panels, {28, center - 300, 424, state==GameState::Paused?560.0f:610.0f}, Color4F(.035f,.17f,.18f,.96f));
     if (state == GameState::Paused) {
         text("RESPIRE UM POUCO", 16, {240, center + 187}, Muted);
         text("Corrida pausada", 36, {240, center + 135}, Cream, true);
@@ -448,10 +611,12 @@ void MainScene::rebuildUI() {
         button(soundEnabled?"SOM: SIM":"SOM: N\u00c3O",{160,center-262,160,38},Action::Sound);
     } else {
         const auto& rewards=game.GetProgressRewards();
-        text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",16,{240,center+225},Muted);
-        text("Boa, Jaca!",45,{240,center+180},Cream,true);
-        text(whole(game.GetScore())+" pontos",35,{240,center+126},Cream,true);
-        text(whole(game.GetDistance())+" m  /  Recorde: "+whole(game.GetProfile().bestScore)+" pontos",17,{240,center+86},Muted);
+        ellipse(panels,{240,center+247},49,49,Color4F(.72f,.83f,.33f,1));
+        art(panels,"art/jaca-portrait.png",{0,0,512,512},{194,center+201},{92,92},1);
+        text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
+        text("Boa, Jaca!",40,{240,center+149},Cream,true);
+        text(whole(game.GetScore())+" pontos",32,{240,center+108},Cream,true);
+        text(whole(game.GetDistance())+" m  /  Recorde: "+whole(game.GetProfile().bestScore)+" pontos",16,{240,center+77},Muted);
         pill(panels,{49,center+8,382,58},Color4F(.10f,.29f,.25f,1));
         text("+"+whole(game.GetRunCoins()+rewards.coins)+" MOEDAS",25,{240,center+44},Color4B(255,219,122,255),true);
         text("Coleta: "+whole(game.GetRunCoins())+"  /  Objetivos: "+whole(rewards.coins),15,{240,center+21},Muted);
@@ -498,31 +663,49 @@ void MainScene::drawBackdrop(float ground) {
     const int tile=static_cast<int>(offset/width);
     const auto blend=EnvironmentAtDistance(game.GetState()==GameState::Menu?0:game.GetDistance());
     const int environment=blend.progress<1?blend.previous:blend.current;
-    for(int i=0;i<2;++i) {
-        auto bg=art(scenery,EnvironmentFiles[environment],{0,0,1536,1024},
-            {i*width-std::fmod(offset,width),0},{width+1,viewHeight},-10);
-        bg->setFlippedX((tile+i)%2!=0);
-        if(blend.progress>0 && blend.progress<1) {
-            auto next=art(scenery,EnvironmentFiles[blend.current],{0,0,1536,1024},
-                {i*width-std::fmod(offset,width),0},{width+1,viewHeight},-9);
-            next->setFlippedX((tile+i)%2!=0);
-            next->setOpacity(static_cast<uint8_t>(255*blend.progress));
+    // Keep old artwork opaque; reveal the incoming biome in spatial strips.
+    auto layer = [&](const char* file, Rect crop, Vec2 position, Size size,
+                     int order, bool flipped, bool foreground, bool incoming) {
+        if(!incoming) {
+            auto sprite=art(scenery,file,crop,position,size,order);
+            sprite->setFlippedX(flipped);
+            return;
         }
+        constexpr float stripWidth=8;
+        for(float left=std::max(0.0f,position.x);left<std::min(480.0f,position.x+size.width);left+=stripWidth) {
+            const float right=std::min({left+stripWidth,480.0f,position.x+size.width});
+            const float opacity=EnvironmentCoverage(blend.progress,(left+right)*.5f,foreground);
+            if(opacity<=0) continue;
+            const float u=(left-position.x)/size.width;
+            const float span=(right-left)/size.width;
+            Rect slice(crop.origin.x+(flipped?1-u-span:u)*crop.size.width,
+                       crop.origin.y,span*crop.size.width,crop.size.height);
+            auto sprite=art(scenery,file,slice,{left,position.y},{right-left,size.height},order);
+            sprite->setFlippedX(flipped);
+            sprite->setOpacity(static_cast<uint8_t>(255*opacity));
+        }
+    };
+    const bool transitioning=blend.progress>0 && blend.progress<1;
+    for(int i=0;i<2;++i) {
+        const Vec2 position(i*width-std::fmod(offset,width),0);
+        layer(EnvironmentFiles[environment],{0,0,1536,1024},position,
+              {width+1,viewHeight},-10,(tile+i)%2!=0,false,false);
+        if(transitioning)
+            layer(EnvironmentFiles[blend.current],{0,0,1536,1024},position,
+                  {width+1,viewHeight},-9,(tile+i)%2!=0,false,true);
     }
-    // The walkable surface scrolls at simulation speed, independently of distant scenery.
     const Rect strips[]={{0,100,1536,220},{0,425,1536,240},{0,735,1536,260}};
     const float surface[]={70,65,110};
     for(int i=0;i<2;++i) {
-        auto previousFloor=art(scenery,"art/ground-atlas.png",strips[environment],
-            {i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f),ground-(strips[environment].size.height-surface[environment])*.5f},
-            {769,strips[environment].size.height*.5f},-5);
-        if(blend.progress>0 && blend.progress<1) {
-            previousFloor->setOpacity(static_cast<uint8_t>(255*(1-blend.progress)));
+        const float x=i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f);
+        layer("art/ground-atlas.png",strips[environment],
+              {x,ground-(strips[environment].size.height-surface[environment])*.5f},
+              {769,strips[environment].size.height*.5f},-5,false,true,false);
+        if(transitioning) {
             const int next=blend.current;
-            auto floor=art(scenery,"art/ground-atlas.png",strips[next],
-                {i*768.0f-std::fmod(travel*PixelsPerMeter,768.0f),ground-(strips[next].size.height-surface[next])*.5f},
-                {769,strips[next].size.height*.5f},-4);
-            floor->setOpacity(static_cast<uint8_t>(255*blend.progress));
+            layer("art/ground-atlas.png",strips[next],
+                  {x,ground-(strips[next].size.height-surface[next])*.5f},
+                  {769,strips[next].size.height*.5f},-4,false,true,true);
         }
     }
     // A subtle lower vignette keeps mission text readable while leaving the illustration visible.
@@ -890,6 +1073,7 @@ void MainScene::drawWorld() {
     artUsed=0;
     const float h=viewHeight;
     const bool opening=game.GetState()==GameState::Menu && !shop && !goals && !help;
+    scenery->setVisible(!story.active);
     const float zoom=opening?entrance.Zoom():1;
     const float camera=opening?entrance.CameraProgress():1;
     scenery->setScale(zoom);
@@ -1005,7 +1189,21 @@ void MainScene::update(float dt) {
     clock += dt;
     soundCooldown=std::max(0.0f,soundCooldown-dt);
     const auto before=game.GetState();
-    if(before==GameState::Menu) {
+    if(story.active) {
+        const int beat=story.Beat();
+        story.Update(dt);
+        if(!story.active) { entrance.time=1.65f; rebuildUI(); }
+        else {
+            if(beat!=story.Beat()) {
+                rebuildUI();
+                if(story.Beat()==1) sound("food");
+                if(story.Beat()==2) sound("pace");
+                if(story.Beat()==4) sound("jump");
+            }
+            animateStory();
+        }
+    }
+    if(before==GameState::Menu && !story.active) {
         const float previousIntro=entrance.time;
         entrance.Update(dt);
         if(previousIntro<.85f && entrance.time>=.85f)
@@ -1219,7 +1417,7 @@ void MainScene::smokeTick(float dt) {
         if(smokeTime>1) Director::getInstance()->end();
         return;
     }
-    if(smokeTime>50) { finishSmoke(false,"Timed out"); return; }
+    if(smokeTime>57) { finishSmoke(false,"Timed out"); return; }
     const double d=game.GetDistance();
     if(smokeStep==0 && smokeTime>.25f) { capture("27-menu-water.png"); smokeStep=60; }
     else if(smokeStep==60 && smokeTime>1.45f) { capture("28-menu-emerge.png"); smokeStep=61; }
@@ -1488,20 +1686,20 @@ void MainScene::smokeTick(float dt) {
         act(Action::Menu); smokeStep=80;
     } else if(smokeStep==80) {
         start(false);
-        while(game.GetDistance()<550) game.Update(.1);
+        while(game.GetDistance()<EnvironmentSegmentMeters+EnvironmentTransitionMeters+10) game.Update(.1);
         smokeStep=81;
     } else if(smokeStep==81) {
         if(EnvironmentAtDistance(d).current!=1) { finishSmoke(false,"Village cycle failed"); return; }
         capture("35-village-run.png");
         smokeStep=85;
     } else if(smokeStep==85) {
-        while(game.GetDistance()<1050) game.Update(.1);
+        while(game.GetDistance()<2*EnvironmentSegmentMeters+EnvironmentTransitionMeters+10) game.Update(.1);
         smokeStep=82;
     } else if(smokeStep==82) {
         if(EnvironmentAtDistance(d).current!=2) { finishSmoke(false,"Forest cycle failed"); return; }
         capture("36-forest-run.png"); smokeStep=86;
     } else if(smokeStep==86) {
-        while(game.GetDistance()<1520) game.Update(.1);
+        while(game.GetDistance()<3*EnvironmentSegmentMeters+EnvironmentTransitionMeters*.5) game.Update(.1);
         smokeStep=83;
     } else if(smokeStep==83) {
         const auto blend=EnvironmentAtDistance(d);
@@ -1510,7 +1708,7 @@ void MainScene::smokeTick(float dt) {
         }
         capture("38-environment-transition.png"); smokeStep=87;
     } else if(smokeStep==87) {
-        while(game.GetDistance()<1550) game.Update(.1);
+        while(game.GetDistance()<3*EnvironmentSegmentMeters+EnvironmentTransitionMeters+10) game.Update(.1);
         smokeStep=84;
     } else if(smokeStep==84) {
         if(EnvironmentAtDistance(d).current!=0 || EnvironmentAtDistance(d).progress!=1) {
@@ -1532,7 +1730,53 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==91) {
         motion.time=5.8f; drawWorld(); capture("43-idle-cap.png"); smokeStep=92;
     } else if(smokeStep==92) {
-        finishSmoke(true,"Gameplay, save, environments, expressive entrance, action poses and defeat passed.");
+        act(Action::Shop); act(Action::Looks); act(Action::Next); act(Action::Next);
+        game.GetProfile().coins=0; rebuildUI(); smokeStep=93;
+    } else if(smokeStep==93) {
+        capture("44-shop-last-page.png"); smokeStep=96;
+    } else if(smokeStep==96) {
+        const float center=viewHeight*.52f;
+        smokeTouch({360,center+47},{360,center+47});
+        if(game.GetProfile().coins!=0 || game.GetProfile().owned[6] || shopNotice.find("Faltam")==std::string::npos) {
+            finishSmoke(false,"Unaffordable shop item changed profile or lacked feedback"); return;
+        }
+        smokeStep=94;
+    } else if(smokeStep==94) {
+        capture("45-shop-insufficient.png"); smokeStep=97;
+    } else if(smokeStep==97) {
+        act(Action::Previous);
+        const int equipped=game.GetProfile().equipped;
+        act(Action::Item1);
+        if(game.GetProfile().coins!=0 || game.GetProfile().equipped!=equipped) {
+            finishSmoke(false,"Owned cosmetic charged twice"); return;
+        }
+        act(Action::Upgrades); smokeStep=95;
+    } else if(smokeStep==95) {
+        capture("46-shop-upgrades-no-coins.png"); smokeStep=98;
+    } else if(smokeStep==98) {
+        act(Action::Back); start(false); act(Action::Menu); story=StoryIntro{}; rebuildUI(); smokeStep=100;
+    } else if(smokeStep==100 && story.time>.7f) {
+        capture("47-story-bento.png"); smokeStep=101;
+    } else if(smokeStep==101 && story.time>3.2f) {
+        capture("48-story-snack.png"); smokeStep=102;
+    } else if(smokeStep==102 && story.time>5.8f) {
+        capture("49-story-roar.png"); smokeStep=103;
+    } else if(smokeStep==103 && story.time>8.2f) {
+        capture("50-story-excuse.png"); smokeStep=104;
+    } else if(smokeStep==104 && story.time>10.9f) {
+        capture("51-story-escape.png"); smokeStep=105;
+    } else if(smokeStep==105 && !story.active) {
+        if(game.GetState()!=GameState::Menu || game.GetDistance()!=0) { finishSmoke(false,"Story advanced gameplay"); return; }
+        act(Action::ReplayStory);
+        if(!story.active || story.time!=0) { finishSmoke(false,"Story replay failed"); return; }
+        const float top=std::min(viewHeight-20.0f,Director::getInstance()->getSafeAreaRect().getMaxY()-16);
+        smokeTouch({407,top-20},{407,top-20});
+        if(story.active) { finishSmoke(false,"Story skip button failed"); return; }
+        start(false); act(Action::Menu);
+        if(story.active) { finishSmoke(false,"Story repeated after run"); return; }
+        for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png"})
+            if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) { finishSmoke(false,"Story art missing"); return; }
+        finishSmoke(true,"Gameplay, shop, five fullscreen story shots, replay, skip and menu passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

@@ -15,7 +15,7 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     distanceScore = frenzyRemaining = 0;
     frenzyMultiplier = 1;
     combo = runCoins = foods = obstaclesPassed = 0;
-    comboRemaining = shieldRemaining = magnetRemaining = 0.0;
+    comboRemaining = shieldRemaining = magnetRemaining = speedRemaining = 0.0;
     messages.clear();
     frameResolutions.clear();
     progressRewards = {};
@@ -66,7 +66,8 @@ void GameManager::Update(double deltaTime) {
     while (deltaTime > 1e-9 && IsPlaying()) {
         const double dt = std::min(deltaTime, Balance::PhysicsStep);
         deltaTime -= dt;
-        speed = Balance::RunSpeed(distance, static_cast<double>(GetScore()));
+        speedRemaining = std::max(0.0, speedRemaining - dt);
+        speed = Balance::RunSpeed(distance, static_cast<double>(GetScore())) * (speedRemaining > 0 ? Balance::SpeedMultiplier : 1.0);
         player.Update(dt, speed);
         shieldRemaining = std::max(0.0, shieldRemaining - dt);
         magnetRemaining = std::max(0.0, magnetRemaining - dt);
@@ -84,7 +85,10 @@ void GameManager::Update(double deltaTime) {
             Resolve(entity);
             if (!IsPlaying()) break;
         }
-        if (IsPlaying()) level.GenerateAhead(distance, static_cast<double>(GetScore()));
+        if (IsPlaying()) {
+            for(const auto& fish:level.TakeBiteableFish(distance,player.GetPositionY()+.5)) Resolve(fish,true);
+            level.GenerateAhead(distance, static_cast<double>(GetScore()));
+        }
     }
 }
 
@@ -92,7 +96,7 @@ void GameManager::Spawn(EntityType type, double atDistance, double height) {
     if (IsPlaying() && atDistance >= distance) level.Spawn(type, atDistance, height);
 }
 
-void GameManager::Resolve(const Entity& entity) {
+void GameManager::Resolve(const Entity& entity, bool bitten) {
     if (IsObstacle(entity.type)) {
         const bool safe = RequiresJump(entity.type)
             ? player.GetPositionY() >= Balance::GroundClearance
@@ -117,9 +121,9 @@ void GameManager::Resolve(const Entity& entity) {
         return;
     }
 
-    const double reach = entity.type == EntityType::RareFish ? .10 :
-                         entity.type == EntityType::Fish ? .22 : Balance::PickupReach;
-    const bool reachable = std::abs(player.GetPositionY() + 0.5 - entity.height) <= reach;
+    const bool fish=entity.type==EntityType::Fish || entity.type==EntityType::RareFish;
+    const bool reachable = fish ? bitten :
+        std::abs(player.GetPositionY() + 0.5 - entity.height) <= Balance::PickupReach;
     if (entity.type == EntityType::Coin && (reachable || magnetRemaining > 0.0)) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         ++runCoins;
@@ -150,6 +154,10 @@ void GameManager::Resolve(const Entity& entity) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         shieldRemaining = Balance::ShieldSeconds;
         messages.emplace_back("Escudo: protege de uma batida por ate 12 segundos.");
+    } else if (reachable && entity.type == EntityType::Speed) {
+        frameResolutions.push_back({entity, EntityOutcome::Collected});
+        speedRemaining = Balance::SpeedSeconds;
+        messages.emplace_back("DISPARADA! Velocidade em dobro por 6 segundos!");
     } else if (reachable && entity.type == EntityType::Magnet) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         magnetRemaining = Balance::MagnetSeconds + (profile.owned[MagnetUpgrade] ? 4.0 : 0.0);

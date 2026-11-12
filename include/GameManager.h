@@ -45,6 +45,7 @@ public:
     const std::vector<std::string>& GetCompletedGoals() const { return completedGoals; }
     std::int64_t GetMissionProgress(int slot) const;
     double GetShieldSeconds() const { return shieldRemaining; }
+    double GetSpeedSeconds() const { return speedRemaining; }
     double GetMagnetSeconds() const { return magnetRemaining; }
     double GetFrenzySeconds() const { return frenzyRemaining; }
     int GetFrenzyMultiplier() const { return frenzyRemaining > 0 ? frenzyMultiplier : 1; }
@@ -52,7 +53,7 @@ public:
     void Spawn(EntityType type, double atDistance, double height = 0.0);
 
 private:
-    void Resolve(const Entity& entity);
+    void Resolve(const Entity& entity, bool bitten = false);
     void ResetCombo();
     GameState state = GameState::Menu;
     Player player;
@@ -71,6 +72,7 @@ private:
     int obstaclesPassed = 0;
     double shieldRemaining = 0.0;
     double magnetRemaining = 0.0;
+    double speedRemaining = 0.0;
     std::vector<std::string> messages;
     std::vector<EntityResolution> frameResolutions;
     ProgressRewards progressRewards;

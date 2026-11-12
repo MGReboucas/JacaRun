@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-enum class EntityType { Ground, High, Coin, Crab, Fish, RareFish, Shield, Magnet, Log, Rock, Vine };
+enum class EntityType { Ground, High, Coin, Crab, Fish, RareFish, Shield, Magnet, Speed, Log, Rock, Vine };
 
 struct Entity {
     EntityType type;
@@ -26,6 +26,7 @@ public:
     void Spawn(EntityType type, double distance, double height = 0.0);
     // Retira eventos cruzados em ordem, incluindo a fronteira de colisao.
     std::vector<Entity> Crossed(double previousDistance, double currentDistance);
+    std::vector<Entity> TakeBiteableFish(double distance, double mouthHeight);
     const std::vector<Entity>& GetEntities() const { return entities; }
 
 private:

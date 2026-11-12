@@ -828,6 +828,20 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     auto point = [&](float x, float y) {
         return feet + Vec2((x*sx-y*lean)*scale,(y*sy+x*lean+bob)*scale);
     };
+    if(!target && game.GetSpeedSeconds()>0) {
+        for(int i=0;i<7;++i) {
+            const float t=std::fmod(motion.time*2+i/7.0f,1.0f);
+            const Vec2 p=point(-35-t*65,8+i*10);
+            drawing->drawSegment(p,p+Vec2(20+25*t,0),1.5f,Color4F(.78f,.94f,.39f,(1-t)*.65f));
+        }
+    }
+    if(!target && game.GetMagnetSeconds()>0) {
+        for(int i=0;i<5;++i) {
+            const float a=motion.time*2+i*6.283185f/5;
+            const Vec2 p=point(5+65*std::cos(a),40+42*std::sin(a));
+            ellipse(drawing,p,3,3,Color4F(1,.82f,.34f,.8f));
+        }
+    }
     const bool shield = !target && game.GetState()!=GameState::Menu && game.GetShieldSeconds()>0;
     const float shieldPulse=.5f+.5f*std::sin(motion.time*3.8f);
     const float shieldAlpha=game.GetShieldSeconds()<3 ? .62f+.38f*(.5f+.5f*std::sin(motion.time*9)) : 1;
@@ -958,22 +972,32 @@ void MainScene::drawEntity(const VisualEntity& object) {
     float fishAngle = 0;
     const bool isFish = e.type==EntityType::Fish || e.type==EntityType::RareFish;
     if(isFish && object.outcome!=EntityOutcome::Collected) {
-        const auto pose=FishLeap(e.distance-game.GetDistance(),floorY+22,y);
+        const auto pose=FishLeap(e.distance-game.GetDistance(),floorY-96,y);
         const Color4F water(.62f,.86f,.83f,.65f);
+        ellipse(world,{x,floorY-96},42,12,Color4F(.035f,.28f,.29f,.95f));
+        ellipse(world,{x,floorY-94},35,8,Color4F(.12f,.56f,.57f,.85f));
         // Rings and droplets locate the leap in the tidal channel.
-        world->drawCircle({x,floorY+22},1,0,32,false,29,5,water);
-        world->drawCircle({x,floorY+22},1,0,32,false,19,3,Color4F(.72f,.92f,.88f,.45f));
+        world->drawCircle({x,floorY-96},1,0,32,false,29,5,water);
+        world->drawCircle({x,floorY-96},1,0,32,false,19,3,Color4F(.72f,.92f,.88f,.45f));
         if(pose.splash>0) for(int i=0;i<5;++i) {
             const float side=static_cast<float>(i-2);
-            ellipse(world,{x+side*(7+pose.splash*5),floorY+24+pose.splash*(22-std::abs(side)*6)},
+            ellipse(world,{x+side*(7+pose.splash*5),floorY-94+pose.splash*(22-std::abs(side)*6)},
                     2,3+pose.splash*2,water);
         }
         if(!pose.airborne) return;
         y=pose.height; fishAngle=pose.angle;
         for(int i=1;i<=3;++i) {
             const float dropY=y-i*12.0f;
-            if(dropY>floorY+25) ellipse(world,{x+i*4.0f,dropY},1.6f,3,Color4F(.65f,.9f,.91f,.65f-i*.12f));
+            if(dropY>floorY-93) ellipse(world,{x+i*4.0f,dropY},1.6f,3,Color4F(.65f,.9f,.91f,.65f-i*.12f));
         }
+    }
+    if(e.type==EntityType::Coin && game.GetMagnetSeconds()>0 && object.outcome==EntityOutcome::Pending) {
+        const float pull=std::clamp(1.0f-static_cast<float>(e.distance-game.GetDistance())/22.0f,0.0f,1.0f);
+        const Vec2 destination(Contact,floorY+static_cast<float>(game.GetPlayer().GetPositionY())*HeightScale+38);
+        const Vec2 start(x,y);
+        x+=(destination.x-x)*pull*pull;
+        y+=(destination.y-y)*pull*pull;
+        world->drawSegment(start,{x,y},1.2f,Color4F(1,.83f,.34f,pull*.45f));
     }
     // Crabs walk on the bank rather than hovering at the food collision height.
     if(e.type==EntityType::Crab) y=floorY+13;
@@ -1068,7 +1092,7 @@ void MainScene::drawEntity(const VisualEntity& object) {
         world->drawSegment({x+6,floorY+65},{x+59,floorY+65},4,bark);
         world->drawSegment({x+20,floorY+92},{x+42,floorY+111},5,wood);
         ellipse(world,{x+32+std::sin(motion.time*1.8f)*3,floorY+202},49,28,Color4F(.22f,.43f,.24f,1));
-        ellipse(world,{x+14+std::sin(motion.time*1.8f+.7f)*4,floorY+221},34,19,Color4F(.31f,.53f,.27f,1));
+        ellipse(world,{x+14+std::sin(motion.time*1.8f+.7f)*4,floorY-961},34,19,Color4F(.31f,.53f,.27f,1));
         ellipse(world,{x+52,floorY+211},29,18,Color4F(.38f,.57f,.29f,1));
         break;
     case EntityType::Coin: {
@@ -1137,16 +1161,30 @@ void MainScene::drawEntity(const VisualEntity& object) {
         line(4,-4,6,4,1.4f,Color4F(.20f,.51f,.51f,1));
         break;
     }
+    case EntityType::Speed: {
+        const float pulse=.5f+.5f*std::sin(motion.time*6);
+        oval(0,0,29+pulse*4,29+pulse*4,Color4F(.78f,.94f,.39f,.18f));
+        oval(0,0,23,23,Color4F(.035f,.24f,.23f,1));
+        Vec2 bolt[]={pos(3,20),pos(-13,-2),pos(-2,-2),pos(-6,-20),pos(15,5),pos(3,5)};
+        world->drawSolidPoly(bolt,6,tint(Lime));
+        line(-32,-7,-23,-7,2,Color4F(1,.83f,.34f,1));
+        line(-35,3,-25,3,2,Color4F(1,.83f,.34f,1));
+        break;
+    }
     case EntityType::Shield: {
         const float pulse=.5f+.5f*std::sin(motion.time*4+static_cast<float>(e.id));
         oval(0,0,25+pulse*5,29+pulse*5,Color4F(.41f,.79f,.90f,.10f+pulse*.12f));
         Vec2 shape[]={pos(-18,19),pos(18,19),pos(14,-6),pos(0,-23),pos(-14,-6)};
         world->drawSolidPoly(shape,5,tint(Color4F(.41f,.79f,.90f,1)));
-        line(0,-11,0,10,2,Color4F(.89f,1,1,1));
-        line(-8,1,8,1,2,Color4F(.89f,1,1,1));
+        Vec2 crest[]={pos(0,13),pos(9,3),pos(0,-13),pos(-9,3)};
+        world->drawSolidPoly(crest,4,tint(Lime));
+        line(0,-7,0,8,1.5f,Ink);
+
         break;
     }
     case EntityType::Magnet:
+        oval(0,0,29,29,Color4F(1,.78f,.30f,.16f));
+        oval(0,0,23,23,Color4F(.035f,.24f,.23f,1));
         for(int i=0;i<3;++i) {
             const float t=std::fmod(motion.time*1.2f+i/3.0f,1.0f);
             for(int side:{-1,1}) {
@@ -1154,9 +1192,9 @@ void MainScene::drawEntity(const VisualEntity& object) {
                 line(dx,5+t*6,dx+side*4,7+t*6,1.3f,Color4F(1,.74f,.36f,t*.7f));
             }
         }
-        line(-10,14,-10,-7,5,Color4F(1,.47f,.37f,1));
-        line(10,14,10,-7,5,Color4F(1,.47f,.37f,1));
-        line(-10,-7,10,-7,5,Color4F(1,.47f,.37f,1));
+        line(-10,14,-10,-7,5,Color4F(1,.78f,.30f,1));
+        line(10,14,10,-7,5,Color4F(1,.78f,.30f,1));
+        line(-10,-7,10,-7,5,Color4F(1,.78f,.30f,1));
         line(-10,12,-10,17,5,Color4F(.9f,.96f,.85f,1));
         line(10,12,10,17,5,Color4F(.9f,.96f,.85f,1));
         break;
@@ -1461,6 +1499,7 @@ void MainScene::update(float dt) {
         std::string info;
         if (!shop && game.GetFrenzySeconds()>0) info+="DIST x"+whole(game.GetFrenzyMultiplier())+" "+whole(std::ceil(game.GetFrenzySeconds()))+"s  ";
         if (!shop && game.GetShieldSeconds()>0) info+="ESCUDO "+whole(std::ceil(game.GetShieldSeconds()))+"s  ";
+        if (!shop && game.GetSpeedSeconds()>0) info+="DISPARADA "+whole(std::ceil(game.GetSpeedSeconds()))+"s  ";
         if (!shop && game.GetMagnetSeconds()>0) info+="IMA "+whole(std::ceil(game.GetMagnetSeconds()))+"s  ";
         if (!shop && game.GetCombo()>0) info+="COMBO "+whole(game.GetCombo())+" / x"+whole(game.GetMultiplier());
         if(info.empty() && feedbackTime>0) info=feedback;
@@ -1784,6 +1823,7 @@ void MainScene::smokeTick(float dt) {
         game.Spawn(EntityType::Crab,29,.5);
         game.Spawn(EntityType::Shield,36,.7);
         game.Spawn(EntityType::Magnet,44,.7);
+        game.Spawn(EntityType::Speed,38,.7);
         smokeStep=54;
     } else if(smokeStep==54 && d>8) {
         capture("24-living-items-a.png"); smokeStep=55;

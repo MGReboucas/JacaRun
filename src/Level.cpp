@@ -16,6 +16,7 @@ const char* EntityName(EntityType type) {
         case EntityType::RareFish: return "peixe raro";
         case EntityType::Shield: return "escudo";
         case EntityType::Magnet: return "ima";
+        case EntityType::Speed: return "disparada";
     }
     return "item";
 }
@@ -104,7 +105,7 @@ void Level::GenerateAhead(double playerDistance, double score) {
         // A short reward/recovery lane separates combinations.
         ++encounterCount;
         if (encounterCount % 4 == 0) {
-            Spawn(encounterCount % 8 == 0 ? EntityType::Magnet : EntityType::Shield,
+            Spawn((encounterCount / 4) % 3 == 0 ? EntityType::Speed : (encounterCount / 4) % 3 == 2 ? EntityType::Magnet : EntityType::Shield,
                   at + 29.0, 0.5);
         }
         // Espacamento permite terminar uma acao antes do proximo obstaculo.
@@ -120,8 +121,29 @@ std::vector<Entity> Level::Crossed(double previousDistance, double currentDistan
     auto end = std::upper_bound(entities.begin(), entities.end(), currentDistance,
         [](double distance, const Entity& entity) { return distance < entity.distance; });
     for (auto it = entities.begin(); it != end; ++it) {
-        if (it->distance >= previousDistance) result.push_back(*it);
+        const bool fish=it->type==EntityType::Fish || it->type==EntityType::RareFish;
+        if(fish ? currentDistance>it->distance+Balance::FishBiteDistance : it->distance>=previousDistance)
+            result.push_back(*it);
     }
-    entities.erase(entities.begin(), end);
+    entities.erase(std::remove_if(entities.begin(),end,[currentDistance](const Entity& e) {
+        const bool fish=e.type==EntityType::Fish || e.type==EntityType::RareFish;
+        return !fish || currentDistance>e.distance+Balance::FishBiteDistance;
+    }),end);
     return result;
+}
+
+std::vector<Entity> Level::TakeBiteableFish(double distance, double mouthHeight) {
+    std::vector<Entity> caught;
+    entities.erase(std::remove_if(entities.begin(),entities.end(),[&](const Entity& e) {
+        if(e.type!=EntityType::Fish && e.type!=EntityType::RareFish) return false;
+        const double remaining=e.distance-distance;
+        if(std::abs(remaining)>Balance::FishBiteDistance) return false;
+        // Same parabola and waterline as FishLeap, converted from pixels to world height.
+        const double phase=remaining/24.0;
+        const double height=-96.0/76.0+(e.height+96.0/76.0)*(1-phase*phase);
+        if(std::abs(mouthHeight-height)>Balance::FishBiteReach) return false;
+        caught.push_back(e);
+        return true;
+    }),entities.end());
+    return caught;
 }

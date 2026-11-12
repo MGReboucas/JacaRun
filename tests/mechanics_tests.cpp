@@ -174,7 +174,7 @@ void FoodAndCombos() {
     CHECK(game.GetCombo() == 3 && game.GetMultiplier() == 2);
     CHECK(game.GetScore() == static_cast<std::int64_t>(game.GetDistance()) + 80);
     game.Spawn(EntityType::Fish, game.GetDistance() + 0.1, 2.0);
-    game.Update(0.02);
+    game.Update(0.5);
     CHECK(game.GetCombo() == 0); // Perder alimento quebra a sequencia.
     CHECK(game.GetFoods() == 3);
     for (int i = 1; i <= 20; ++i) game.Spawn(EntityType::Crab, game.GetDistance() + i * 0.1, 0.5);
@@ -325,7 +325,7 @@ void SeedAndGeneration() {
         a.GenerateAhead(distance);
         CHECK(a.GetEntities().size() < 90); // Includes the complete last generated combination.
         CHECK(!a.GetEntities().empty());
-        for (const auto& entity : a.GetEntities()) CHECK(entity.distance > distance);
+        for (const auto& entity : a.GetEntities()) CHECK(entity.distance + ((entity.type==EntityType::Fish || entity.type==EntityType::RareFish) ? Balance::FishBiteDistance : 0) >= distance);
     }
 }
 
@@ -532,7 +532,7 @@ void NewObstaclesAndInsaneRuns() {
             for(const auto& result:game.GetFrameResolutions()) CHECK(result.outcome!=EntityOutcome::Shielded);
             game.TakeMessages();
         }
-        CHECK(game.GetSpeed()==60 && game.GetObstaclesPassed()>200);
+        CHECK(game.GetSpeed()>=60 && game.GetSpeed()<=120 && game.GetObstaclesPassed()>200);
         game.EndRun(); game.StartGame(seed);
         CHECK(game.GetSpeed()==Balance::InitialSpeed && game.GetScore()==0);
     }
@@ -590,6 +590,7 @@ void FishFrenzyAndBenefits() {
     game.Spawn(EntityType::Fish,.1,2.5);
     game.Update(.02);
     CHECK(game.GetFoods()==0 && game.GetFrenzyMultiplier()==1);
+    game.Update(.5); // Let the missed fish leave the entire bite window.
     game.Spawn(EntityType::Fish,game.GetDistance()+10,2.5);
     CHECK(game.Jump()); game.Update(1.1);
     CHECK(game.GetFoods()==1 && game.GetFrenzyMultiplier()==2);
@@ -693,9 +694,43 @@ void MissionSettlementIsIdempotent() {
     CHECK(game.GetProfile().coins==115);
 }
 
+void SpeedPowerLifecycle() {
+    GameManager game; game.StartGame(1,false);
+    game.Spawn(EntityType::Speed,.1,.5); game.Update(.02);
+    CHECK(game.GetSpeedSeconds()>5.9 && game.GetSpeed()>20);
+    const double remaining=game.GetSpeedSeconds();
+    game.TogglePause(); game.Update(20); CHECK(Near(game.GetSpeedSeconds(),remaining));
+    game.TogglePause(); game.Update(6.1);
+    CHECK(game.GetSpeedSeconds()==0 && game.GetSpeed()<24);
+    game.Spawn(EntityType::Speed,game.GetDistance()+.1,.5); game.Update(.02);
+    CHECK(game.GetSpeedSeconds()>0);
+    game.EndRun(); game.StartGame(2,false); CHECK(game.GetSpeedSeconds()==0);
+}
+
+void NearbyFishBites() {
+    for(auto type:{EntityType::Fish,EntityType::RareFish}) {
+        for(double offset:{-3.0,0.0,3.0}) {
+            Level level; level.Reset(1,false); level.Spawn(type,10,2.5);
+            CHECK(level.TakeBiteableFish(10+offset,1.9).size()==1);
+            CHECK(level.TakeBiteableFish(10+offset,1.9).empty());
+        }
+        Level far; far.Reset(1,false); far.Spawn(type,10,2.5);
+        CHECK(far.TakeBiteableFish(5,2.5).empty());
+        CHECK(far.TakeBiteableFish(10,.5).empty());
+        CHECK(far.Crossed(9,11).empty()); // Still available just behind Jaca.
+        CHECK(far.TakeBiteableFish(12,2.0).size()==1);
+        GameManager game; game.StartGame(1,false);
+        game.Spawn(type,2,2.5); game.Update(.21);
+        CHECK(game.GetFoods()==0);
+        CHECK(game.Jump()); game.Update(.4);
+        CHECK(game.GetFoods()==1); // Jump after crossing can still reach the fish.
+        game.Update(2); CHECK(game.GetFoods()==1);
+    }
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
-        {"acoes do jogador", PlayerActions}, {"queda rapida e deslize automatico", DiveIntoSlide}, {"pulo interrompe deslize", SlideIntoJump}, {"fisica por tempo", TimeBasedPhysics},
+        {"disparada: velocidade, pausa, expiracao e reinicio", SpeedPowerLifecycle}, {"mordida por proximidade", NearbyFishBites}, {"acoes do jogador", PlayerActions}, {"queda rapida e deslize automatico", DiveIntoSlide}, {"pulo interrompe deslize", SlideIntoJump}, {"fisica por tempo", TimeBasedPhysics},
         {"cruzamento e consumo unico", CrossingAndConsumption}, {"colisao terrestre", GroundCollisions},
         {"colisao superior", HighCollisions}, {"alimentos e combos", FoodAndCombos},
         {"coleta aerea e ima", AirPickupsAndMagnet}, {"escudo", ShieldAbsorbsOnceAndExpires},
@@ -708,7 +743,7 @@ int main() {
         {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc},
         {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns},
         {"loja cara, melhorias e migracao de save", ShopMigrationAndUpgrades},
-        {"peixe preciso, frenesi e melhorias", FishFrenzyAndBenefits},
+        {"peixe, frenesi e melhorias", FishFrenzyAndBenefits},
         {"missoes, conquistas e save v3", MissionsAchievementsAndPersistence},
         {"bonus unico ao encerrar e reiniciar", MissionSettlementIsIdempotent}
     };

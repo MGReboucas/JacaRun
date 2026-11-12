@@ -13,7 +13,7 @@ void Player::Update(double deltaTime, double speed) {
     if (!std::isfinite(deltaTime) || deltaTime <= 0.0) return;
     if (!std::isfinite(speed) || speed <= 0.0) return;
     // Action progress follows world travel; slow running must not shorten clearance.
-    deltaTime *= std::clamp(speed, Balance::InitialSpeed, Balance::MaximumSpeed) / Balance::ActionSpeed;
+    deltaTime *= std::clamp(speed, Balance::InitialSpeed, Balance::MaximumSpeed * Balance::SpeedMultiplier) / Balance::ActionSpeed;
     slideRemaining = std::max(0.0, slideRemaining - deltaTime);
     if (!grounded) {
         if (diving) {

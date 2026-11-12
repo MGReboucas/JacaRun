@@ -23,9 +23,9 @@ void PersistenceAndCollection() {
     game.Update(0.4);
     CHECK(game.IsPlaying());
     CHECK(game.GetFrameResolutions().size() == 3);
-    CHECK(game.GetFrameResolutions()[0].outcome == EntityOutcome::Passed);
-    CHECK(game.GetFrameResolutions()[1].outcome == EntityOutcome::Missed);
-    CHECK(game.GetFrameResolutions()[2].outcome == EntityOutcome::Collected);
+    CHECK(game.GetFrameResolutions()[0].outcome == EntityOutcome::Collected);
+    CHECK(game.GetFrameResolutions()[1].outcome == EntityOutcome::Passed);
+    CHECK(game.GetFrameResolutions()[2].outcome == EntityOutcome::Missed);
     view.Resolve(game.GetFrameResolutions());
     view.Sync(game.GetLevel().GetEntities());
     view.Update(0.01f, game.GetDistance(), 166, 12);

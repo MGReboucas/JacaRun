@@ -28,7 +28,7 @@
 #include "EnvironmentCycle.h"
 #include "CharacterAnimation.h"
 #include "CharacterAtlas.h"
-#include "CosmeticArt.h"
+#include "CharacterSkin.h"
 #include "StoryAtlas.h"
 #include "StoryContactAtlas.h"
 #include "audio/AudioEngine.h"
@@ -538,8 +538,9 @@ void MainScene::animateTutorial() {
     const bool slide=beat==1 && t>1 && t<2.7f;
     const float flight=jump?std::sin((t-1)/1.7f*3.14159265f):0;
     const int frame=jump?((t<1.55f)?0:(t<2.1f)?1:2):slide?3:static_cast<int>(travel*10)%8;
-    const auto crop=(jump||slide)?ActionCrops[frame]:RunCrops[frame];
-    tutorialJaca->setTexture((jump||slide)?"art/jaca-actions-v2.png":"art/jaca-run-v2.png");
+    const auto tutorialArt=ResolveJacaArtwork(game.GetProfile().equipped,(jump||slide)?JacaAtlas::Action:JacaAtlas::Run,frame);
+    const auto crop=tutorialArt.crop;
+    tutorialJaca->setTexture(tutorialArt.file);
     tutorialJaca->setTextureRect(Rect(crop.x,crop.y,crop.width,crop.height));
     tutorialJaca->setScale((slide?48.0f:100.0f)/crop.height);
     tutorialJaca->setPosition({112,84+flight*92});
@@ -815,8 +816,9 @@ void MainScene::rebuildUI() {
         button("CONFIGURA\u00c7\u00d5ES",{130,center-262,220,44},Action::Settings,false,18);
     } else {
         const auto& rewards=game.GetProgressRewards();
-        const auto& dizzy=ActionCrops[7];
-        art(panels,"art/jaca-actions-v2.png",Rect(dizzy.x,dizzy.y,dizzy.width,dizzy.height),
+        const auto defeatedArt=ResolveJacaArtwork(game.GetProfile().equipped,JacaAtlas::Action,7);
+        const auto& dizzy=defeatedArt.crop;
+        art(panels,defeatedArt.file,Rect(dizzy.x,dizzy.y,dizzy.width,dizzy.height),
             {130,center+202},{220,220.0f*dizzy.height/dizzy.width},1);
         text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
         text("Boa, Jaca!",40,{240,center+149},Cream,true);
@@ -965,19 +967,19 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     auto pose=AnimateJaca(motion,idle,!airborne,sliding,game.GetPlayer().IsDiving(),defeated,
         game.GetPlayer().GetVelocityY(),target==menuActor && !chaseEntry?entrance.time:-1);
     if(previewAccessory>=0) { pose.atlas=JacaAtlas::Idle; pose.frame=0; pose.width=84; pose.height=103; pose.angle=pose.bob=0; pose.scaleX=pose.scaleY=1; }
-    const auto& bounds=pose.atlas==JacaAtlas::Run?RunCrops[pose.frame]:
-                       pose.atlas==JacaAtlas::Idle?IdleCrops[pose.frame]:ActionCrops[pose.frame];
+    const auto& reference=pose.atlas==JacaAtlas::Run?RunCrops[pose.frame]:
+                          pose.atlas==JacaAtlas::Idle?IdleCrops[pose.frame]:ActionCrops[pose.frame];
     const int accessory=previewAccessory>=0?previewAccessory:game.GetProfile().equipped;
-    const char* file=pose.atlas==JacaAtlas::Run?"art/jaca-run-v2.png":
-                     pose.atlas==JacaAtlas::Idle?"art/jaca-idle-v2.png":"art/jaca-actions-v2.png";
-    if(accessory>0)
-        file=pose.atlas==JacaAtlas::Run?"art/jaca-run-bare-v1.png":
-             pose.atlas==JacaAtlas::Idle?"art/jaca-idle-bare-v1.png":"art/jaca-actions-bare-v1.png";
+    const auto artwork=ResolveJacaArtwork(accessory,pose.atlas,pose.frame);
+    const auto& bounds=artwork.crop;
+    const char* file=artwork.file;
     const Rect crop(static_cast<float>(bounds.x),static_cast<float>(bounds.y),
                     static_cast<float>(bounds.width),static_cast<float>(bounds.height));
-    // Keep pixel density stable across stride frames instead of stretching every pose to a box.
-    if(pose.atlas==JacaAtlas::Run) { pose.width=bounds.width*.30f; pose.height=bounds.height*.30f; }
-    const float width=pose.width*scale*pose.scaleX, height=pose.height*scale*pose.scaleY;
+    // A skin is a full painted character, including headwear and contact shadows.
+    // Use its body calibration rather than squeezing tall hats into the old body box.
+    if(pose.atlas==JacaAtlas::Run) { pose.width=reference.width*.30f; pose.height=reference.height*.30f; }
+    const float width=bounds.width*artwork.density*(pose.width/reference.width)*scale*pose.scaleX;
+    const float height=bounds.height*artwork.density*(pose.height/reference.height)*scale*pose.scaleY;
     auto actor=art(drawing,file,crop,{0,0},{width,height},2);
     // Transform around the planted feet; the contact coordinate remains independent of the sprite.
     actor->setAnchorPoint({.65f,0});
@@ -998,7 +1000,6 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
             decor->drawSolidPoly(star,8,Color4F(1,.82f,.13f,1));
         }
     }
-    DrawJacaAccessory(decor,accessory,pose.atlas,pose.frame,bounds);
     if(shield) {
         // Transparent front surface, luminous rim and counter-rotating energy trails.
         ellipse(drawing,shieldCenter,shieldX*.97f,shieldY*.97f,Color4F(.36f,.88f,1,.055f*shieldAlpha));
@@ -2118,7 +2119,39 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==535 && game.GetPlayer().IsGrounded()) {
         capture("67-cosmetic-slide.png"); smokeStep=536;
     } else if(smokeStep==536) {
-        finishSmoke(true,"Gameplay, tutorial, shop, fitting room, equipped run/jump/slide and story passed.");
+        game.ReturnToMenu(); shop=true; previewItem=-1; smokeStep=600;
+    }
+    // Render every complete skin frame through the same resolver used by gameplay.
+    // This catches wrong atlas sections, missing assets and bad crop boundaries.
+    if(smokeStep>=600 && smokeStep<600+CosmeticCount*2) {
+        const int skin=(smokeStep-600)/2;
+        if((smokeStep-600)%2==0) {
+            ui->removeAllChildren(); panels->clear();
+            score=distance=coins=status=pace=missionHud=missionToast=coinNotice=gestureHint=nullptr;
+            rect(panels,{0,0,480,viewHeight},Color4F(.035f,.14f,.15f,1));
+            fitLabel(text(AccessoryCatalog()[skin].name,24,{240,viewHeight-32},Cream,true),440,32);
+            const float rowHeight=(viewHeight-86)/6;
+            for(int index=0;index<24;++index) {
+                const auto atlas=index<8?JacaAtlas::Idle:index<16?JacaAtlas::Run:JacaAtlas::Action;
+                const auto outfit=ResolveJacaArtwork(skin,atlas,index%8);
+                auto texture=Director::getInstance()->getTextureCache()->addImage(outfit.file);
+                const auto& c=outfit.crop;
+                if(!texture || c.x<0 || c.y<0 || c.x+c.width>texture->getPixelsWide() || c.y+c.height>texture->getPixelsHigh()) {
+                    finishSmoke(false,"Complete skin atlas missing or crop out of bounds"); return;
+                }
+                const float density=std::min(104.0f/c.width,(rowHeight-24)/c.height);
+                const float x=12+(index%4)*116, y=viewHeight-66-(index/4+1)*rowHeight;
+                auto sprite=art(panels,outfit.file,Rect(c.x,c.y,c.width,c.height),{x+52,y+18},
+                    {c.width*density,c.height*density},1);
+                sprite->setAnchorPoint({.5f,0});
+                text(std::to_string(index),11,{x+52,y+7},Muted);
+            }
+            ++smokeStep;
+        } else {
+            capture("68-skin-"+std::to_string(skin)+"-all-poses.png"); ++smokeStep;
+        }
+    } else if(smokeStep==600+CosmeticCount*2) {
+        finishSmoke(true,"Gameplay, tutorial, shop, fully dressed skins: all 384 poses and equipped run/jump/slide passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

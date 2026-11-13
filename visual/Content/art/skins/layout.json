@@ -1,0 +1,21 @@
+{
+  "note": "Full-character pixel density calibrated against original Jaca body in fitting room; hat height is not used to fit the body. Recalibrate if artwork changes dimensions.",
+  "density": [
+    1.55,
+    1.67,
+    1.5,
+    1.406699,
+    1.58,
+    1.5,
+    1.448276,
+    1.367442,
+    1.670455,
+    1.68,
+    1.633333,
+    1.72,
+    1.55,
+    1.651685,
+    1.624309
+  ],
+  "crownRunDensity": 1.0
+}

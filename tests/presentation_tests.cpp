@@ -7,6 +7,10 @@
 #include "../visual/Source/FishMotion.h"
 #include "../visual/Source/EnvironmentCycle.h"
 #include "../visual/Source/CharacterAnimation.h"
+#include "../visual/Source/CharacterSkin.h"
+#include <set>
+#include <tuple>
+#include <string>
 #include <stdexcept>
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while(false)
 
@@ -209,11 +213,38 @@ void ExpressiveCharacterStates() {
     MenuEntrance intro; intro.time=1.2f; CHECK(intro.Hop()>30);
     intro.Finish(); CHECK(intro.Hop()==0);
 }
+void CompleteSkinArtwork() {
+    std::set<std::string> files;
+    for(int skin=0;skin<CosmeticCount;++skin) {
+        std::set<std::tuple<std::string,int,int>> cells;
+        for(auto atlas:{JacaAtlas::Idle,JacaAtlas::Run,JacaAtlas::Action}) {
+            for(int frame=0;frame<8;++frame) {
+                const auto art=ResolveJacaArtwork(skin,atlas,frame);
+                CHECK(art.file && art.crop.width>0 && art.crop.height>0);
+                CHECK(art.crop.x>=0 && art.crop.y>=0 && art.density>.5f && art.density<4);
+                if(skin>0) {
+                    CHECK(std::string(art.file).find("art/skins/")==0);
+                    cells.emplace(art.file,art.crop.x,art.crop.y);
+                }
+                const auto clamped=ResolveJacaArtwork(skin,atlas,frame==0?-1:frame==7?8:frame);
+                CHECK(clamped.crop.x==art.crop.x && clamped.crop.y==art.crop.y);
+            }
+        }
+        if(skin>0) {
+            CHECK(cells.size()==24);
+            CHECK(files.insert(ResolveJacaArtwork(skin,JacaAtlas::Idle,0).file).second);
+        }
+    }
+    CHECK(std::string(ResolveJacaArtwork(-1,JacaAtlas::Idle,0).file)=="art/jaca-idle-v2.png");
+    CHECK(std::string(ResolveJacaArtwork(CosmeticCount,JacaAtlas::Run,0).file)=="art/jaca-run-v2.png");
+}
+
 int main() {
     try {
         PersistenceAndCollection();
         HitIsVisibleAndEventsBounded();
         SwipesAndTwoFingerPause();
+        CompleteSkinArtwork();
         AnimationPausesAndRecovers();
         FishLeavesAndReturnsToWater();
         MenuEntranceCompletesAndSkips();
@@ -242,7 +273,7 @@ int main() {
         }
         for(bool pose:seen) CHECK(pose);
         CHECK(StoryIntro::BiteFrame(1)==3);
-        std::cout << "10/10 presentation, gesture, animation, environment and story groups passed.\n";
+        std::cout << "11/11 presentation, gesture, animation, environment and story groups passed.\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';

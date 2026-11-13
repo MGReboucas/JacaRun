@@ -172,7 +172,7 @@ void FoodAndCombos() {
     game.Update(0.4);
     CHECK(game.GetFoods() == 3);
     CHECK(game.GetCombo() == 3 && game.GetMultiplier() == 2);
-    CHECK(game.GetScore() == static_cast<std::int64_t>(game.GetDistance()) + 80);
+    CHECK(game.GetRunCoins() == 4);
     game.Spawn(EntityType::Fish, game.GetDistance() + 0.1, 2.0);
     game.Update(0.5);
     CHECK(game.GetCombo() == 0); // Perder alimento quebra a sequencia.
@@ -248,7 +248,7 @@ void PauseAndRestart() {
     game.EndRun();
     const auto xp = game.GetProfile().experience;
     game.StartGame(2, false);
-    CHECK(game.GetCombo() == 0 && game.GetRunCoins() == 0 && game.GetScore() == 0);
+    CHECK(game.GetCombo() == 0 && game.GetRunCoins() == 0 && game.GetDistance() == 0);
     CHECK(Near(game.GetSpeed(), Balance::InitialSpeed));
     CHECK(Near(game.GetShieldSeconds(), 0) && Near(game.GetMagnetSeconds(), 0));
     CHECK(game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding());
@@ -266,13 +266,13 @@ void RewardsAndShop() {
     CHECK(!game.BuyAccessory(1));
     game.TogglePause();
     game.EndRun();
-    CHECK(game.GetProfile().coins == 1);
+    CHECK(game.GetProfile().coins == 2);
     CHECK(game.GetProfile().experience == 3);
-    const auto record = game.GetProfile().bestScore;
+    const auto record = game.GetProfile().bestDistance;
     game.EndRun();
     game.ReturnToMenu();
-    CHECK(game.GetProfile().coins == 1 && game.GetProfile().experience == 3);
-    CHECK(game.GetProfile().bestScore == record);
+    CHECK(game.GetProfile().coins == 2 && game.GetProfile().experience == 3);
+    CHECK(game.GetProfile().bestDistance == record);
     CHECK(!game.BuyAccessory(1) && !game.EquipAccessory(1));
     game.GetProfile().coins = 2500;
     CHECK(game.BuyAccessory(1));
@@ -296,7 +296,7 @@ void SpeedAndFrameIndependence() {
     CHECK(Near(a.GetDistance(), b.GetDistance()));
     CHECK(Near(a.GetPlayer().GetPositionY(), b.GetPlayer().GetPositionY()));
     a.Update(200);
-    CHECK(std::abs(a.GetSpeed() - Balance::RunSpeed(a.GetDistance(), static_cast<double>(a.GetScore()))) < .01);
+    CHECK(std::abs(a.GetSpeed() - Balance::RunSpeed(a.GetDistance())) < .01);
     const auto distance = a.GetDistance();
     a.Update(std::numeric_limits<double>::infinity());
     a.Update(-1);
@@ -350,7 +350,6 @@ void PersistenceAndInvalidSave() {
     CHECK(profile.Load(path, error));
     profile.coins = 6000;
     profile.experience = 650;
-    profile.bestScore = 1234;
     profile.bestDistance = 123.45;
     CHECK(profile.Buy(2) && profile.Equip(2));
     CHECK(profile.Save(path, error));
@@ -359,7 +358,7 @@ void PersistenceAndInvalidSave() {
     CHECK(!std::filesystem::exists(files.folder / "profile.save.tmp"));
     Profile loaded;
     CHECK(loaded.Load(path, error));
-    CHECK(loaded.coins == 99 && loaded.experience == 650 && loaded.bestScore == 1234);
+    CHECK(loaded.coins == 99 && loaded.experience == 650);
     CHECK(Near(loaded.bestDistance, 123.45) && loaded.owned[2] && loaded.equipped == 2);
     for (const std::string invalid : {
         "JACARUN 99\n0 0 0 0 1 0\n", "JACARUN 1\n-1 0 0 0 1 0\n",
@@ -399,7 +398,7 @@ void PlayableProceduralRuns() {
         CHECK(game.IsPlaying());
         CHECK(game.GetDistance() > 4000 && game.GetObstaclesPassed() >= 90);
         CHECK(game.GetFoods() > 20 && game.GetRunCoins() > 40);
-        CHECK(game.GetScore() > static_cast<std::int64_t>(game.GetDistance()));
+        CHECK(game.GetRunCoins() > 0);
         totalCoins+=game.GetRunCoins();
         lowestCoins=std::min(lowestCoins,game.GetRunCoins());
         highestCoins=std::max(highestCoins,game.GetRunCoins());
@@ -420,8 +419,8 @@ void ProgressiveEncounterSafety() {
                 if (!IsObstacle(entity.type)) continue;
                 // At maximum speed, enough time to finish either action and react again.
                 const double seconds = (entity.distance - previous) / Balance::ActionSpeed;
-                CHECK(seconds >= 1.35 - 1e-7);
-                CHECK(seconds > Balance::SlideSeconds + .4);
+                CHECK(seconds >= 1.25 - 1e-7);
+                CHECK(seconds > Balance::SlideSeconds + .3);
                 CHECK(seconds > 2 * Balance::JumpForce / -Balance::Gravity + .4);
                 if (entity.distance <= 1000) ++early;
                 if (entity.distance >= 5000) ++late;
@@ -490,15 +489,14 @@ void CollectibleSpacingAndArc() {
 }
 
 void NewObstaclesAndInsaneRuns() {
-    CHECK(Near(Balance::RunSpeed(2000,0),24));
-    CHECK(Near(Balance::RunSpeed(2000,19999),24));
-    CHECK(Near(Balance::RunSpeed(2000,20000),24));
-    CHECK(Near(Balance::RunSpeed(2000,35000),36));
-    CHECK(Near(Balance::RunSpeed(2000,50000),48));
-    CHECK(Near(Balance::RunSpeed(2000,75000),54));
-    for(int points=1;points<=110000;++points) {
-        const double change=Balance::ScorePressure(points)-Balance::ScorePressure(points-1);
-        CHECK(change>=0 && change<.000023); // Continuous, including both breakpoints.
+    CHECK(Near(Balance::RunSpeed(2000),24));
+    CHECK(Near(Balance::RunSpeed(4000),24));
+    CHECK(Near(Balance::RunSpeed(7000),36));
+    CHECK(Near(Balance::RunSpeed(10000),48));
+    CHECK(Near(Balance::RunSpeed(15000),54));
+    for(int meters=1;meters<=22000;++meters) {
+        const double change=Balance::DistancePressure(meters)-Balance::DistancePressure(meters-1);
+        CHECK(change>=0 && change<.000112);
     }
     for(auto type:{EntityType::Log,EntityType::Rock,EntityType::Vine}) {
         GameManager safe, hit;
@@ -509,16 +507,13 @@ void NewObstaclesAndInsaneRuns() {
         CHECK(safe.IsPlaying() && safe.GetObstaclesPassed()==1);
         CHECK(hit.GetState()==GameState::GameOver);
     }
-    CHECK(Near(Balance::RunSpeed(2000,100000),60));
-    CHECK(Near(Balance::RunSpeed(2000,200000),60));
-    CHECK(Balance::RunSpeed(2000,50000)>Balance::RunSpeed(2000,20000));
+    CHECK(Near(Balance::RunSpeed(20000),60));
+    CHECK(Near(Balance::RunSpeed(40000),60));
+    CHECK(Balance::RunSpeed(10000)>Balance::RunSpeed(4000));
     for(std::uint32_t seed=0;seed<20;++seed) {
         GameManager game; game.StartGame(seed);
-        // Earn 100k through fixture pickups before the first obstacle.
-        for(int i=0;i<250;++i) game.Spawn(EntityType::RareFish,.1+i*.001,.5);
-        game.Update(.1);
-        CHECK(game.GetScore()>100000);
-        for(int step=0;step<12000;++step) {
+        // Cross all distance-based difficulty tiers using actual gameplay.
+        for(int step=0;step<70000;++step) {
             if(game.GetPlayer().IsGrounded() && !game.GetPlayer().IsSliding()) {
                 for(const auto& e:game.GetLevel().GetEntities()) {
                     if(e.distance-game.GetDistance()>6) break;
@@ -534,7 +529,7 @@ void NewObstaclesAndInsaneRuns() {
         }
         CHECK(game.GetSpeed()>=60 && game.GetSpeed()<=120 && game.GetObstaclesPassed()>200);
         game.EndRun(); game.StartGame(seed);
-        CHECK(game.GetSpeed()==Balance::InitialSpeed && game.GetScore()==0);
+        CHECK(game.GetSpeed()==Balance::InitialSpeed && game.GetDistance()==0);
     }
     Level level; level.Reset(42);
     double lastPickup=-100, lastObstacle=-100;
@@ -549,7 +544,7 @@ void NewObstaclesAndInsaneRuns() {
                 CHECK(e.distance-lastPickup>=5.5-1e-7); lastPickup=e.distance;
             }
         }
-        level.GenerateAhead(at,100000);
+        level.GenerateAhead(at);
         CHECK(level.GetEntities().size()<100);
     }
     CHECK(log && rock && vine);
@@ -584,6 +579,50 @@ void ShopMigrationAndUpgrades() {
     }
 }
 
+void LightningWelcomeBonus() {
+    TempFiles files; const auto path=files.folder/"welcome.save"; std::string error;
+    GameManager game; auto& profile=game.GetProfile();
+    CHECK(profile.GrantLightningWelcomeBonus());
+    CHECK(profile.lightningCharges==5 && profile.lightningWelcomeClaimed && !profile.hasUsedLightning);
+    CHECK(!profile.GrantLightningWelcomeBonus());
+    CHECK(!game.UseLightning() && !profile.hasUsedLightning);
+    CHECK(profile.Save(path,error));
+    Profile unopened; CHECK(unopened.Load(path,error));
+    CHECK(!unopened.GrantLightningWelcomeBonus() && unopened.lightningCharges==5);
+    game.StartGame(1,false); game.TogglePause(); CHECK(!game.UseLightning() && !profile.hasUsedLightning);
+    game.TogglePause(); CHECK(game.UseLightning());
+    CHECK(profile.hasUsedLightning && profile.lightningCharges==4);
+    CHECK(profile.Save(path,error));
+    Profile restored; CHECK(restored.Load(path,error));
+    CHECK(restored.hasUsedLightning && !restored.GrantLightningWelcomeBonus() && restored.lightningCharges==4);
+    Profile experienced; experienced.hasUsedLightning=true; CHECK(!experienced.GrantLightningWelcomeBonus());
+    Profile full; full.lightningCharges=999; CHECK(!full.GrantLightningWelcomeBonus());
+    CHECK(full.lightningCharges==999 && !full.lightningWelcomeClaimed);
+    { std::ofstream out(path); out << "JACARUN 6\n777 650 1906 1 0\n0 0 0 0 0 0 0\n0 0\n1 0\n2 0\n3\n"; }
+    Profile old; CHECK(old.Load(path,error)); CHECK(old.GrantLightningWelcomeBonus());
+    CHECK(old.lightningCharges==8 && old.coins==777 && old.bestDistance==1906);
+    CHECK(old.Save(path,error)); CHECK(restored.Load(path,error));
+    CHECK(!restored.GrantLightningWelcomeBonus() && restored.lightningCharges==8);
+    { std::ofstream out(path); out << "JACARUN 7\n0 0 0 1 0\n0 0 0 0 0 0 0\n0 0\n1 0\n2 0\n5\n2 0\n"; }
+    CHECK(!restored.Load(path,error) && restored.lightningCharges==8);
+}
+
+void LegacyPointsMigration() {
+    TempFiles files; const auto path=files.folder/"v5.save";
+    { std::ofstream out(path); out << "JACARUN 5\n777 650 32951 1906 1 0\n0 0 0 0 0 0 0\n0 0\n1 0\n2 0\n3\n"; }
+    Profile profile; std::string error; CHECK(profile.Load(path,error));
+    CHECK(profile.coins==777 && profile.experience==650 && profile.bestDistance==1906 && profile.lightningCharges==3);
+    CHECK(profile.Save(path,error));
+    { std::ifstream in(path); std::string magic; int version; in>>magic>>version; CHECK(version==7); }
+    Profile restored; CHECK(restored.Load(path,error));
+    CHECK(restored.coins==777 && restored.bestDistance==1906 && restored.lightningCharges==3);
+    GameManager normal, fed; normal.StartGame(1,false); fed.StartGame(1,false);
+    for(int i=0;i<20;++i) fed.Spawn(EntityType::RareFish,.1+i*.001,.5);
+    normal.Update(1); fed.Update(1);
+    CHECK(Near(normal.GetDistance(),fed.GetDistance()) && Near(normal.GetSpeed(),fed.GetSpeed()));
+    CHECK(fed.GetRunCoins()>normal.GetRunCoins());
+}
+
 void FishFrenzyAndBenefits() {
     GameManager game;
     game.StartGame(1,false);
@@ -594,9 +633,12 @@ void FishFrenzyAndBenefits() {
     game.Spawn(EntityType::Fish,game.GetDistance()+10,2.5);
     CHECK(game.Jump()); game.Update(1.1);
     CHECK(game.GetFoods()==1 && game.GetFrenzyMultiplier()==2);
-    const auto startScore=game.GetScore(); const auto startDistance=game.GetDistance();
+    const auto beforeCoins=game.GetRunCoins();
+    game.Spawn(EntityType::Coin,game.GetDistance()+.1,game.GetPlayer().GetPositionY()+.5); game.Update(.02);
+    CHECK(game.GetRunCoins()==beforeCoins+2);
+    const auto beforeDistance=game.GetDistance();
     game.Update(1);
-    CHECK(std::abs((game.GetScore()-startScore)-2*(game.GetDistance()-startDistance))<2);
+    CHECK(game.GetRunCoins()==beforeCoins+2 && game.GetDistance()>beforeDistance);
     const auto time=game.GetFrenzySeconds();
     game.TogglePause(); game.Update(100);
     CHECK(game.GetFrenzySeconds()==time); game.TogglePause();
@@ -697,14 +739,52 @@ void MissionSettlementIsIdempotent() {
 void SpeedPowerLifecycle() {
     GameManager game; game.StartGame(1,false);
     game.Spawn(EntityType::Speed,.1,.5); game.Update(.02);
+    CHECK(game.GetSpeedSeconds()==0 && game.GetProfile().lightningCharges==1);
+    CHECK(game.UseLightning());
+    CHECK(!game.UseLightning());
+    game.Spawn(EntityType::Ground,game.GetDistance()+.1); game.Update(.02);
+    CHECK(game.IsPlaying() && game.GetProfile().lightningCharges==0);
     CHECK(game.GetSpeedSeconds()>5.9 && game.GetSpeed()>20);
+    game.Spawn(EntityType::Shield,game.GetDistance()+.1,.5); game.Update(.02);
+    game.Spawn(EntityType::High,game.GetDistance()+.1); game.Update(.02);
+    CHECK(game.IsPlaying() && game.GetShieldSeconds()>0 && game.GetObstaclesPassed()==0);
     const double remaining=game.GetSpeedSeconds();
     game.TogglePause(); game.Update(20); CHECK(Near(game.GetSpeedSeconds(),remaining));
     game.TogglePause(); game.Update(6.1);
     CHECK(game.GetSpeedSeconds()==0 && game.GetSpeed()<24);
     game.Spawn(EntityType::Speed,game.GetDistance()+.1,.5); game.Update(.02);
+    CHECK(game.UseLightning());
     CHECK(game.GetSpeedSeconds()>0);
     game.EndRun(); game.StartGame(2,false); CHECK(game.GetSpeedSeconds()==0);
+}
+
+void LightningRewards() {
+    GameManager game; CHECK(!game.UseLightning()); game.StartGame(4,false);
+    CHECK(!game.UseLightning());
+    while(game.GetDistance()<4999) game.Update(.001);
+    CHECK(game.GetProfile().lightningCharges==0);
+    while(game.GetDistance()<5000) game.Update(.001);
+    CHECK(game.IsPlaying() && game.GetProfile().lightningCharges==1);
+    CHECK(game.GetNextLightningDistance()==10000);
+    game.TogglePause(); game.Update(100); CHECK(!game.UseLightning());
+    CHECK(game.GetProfile().lightningCharges==1); game.TogglePause();
+    CHECK(game.UseLightning()); CHECK(!game.UseLightning());
+    CHECK(game.GetProfile().lightningCharges==0);
+    game.Spawn(EntityType::Ground,game.GetDistance()+.1); game.Update(.02);
+    CHECK(game.IsPlaying()); game.Update(6.1);
+    while(game.GetDistance()<14859) game.Update(.01);
+    CHECK(game.GetProfile().lightningCharges==1); // Two earned, one used.
+    const auto path=std::filesystem::temp_directory_path()/"jacarun-lightning-test.save";
+    std::string error; CHECK(game.GetProfile().Save(path,error));
+    Profile restored; CHECK(restored.Load(path,error)); CHECK(restored.lightningCharges==1);
+    game.EndRun(); game.EndRun(); CHECK(game.GetProfile().lightningCharges==1);
+    game.StartGame(6,false); CHECK(game.GetNextLightningDistance()==5000);
+    CHECK(game.GetProfile().lightningCharges==1);
+    game.Spawn(EntityType::Ground,game.GetDistance()+.1); game.Update(.02);
+    CHECK(!game.IsPlaying());
+    GameManager longFrame; longFrame.StartGame(7,false); longFrame.Update(700);
+    CHECK(longFrame.GetProfile().lightningCharges==static_cast<int>(longFrame.GetDistance()/5000));
+    std::filesystem::remove(path);
 }
 
 void NearbyFishBites() {
@@ -758,6 +838,9 @@ void ExpandedShopPersistence() {
 
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
+        {"presente de cinco raios uma unica vez", LightningWelcomeBonus},
+        {"migracao v5 sem pontos e distancia real", LegacyPointsMigration},
+        {"raios: recompensa rara e estoque", LightningRewards},
         {"catalogo expandido e migracao v2/v3", ExpandedShopPersistence},
         {"disparada: velocidade, pausa, expiracao e reinicio", SpeedPowerLifecycle}, {"mordida por proximidade", NearbyFishBites}, {"acoes do jogador", PlayerActions}, {"queda rapida e deslize automatico", DiveIntoSlide}, {"pulo interrompe deslize", SlideIntoJump}, {"fisica por tempo", TimeBasedPhysics},
         {"cruzamento e consumo unico", CrossingAndConsumption}, {"colisao terrestre", GroundCollisions},
@@ -770,7 +853,7 @@ int main() {
         {"progressao e recuperacao entre obstaculos", ProgressiveEncounterSafety},
         {"acoes acompanham distancia", ActionsFollowTravel},
         {"coletaveis separados e arco alcancavel", CollectibleSpacingAndArc},
-        {"novos obstaculos e 20 corridas acima de 100 mil", NewObstaclesAndInsaneRuns},
+        {"novos obstaculos e 20 corridas ate a velocidade maxima por distancia", NewObstaclesAndInsaneRuns},
         {"loja cara, melhorias e migracao de save", ShopMigrationAndUpgrades},
         {"peixe, frenesi e melhorias", FishFrenzyAndBenefits},
         {"missoes, conquistas e save v3", MissionsAchievementsAndPersistence},

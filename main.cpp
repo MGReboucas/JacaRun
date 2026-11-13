@@ -62,8 +62,8 @@ void Messages(GameManager& game) {
 void ShowProfile(const GameManager& game) {
     const auto& profile = game.GetProfile();
     std::cout << "Saldo: " << profile.coins << " moedas | Nivel: " << profile.GetLevel()
-              << " | XP: " << profile.experience << " | Recorde: " << profile.bestScore
-              << " pontos / " << std::fixed << std::setprecision(1) << profile.bestDistance << " m\n"
+              << " | XP: " << profile.experience << " | Recorde: "
+              << std::fixed << std::setprecision(1) << profile.bestDistance << " m\n"
               << "Equipado: " << AccessoryCatalog()[profile.equipped].name << '\n';
 }
 
@@ -97,7 +97,7 @@ void ShowGoals(const GameManager& game) {
 void ShowRun(const GameManager& game) {
     std::cout << std::fixed << std::setprecision(1)
               << "\nDistancia " << game.GetDistance() << " m | Velocidade " << game.GetSpeed()
-              << " m/s | Pontos " << game.GetScore() << " | Moedas " << game.GetRunCoins()
+              << " m/s | Moedas " << game.GetRunCoins()
               << " | Combo " << game.GetCombo() << " x" << game.GetMultiplier() << '\n';
     std::cout << "Jaca: " << (game.GetPlayer().IsSliding() ? "agachado" :
                              game.GetPlayer().IsGrounded() ? "correndo" : "no ar")
@@ -175,6 +175,10 @@ int main(int argc, char** argv) {
         std::cerr << error << "\nUse --no-save para jogar sem alterar o arquivo, ou --save com outro caminho.\n";
         return 1;
     }
+    if (game.GetProfile().GrantLightningWelcomeBonus()) {
+        if (!SaveProfile(game, options)) return 1;
+        std::cout << "Presente: +5 raios para experimentar!\n";
+    }
     Help();
     ShowProfile(game);
     bool saved = true;
@@ -233,7 +237,7 @@ int main(int argc, char** argv) {
         game.Update(Balance::TurnSeconds);
         Messages(game);
         if (game.GetState() == GameState::GameOver) {
-            std::cout << "GAME OVER | " << game.GetScore() << " pontos | " << game.GetDistance() << " m\n";
+            std::cout << "GAME OVER | " << game.GetDistance() << " m\n";
             saved = SaveProfile(game, options);
             ShowProfile(game);
             std::cout << "Use jogar para tentar novamente ou loja para gastar suas moedas.\n";

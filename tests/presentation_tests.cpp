@@ -38,7 +38,7 @@ void PersistenceAndCollection() {
     CHECK(view.GetObjects().size() == 2); // Only the collected fish finishes its animation.
     game.Update(0.1);
     CHECK(game.GetFrameResolutions().empty());
-    CHECK(game.GetObstaclesPassed() == 1 && game.GetFoods() == 1 && game.GetRunCoins() == 0);
+    CHECK(game.GetObstaclesPassed() == 1 && game.GetFoods() == 1 && game.GetRunCoins() == 2);
     view.Update(0, 12, 166, 12);
     CHECK(view.GetObjects().size() == 2); // Both still on screen behind the crocodile.
     view.Update(0, 30, 166, 12);

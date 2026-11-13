@@ -38,9 +38,12 @@ struct ProgressRewards {
 };
 
 struct Profile {
+    int lightningCharges = 0;
+    bool lightningWelcomeClaimed = false;
+    bool hasUsedLightning = false;
+    bool GrantLightningWelcomeBonus();
     std::int64_t coins = 0;
     std::int64_t experience = 0;
-    std::int64_t bestScore = 0;
     double bestDistance = 0.0;
     std::array<bool, ShopItemCount> owned{{true}};
     int equipped = 0;

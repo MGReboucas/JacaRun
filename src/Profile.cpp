@@ -131,6 +131,13 @@ bool Profile::Equip(int accessory) {
     return true;
 }
 
+bool Profile::GrantLightningWelcomeBonus() {
+    if (lightningWelcomeClaimed || hasUsedLightning || lightningCharges > 994) return false;
+    lightningCharges += 5;
+    lightningWelcomeClaimed = true;
+    return true;
+}
+
 bool Profile::Load(const std::filesystem::path& path, std::string& error) {
     error.clear();
     std::error_code ec;
@@ -142,8 +149,10 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
     std::string magic;
     int version = 0;
     unsigned int mask = 0;
-    if (!(input >> magic >> version >> candidate.coins >> candidate.experience >> candidate.bestScore
-                >> candidate.bestDistance >> mask >> candidate.equipped)) {
+    std::int64_t legacyPoints = 0; // Read and discard the retired field from v1-v5.
+    if (!(input >> magic >> version >> candidate.coins >> candidate.experience) ||
+        (version <= 5 && !(input >> legacyPoints)) ||
+        !(input >> candidate.bestDistance >> mask >> candidate.equipped)) {
         error = "Save incompleto ou ilegivel. O arquivo foi preservado.";
         return false;
     }
@@ -166,9 +175,17 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
         if (candidate.achievements >= (1u << AchievementCount) || candidate.missionsCompleted < 0 ||
             candidate.missionsCompleted > limit) progressValid = false;
     }
-    if (magic != "JACARUN" || (version != 1 && version != 2 && version != 3 && version != 4) || !progressValid || (input >> extra) ||
+    if (version >= 5 && (!(input >> candidate.lightningCharges) || candidate.lightningCharges < 0 || candidate.lightningCharges > 999)) progressValid = false;
+    if (version >= 7) {
+        int claimed = 0, used = 0;
+        if (!(input >> claimed >> used) || claimed < 0 || claimed > 1 || used < 0 || used > 1)
+            progressValid = false;
+        candidate.lightningWelcomeClaimed = claimed == 1;
+        candidate.hasUsedLightning = used == 1;
+    }
+    if (magic != "JACARUN" || (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 && version != 6 && version != 7) || !progressValid || (input >> extra) ||
         candidate.coins < 0 || candidate.coins > limit || candidate.experience < 0 ||
-        candidate.experience > limit || candidate.bestScore < 0 || candidate.bestScore > limit ||
+        candidate.experience > limit || legacyPoints < 0 || legacyPoints > limit ||
         !std::isfinite(candidate.bestDistance) || candidate.bestDistance < 0 || candidate.bestDistance > limit ||
         mask > allowedMask || !(mask & 1) || candidate.equipped < 0 || candidate.equipped >= allowedEquipped ||
         !(mask & (1u << candidate.equipped))) {
@@ -191,13 +208,14 @@ bool Profile::Save(const std::filesystem::path& path, std::string& error) const 
     std::ofstream output(temporary, std::ios::trunc);
     unsigned int mask = 0;
     for (std::size_t i = 0; i < owned.size(); ++i) if (owned[i]) mask |= 1u << i;
-    output << "JACARUN 4\n" << coins << ' ' << experience << ' ' << bestScore << ' '
+    output << "JACARUN 7\n" << coins << ' ' << experience << ' '
            << std::setprecision(17) << bestDistance << ' ' << mask << ' ' << equipped << '\n';
     output << achievements << ' ' << missionsCompleted;
     for (const auto value : lifetime) output << ' ' << value;
     output << '\n';
     for (int slot = 0; slot < MissionSlots; ++slot)
         output << missionIds[slot] << ' ' << missionProgress[slot] << '\n';
+    output << lightningCharges << '\n' << lightningWelcomeClaimed << ' ' << hasUsedLightning << '\n';
     output.flush();
     const bool written = output.good();
     output.close();

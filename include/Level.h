@@ -22,7 +22,7 @@ bool IsFood(EntityType type);
 class Level {
 public:
     void Reset(std::uint32_t seed, bool procedural = true);
-    void GenerateAhead(double playerDistance, double score = 0);
+    void GenerateAhead(double playerDistance);
     void Spawn(EntityType type, double distance, double height = 0.0);
     // Retira eventos cruzados em ordem, incluindo a fronteira de colisao.
     std::vector<Entity> Crossed(double previousDistance, double currentDistance);

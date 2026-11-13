@@ -116,12 +116,20 @@ bool MainScene::init() {
         saveWarning = "Save indisponivel. Original preservado.";
     }
 
+    if (saveAllowed) {
+        const Profile previous=game.GetProfile();
+        if (game.GetProfile().GrantLightningWelcomeBonus() && !game.GetProfile().Save(savePath,error)) {
+            game.GetProfile()=previous;
+            saveWarning="Nao foi possivel guardar o presente. Tente reabrir.";
+        }
+    }
+
     auto touch = EventListenerTouchOneByOne::create();
     touch->setSwallowTouches(true);
     touch->onTouchBegan = [this](Touch* t, Event*) {
         auto p = t->getLocation();
-        if (game.IsPlaying() && hit(p)==Action::Pause) {
-            act(Action::Pause); return true;
+        if (game.IsPlaying() && (hit(p)==Action::Pause || hit(p)==Action::Lightning)) {
+            act(hit(p)); return true;
         }
         if (game.IsPlaying()) return gestures.Begin(t->getID(), {p.x, p.y}, clock);
         if (activeTouch != -1) return false;
@@ -160,6 +168,7 @@ bool MainScene::init() {
     keyboard->onKeyPressed = [this](EventKeyboard::KeyCode key, Event*) {
         using Key = EventKeyboard::KeyCode;
         if (key == Key::KEY_SPACE || key == Key::KEY_UP_ARROW || key == Key::KEY_W) act(Action::Jump);
+        if (key == Key::KEY_E) act(Action::Lightning);
         if (key == Key::KEY_DOWN_ARROW || key == Key::KEY_S) act(Action::Slide);
         if (key == Key::KEY_P || key == Key::KEY_ESCAPE || key == Key::KEY_BACK) {
             if (shop || goals || help || settings) act(Action::Back); else act(Action::Pause);
@@ -182,7 +191,7 @@ Label* MainScene::text(const std::string& value, float size, Vec2 point, Color4B
     ui->addChild(label);
     return label;
 }
-void MainScene::button(const std::string& title, Rect bounds, Action action, bool primary, float fontSize) {
+Label* MainScene::button(const std::string& title, Rect bounds, Action action, bool primary, float fontSize) {
     pill(panels, {bounds.origin.x-2,bounds.origin.y-5,bounds.size.width+4,bounds.size.height+7}, Color4F(.16f,.075f,.025f,1));
     pill(panels, bounds, primary ? Color4F(1,.68f,.12f,1) : Color4F(.48f,.23f,.075f,1));
     panels->drawSegment({bounds.getMinX()+18,bounds.getMaxY()-4},{bounds.getMaxX()-18,bounds.getMaxY()-4},1.2f,Color4F(1,.83f,.36f,.65f));
@@ -190,6 +199,7 @@ void MainScene::button(const std::string& title, Rect bounds, Action action, boo
     caption->setAlignment(TextHAlignment::CENTER);
     fitLabel(caption,bounds.size.width-32,bounds.size.height-20);
     buttons.push_back({bounds, action});
+    return caption;
 }
 MainScene::Action MainScene::hit(Vec2 point) const {
     for (const auto& b : buttons) if (b.bounds.containsPoint(point)) return b.action;
@@ -202,6 +212,7 @@ void MainScene::handleGesture(Gesture gesture) {
 }
 void MainScene::start(bool procedural) {
     entrance.Finish();
+    jacaHub=jacaSection=lightningShop=false;
     shop = goals = settings = false;
     motion.Reset(); particles.clear();
     dustTime = pickupPulse = impactTime = resultTime = toastTime = 0;
@@ -257,6 +268,23 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::ReplayTutorial: tutorialTime=0; animateTutorial(); break;
+    case Action::Lightning:
+        if (!game.IsPlaying()) break;
+        if (saveAllowed && game.UseLightning()) { save(); sound("reward"); }
+        else if(missionToast) {
+            missionToast->setString(!saveAllowed?"PROGRESSO INDISPONIVEL":game.GetSpeedSeconds()>0?"RAIO JA ESTA ATIVO":"SEM RAIOS: COMPLETE 5.000 m");
+            toastTime=3;
+        }
+        break;
+    case Action::JacaMenu:
+        if (game.GetState()==GameState::Menu) {
+            jacaHub=jacaSection=shop=true; goals=help=settings=lightningShop=false;
+            previewItem=-1; rebuildUI();
+        }
+        break;
+    case Action::LightningShop:
+        if (game.GetState()==GameState::Menu) { jacaHub=false; lightningShop=true; shop=true; goals=false; rebuildUI(); }
+        break;
     case Action::Settings: settings=true; shop=goals=help=false; rebuildUI(); break;
     case Action::Help: settings=false; help=true; rebuildUI(); break;
     case Action::Jump:
@@ -274,14 +302,21 @@ void MainScene::act(Action action) {
     case Action::ReplayStory:
         if(game.GetState()==GameState::Menu) { shop=goals=help=settings=false; story=StoryIntro{}; rebuildUI(); }
         break;
-    case Action::Menu: game.ReturnToMenu(); shop = goals = help = settings = false; save(); rebuildUI(); break;
+    case Action::Menu: jacaHub=jacaSection=lightningShop=false; game.ReturnToMenu(); shop = goals = help = settings = false; save(); rebuildUI(); break;
     case Action::Shop:
-        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; previewItem=-1; shopNotice="Toque no Jaca para experimentar de perto."; rebuildUI(); }
+        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { jacaHub=lightningShop=false; shop = true; previewItem=-1; shopNotice="Toque no Jaca para experimentar de perto."; rebuildUI(); }
         break;
-    case Action::Back: previewItem=-1; shop = goals = help = settings = false; rebuildUI(); break;
+    case Action::Back:
+        if (previewItem>=0) { previewItem=-1; rebuildUI(); break; }
+        if (jacaSection && !jacaHub) {
+            jacaHub=shop=true; lightningShop=goals=help=settings=false;
+        } else {
+            jacaHub=jacaSection=lightningShop=shop=goals=help=settings=false;
+        }
+        rebuildUI(); break;
     case Action::Goals:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
-            shop = false; goals = true; goalPage = 0; rebuildUI();
+            jacaHub=lightningShop=false; shop = false; goals = true; goalPage = 0; rebuildUI();
         }
         break;
     case Action::Missions: achievementTab=false; goalPage=0; rebuildUI(); break;
@@ -597,7 +632,8 @@ void MainScene::rebuildUI() {
     storyJaca=storyHippo=storyStage=storyContact=storyOpeningFish=nullptr; storyContactSprite=storyHippoSprite=storyJacaSprite=storyBackground=nullptr; storyLine=storyNote=storyExclamation=nullptr; storyEffects=storyFade=storyProgress=nullptr;
     tutorialJaca=tutorialObstacle=nullptr; tutorialEffects=nullptr; tutorialCaption=nullptr;
     ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr; menuBrand=nullptr;
-    score = distance = coins = status = pace = gestureHint = coinNotice = nullptr;
+    lightningButton=lightningProgress=nullptr;
+    distance = coins = status = pace = gestureHint = coinNotice = nullptr;
     missionHud = missionToast = resultGoals = nullptr;
     gestures.Cancel(); activeTouch = -1; touchAction = Action::None;
     const auto state = game.GetState();
@@ -606,6 +642,41 @@ void MainScene::rebuildUI() {
     const float bottom = std::max(26.0f, safe.getMinY() + 18.0f);
     const float center = viewHeight * .52f;
     if(story.active) { drawStory(center); return; }
+    if(jacaHub && shop) {
+        pill(panels,{24,center-255,432,510},Ink);
+        text("SEU JACA",32,{240,center+200},Cream,true);
+        text(whole(game.GetProfile().coins)+" MOEDAS   |   "+whole(game.GetProfile().lightningCharges)+" RAIOS",18,{240,center+150},Muted);
+        button("VISUAIS E MELHORIAS",{55,center+50,370,60},Action::Shop,false,21);
+        button("LOJA ONLINE",{55,center-30,370,60},Action::LightningShop,false,21);
+        button("MISSOES E CONQUISTAS",{55,center-110,370,60},Action::Goals,false,21);
+        button("VOLTAR",{140,center-215,200,48},Action::Back);
+        return;
+    }
+    if(lightningShop && shop) {
+        pill(panels,{24,center-290,432,580},Ink);
+        text("LOJA ONLINE",30,{240,center+240},Cream,true);
+        text("RAIOS: "+whole(game.GetProfile().lightningCharges)+"   |   MOEDAS: "+whole(game.GetProfile().coins),18,{240,center+195},Cream,true);
+        text("Escolha um pacote de raios ou moedas",17,{240,center+150},Muted);
+        text("RAIOS",17,{98,center+100},Cream,true);
+        text("MOEDAS",17,{240,center+100},Cream,true);
+        text("PRECO",17,{382,center+100},Cream,true);
+        for(int row=0;row<3;++row) {
+            const float y=center+55-row*48;
+            const char* rays[]={"2 raios","4 raios","10 raios"};
+            const char* packs[]={"2.000","4.500","10.000"};
+            const char* prices[]={"R$ 2,99","R$ 4,99","R$ 9,99"};
+            text(rays[row],20,{98,y},Cream,true);
+            text(packs[row],20,{240,y},Cream,true);
+            text(prices[row],20,{382,y},Cream,true);
+        }
+        text("Cada preco vale para um pacote separado.",16,{240,center-95},Muted);
+        text("Raio: 6 s de velocidade e protecao",17,{240,center-130},Muted);
+        text("Ganhe 1 a cada 5.000 m na corrida",17,{240,center-160},Muted);
+        text("Compras online em preparacao",18,{240,center-200},Cream);
+        text("Pagamento ainda indisponivel",16,{240,center-225},Muted);
+        button("VOLTAR",{140,center-280,200,44},Action::Back);
+        return;
+    }
     if(settings) {
         pill(panels,{24,center-200,432,390},Ink);
         text("CONFIGURA\u00c7\u00d5ES",30,{240,center+135},Cream,true);
@@ -764,9 +835,13 @@ void MainScene::rebuildUI() {
         brandChild(art(panels,"art/logo.png",{15,140,1510,780},{80,top-165},{320,165},1));
         pill(panels,{24,top-255,208,68},Color4F(.04f,.22f,.22f,.92f));
         text("RECORDE",13,{128,top-207},Muted,true);
-        fitLabel(text(whole(game.GetProfile().bestScore),24,{128,top-233},Cream,true),176,28);
-        button("SEU JACA\n"+whole(game.GetProfile().coins)+" MOEDAS",{248,top-255,208,68},Action::Shop,false,19);
-        button("MISS\u00d5ES E CONQUISTAS",{24,top-314,432,44},Action::Goals,false,18);
+        fitLabel(text(whole(game.GetProfile().bestDistance)+" m",24,{128,top-233},Cream,true),176,28);
+        button("SEU JACA\n"+whole(game.GetProfile().coins)+" MOEDAS",{248,top-255,208,68},Action::JacaMenu,false,19);
+        if(game.GetProfile().lightningWelcomeClaimed && !game.GetProfile().hasUsedLightning) {
+            pill(panels,{24,top-345,432,75},Color4F(.035f,.16f,.17f,.92f));
+            text("PRESENTE: 5 RAIOS PARA EXPERIMENTAR",16,{240,top-295},Cream,true);
+            text("Use o botao USAR RAIO durante a corrida",15,{240,top-324},Cream);
+        }
         menuHint=text("TOQUE NO JACA OU NO BOT\u00c3O",14,{240,viewHeight*.53f},Cream);
         menuHint->enableOutline(Color4B(28,55,22,255),2);
         button("TOQUE PARA COME\u00c7AR",{44,bottom+105,392,64},Action::Play,true,22);
@@ -778,12 +853,14 @@ void MainScene::rebuildUI() {
     }
     // A compact HUD floats over the forest; there are no gameplay buttons or reserved panels.
     pill(panels, {22, top - 62, 436, 65}, Color4F(.035f,.16f,.17f,1));
-    text("PONTOS", 16, {72, top - 10}, Muted);
-    score = text(whole(game.GetScore()), 28, {73, top - 37}, Cream, true);
-    distance = text(whole(game.GetDistance()) + " m", 24, {243, top - 30}, Cream, true);
+    text("DISTANCIA", 16, {117, top - 10}, Muted);
+    distance = text(whole(game.GetDistance()) + " m", 28, {117, top - 37}, Cream, true);
     ellipse(panels, {376, top - 29}, 9, 11, Color4F(1,.79f,.31f,1));
     coins = text(whole(game.GetRunCoins()), 24, {413, top - 29}, Color4B(255,219,122,255), true);
     if (state == GameState::Playing) {
+        lightningButton=button("RAIOS",{110,bottom+34,260,52},Action::Lightning,true,18);
+        lightningProgress=text("",13,{240,bottom+95},Cream,true);
+        lightningProgress->enableOutline(Color4B(8,32,23,255),2);
         button("II",{410,top-119,48,48},Action::Pause);
         status = text("", 18, {211, top - 101}, Cream, true);
         status->enableOutline(Color4B(8,32,23,255),2);
@@ -822,8 +899,8 @@ void MainScene::rebuildUI() {
             {130,center+202},{220,220.0f*dizzy.height/dizzy.width},1);
         text(rewards.coins>0?"OBJETIVOS CONCLU\u00cdDOS!":"MAIS UMA HISTORIA NO MANGUE",14,{240,center+184},Muted);
         text("Boa, Jaca!",40,{240,center+149},Cream,true);
-        text(whole(game.GetScore())+" pontos",32,{240,center+108},Cream,true);
-        fitLabel(text(whole(game.GetDistance())+" m  /  Recorde: "+whole(game.GetProfile().bestScore)+" pontos",16,{240,center+77},Muted),376,22);
+        text(whole(game.GetDistance())+" metros",32,{240,center+108},Cream,true);
+        fitLabel(text("Recorde: "+whole(game.GetProfile().bestDistance)+" m",16,{240,center+77},Muted),376,22);
         pill(panels,{49,center+8,382,58},Color4F(.10f,.29f,.25f,1));
         text("+"+whole(game.GetRunCoins()+rewards.coins)+" MOEDAS",25,{240,center+44},Color4B(255,219,122,255),true);
         text("Coleta: "+whole(game.GetRunCoins())+"  /  Objetivos: "+whole(rewards.coins),15,{240,center+21},Muted);
@@ -1456,7 +1533,11 @@ void MainScene::update(float dt) {
     }
     const bool wasGrounded=game.GetPlayer().IsGrounded();
     presentation.Sync(game.GetLevel().GetEntities());
+    const int previousCoins=game.GetRunCoins();
+    const int previousCharges=game.GetProfile().lightningCharges;
     game.Update(dt);
+    const int earnedLightning=game.GetProfile().lightningCharges-previousCharges;
+    if(earnedLightning>0) save();
     presentation.Resolve(game.GetFrameResolutions());
     presentation.Sync(game.GetLevel().GetEntities());
     const float activeDt = before == GameState::Playing ? dt : 0;
@@ -1490,10 +1571,6 @@ void MainScene::update(float dt) {
         const auto& e=resolution.entity;
         if(resolution.outcome==EntityOutcome::Collected) {
             const bool coin=e.type==EntityType::Coin;
-            if(coin) {
-                if(coinNoticeTime<=0) coinNoticeCount=0;
-                ++coinNoticeCount; coinNoticeTime=1.6f;
-            }
             burst({Contact,floorY+static_cast<float>(e.height)*HeightScale},
                   coin?Color4F(1,.84f,.34f,1):Color4F(.62f,.96f,.78f,1),coin?7:12);
             pickupPulse=1;
@@ -1508,6 +1585,11 @@ void MainScene::update(float dt) {
             sound("hit");
         }
     }
+    const int earnedCoins=game.GetRunCoins()-previousCoins;
+    if(earnedCoins>0) {
+        if(coinNoticeTime<=0) coinNoticeCount=0;
+        coinNoticeCount+=earnedCoins; coinNoticeTime=1.6f;
+    }
     presentation.Update(activeDt, game.GetDistance(), Contact, PixelsPerMeter);
     if (before == GameState::Playing) runTime += dt;
     if (before!=game.GetState()) {
@@ -1520,7 +1602,6 @@ void MainScene::update(float dt) {
         feedback=std::move(message); feedbackTime=2.5f;
     }
     feedbackTime=std::max(0.0f,feedbackTime-dt);
-    if (score) score->setString(whole(game.GetScore()));
     if (distance) distance->setString(whole(game.GetDistance())+" m");
     if (coins) {
         coins->setString(whole(game.GetRunCoins()));
@@ -1549,6 +1630,16 @@ void MainScene::update(float dt) {
         }
         missionToast->setOpacity(static_cast<uint8_t>(255*std::clamp(toastTime,0.0f,1.0f)));
     }
+    if(earnedLightning>0 && missionToast) {
+        missionToast->setString("+"+whole(earnedLightning)+" RAIO! TOQUE PARA USAR");
+        toastTime=4; sound("reward");
+    }
+    if(lightningButton) {
+        const auto charges=game.GetProfile().lightningCharges;
+        lightningButton->setString(game.GetSpeedSeconds()>0 ? "RAIO ATIVO  "+whole(std::ceil(game.GetSpeedSeconds()))+"s" :
+            charges>0 ? "USAR RAIO  x"+whole(charges) : "SEM RAIOS  x0");
+        lightningProgress->setString(game.GetProfile().lightningWelcomeClaimed && !game.GetProfile().hasUsedLightning ? "PRESENTE: EXPERIMENTE SEUS RAIOS!" : "PROXIMO RAIO EM "+whole(std::ceil(std::max(0.0,game.GetNextLightningDistance()-game.GetDistance())))+" m");
+    }
     if(resultGoals) {
         resultTime+=dt;
         const auto& completed=game.GetCompletedGoals();
@@ -1564,18 +1655,17 @@ void MainScene::update(float dt) {
     }
     if (pace) {
         const double meters = game.GetDistance();
-        const auto points = game.GetScore();
-        const int tier=points>=100000?9:points>=75000?8:points>=50000?7:points>=35000?6:points>=20000?5:meters>=1800?4:meters>=1100?3:meters>=550?2:meters>=180?1:0;
+        const int tier=meters>=20000?9:meters>=15000?8:meters>=10000?7:meters>=7000?6:meters>=4000?5:meters>=1800?4:meters>=1100?3:meters>=550?2:meters>=180?1:0;
         if(tier!=lastPace) {
             if(lastPace>=0) { sound("pace"); paceNoticeTime=3; }
             lastPace=tier;
         }
         pace->setColor(paceNoticeTime>0?Color3B(220,255,145):Color3B(255,219,122));
-        pace->setString(points >= 100000 ? "DOMINIO / 100.000+ PONTOS" :
-                        points >= 75000 ? "ELITE / RUMO AOS 100 MIL" :
-                        points >= 50000 ? "MUITO DIFICIL / 50.000+" :
-                        points >= 35000 ? "DIFICIL / PRESSAO CRESCENTE" :
-                        points >= 20000 ? "PRESSAO / 20.000+ PONTOS" :
+        pace->setString(meters >= 20000 ? "DOMINIO / 20.000+ m" :
+                        meters >= 15000 ? "ELITE / RUMO AOS 20.000 m" :
+                        meters >= 10000 ? "MUITO DIFICIL / 10.000+ m" :
+                        meters >= 7000 ? "DIFICIL / PRESSAO CRESCENTE" :
+                        meters >= 4000 ? "PRESSAO / 4.000+ m" :
                         meters < 180 ? "RITMO 1 / AQUECIMENTO" :
                         meters < 550 ? "RITMO 2 / SEQUENCIAS DUPLAS" :
                         meters < 1100 ? "RITMO 3 / DESAFIOS TRIPLOS" :
@@ -1584,7 +1674,7 @@ void MainScene::update(float dt) {
     }
     if (status) {
         std::string info;
-        if (!shop && game.GetFrenzySeconds()>0) info+="DIST x"+whole(game.GetFrenzyMultiplier())+" "+whole(std::ceil(game.GetFrenzySeconds()))+"s  ";
+        if (!shop && game.GetFrenzySeconds()>0) info+="MOEDAS x"+whole(game.GetFrenzyMultiplier())+" "+whole(std::ceil(game.GetFrenzySeconds()))+"s  ";
         if (!shop && game.GetShieldSeconds()>0) info+="ESCUDO "+whole(std::ceil(game.GetShieldSeconds()))+"s  ";
         if (!shop && game.GetSpeedSeconds()>0) info+="DISPARADA "+whole(std::ceil(game.GetSpeedSeconds()))+"s  ";
         if (!shop && game.GetMagnetSeconds()>0) info+="IMA "+whole(std::ceil(game.GetMagnetSeconds()))+"s  ";
@@ -1659,7 +1749,13 @@ void MainScene::smokeTick(float dt) {
     }
     if(smokeTime>57) { finishSmoke(false,"Timed out"); return; }
     const double d=game.GetDistance();
-    if(smokeStep==0 && smokeTime>.25f) { capture("27-menu-water.png"); smokeStep=60; }
+    if(smokeStep==0 && smokeTime>.25f) {
+        Profile fresh; std::string error;
+        if(game.GetProfile().lightningCharges!=5 || !fresh.Load(savePath,error) || fresh.lightningCharges!=5 || fresh.GrantLightningWelcomeBonus()) {
+            finishSmoke(false,"Welcome gift or initial save failed"); return;
+        }
+        capture("27-menu-water.png"); smokeStep=60;
+    }
     else if(smokeStep==60 && smokeTime>1.45f) { capture("28-menu-emerge.png"); smokeStep=61; }
     else if(smokeStep==61 && smokeTime>3.1f) { capture("39-menu-wave.png"); smokeStep=62; }
     else if(smokeStep==62 && smokeTime>3.75f) { capture("01-menu.png"); smokeStep=40; }
@@ -1728,7 +1824,7 @@ void MainScene::smokeTick(float dt) {
         }
         if(!smokeSlide && d>37.2) { smokeTouch({350,floorY+160},{350,floorY+95}); smokeSlide=true; }
         if(d>40.5) {
-            if(!game.IsPlaying() || game.GetObstaclesPassed()!=2 || game.GetRunCoins()!=1 || game.GetFoods()!=1) {
+            if(!game.IsPlaying() || game.GetObstaclesPassed()!=2 || game.GetRunCoins()!=2 || game.GetFoods()!=1) {
                 finishSmoke(false,"Obstacle or collection integration failed"); return;
             }
             smokePauseGesture();
@@ -1770,13 +1866,13 @@ void MainScene::smokeTick(float dt) {
         const auto bank=game.GetProfile().coins;
         save();
         Profile restored; std::string error;
-        if(bank!=1 || !restored.Load(savePath,error) || restored.coins!=bank) {
+        if(bank!=2 || !restored.Load(savePath,error) || restored.coins!=bank) {
             finishSmoke(false,"Profile persistence failed"); return;
         }
         smokeStep=6;
     } else if(smokeStep==6) {
         smokeTouch({240,viewHeight*.52f+100},{240,viewHeight*.52f+170});
-        if(!game.IsPlaying() || game.GetDistance()!=0 || game.GetProfile().coins!=1) {
+        if(!game.IsPlaying() || game.GetDistance()!=0 || game.GetProfile().coins!=2) {
             finishSmoke(false,"Restart failed"); return;
         }
         game.EndRun(); start(false);
@@ -1789,7 +1885,7 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==8 && d>24) {
         smokeTouch({350,floorY+140},{350,floorY+205}); smokeStep=9;
     } else if(smokeStep==9 && d>43) {
-        if(!game.IsPlaying() || game.GetObstaclesPassed()!=1 || game.GetRunCoins()!=3 || game.GetFoods()!=1) {
+        if(!game.IsPlaying() || game.GetObstaclesPassed()!=1 || game.GetRunCoins()!=(game.GetFrenzyMultiplier()==3?10:6) || game.GetFoods()!=1) {
             finishSmoke(false,"Distance-based jump or coin arc failed"); return;
         }
         capture("07-clearance.png");
@@ -1841,7 +1937,10 @@ void MainScene::smokeTick(float dt) {
         act(Action::Back);
         const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
         const float menuTop=std::min(viewHeight-28.0f,Director::getInstance()->getSafeAreaRect().getMaxY()-24.0f);
-        smokeTouch({240,menuTop-292},{240,menuTop-292});
+        smokeTouch({352,menuTop-221},{352,menuTop-221});
+        if(!jacaHub) { finishSmoke(false,"Seu Jaca entry button failed"); return; }
+        const float center=viewHeight*.52f;
+        smokeTouch({240,center-80},{240,center-80});
         if(!goals || shop) { finishSmoke(false,"Mission entry button failed"); return; }
         smokeStep=22;
     } else if(smokeStep==22) {
@@ -1874,16 +1973,16 @@ void MainScene::smokeTick(float dt) {
         capture("16-mission-complete.png"); smokeStep=29;
     } else if(smokeStep==29 && d>51) {
         game.EndRun(); save(); rebuildUI();
-        if(game.GetProgressRewards().coins!=1680 || game.GetProfile().coins!=19681 ||
+        if(game.GetProgressRewards().coins!=1680 || game.GetProfile().coins!=19682 ||
            game.GetProfile().missionsCompleted!=3 || game.GetProfile().achievements!=31) {
             finishSmoke(false,"Mission/achievement settlement failed"); return;
         }
         Profile restored; std::string error;
-        if(!restored.Load(savePath,error) || restored.missionsCompleted!=3 || restored.achievements!=31 || restored.coins!=19681) {
+        if(!restored.Load(savePath,error) || restored.missionsCompleted!=3 || restored.achievements!=31 || restored.coins!=19682) {
             finishSmoke(false,"Progress v3 reload failed"); return;
         }
         game.EndRun();
-        if(game.GetProfile().coins!=19681) { finishSmoke(false,"Duplicate rewards"); return; }
+        if(game.GetProfile().coins!=19682) { finishSmoke(false,"Duplicate rewards"); return; }
         smokeStep=30;
     } else if(smokeStep==30 && motion.defeat>.8f) {
         capture("17-reward-result.png"); smokeStep=31;
@@ -2127,7 +2226,8 @@ void MainScene::smokeTick(float dt) {
         const int skin=(smokeStep-600)/2;
         if((smokeStep-600)%2==0) {
             ui->removeAllChildren(); panels->clear();
-            score=distance=coins=status=pace=missionHud=missionToast=coinNotice=gestureHint=nullptr;
+            lightningButton=lightningProgress=nullptr;
+            distance=coins=status=pace=missionHud=missionToast=coinNotice=gestureHint=nullptr;
             rect(panels,{0,0,480,viewHeight},Color4F(.035f,.14f,.15f,1));
             fitLabel(text(AccessoryCatalog()[skin].name,24,{240,viewHeight-32},Cream,true),440,32);
             const float rowHeight=(viewHeight-86)/6;
@@ -2151,7 +2251,43 @@ void MainScene::smokeTick(float dt) {
             capture("68-skin-"+std::to_string(skin)+"-all-poses.png"); ++smokeStep;
         }
     } else if(smokeStep==600+CosmeticCount*2) {
-        finishSmoke(true,"Gameplay, tutorial, shop, fully dressed skins: all 384 poses and equipped run/jump/slide passed.");
+        game.ReturnToMenu(); shop=false; act(Action::JacaMenu);
+        if(!jacaHub || !shop) { finishSmoke(false,"Seu Jaca menu failed"); return; }
+        capture("67-jaca-menu.png");
+        act(Action::Goals); act(Action::Back);
+        if(!jacaHub || goals) { finishSmoke(false,"Goals did not return to Seu Jaca"); return; }
+        act(Action::Shop); act(Action::Back);
+        if(!jacaHub) { finishSmoke(false,"Looks did not return to Seu Jaca"); return; }
+        act(Action::LightningShop); act(Action::Back);
+        if(!jacaHub || lightningShop) { finishSmoke(false,"Online shop did not return to Seu Jaca"); return; }
+        act(Action::Back);
+        if(jacaHub || jacaSection || shop) { finishSmoke(false,"Seu Jaca did not return home"); return; }
+        act(Action::JacaMenu);
+        ++smokeStep;
+    } else if(smokeStep==601+CosmeticCount*2) {
+        act(Action::LightningShop);
+        capture("66-lightning-shop.png");
+        ++smokeStep;
+    } else if(smokeStep==602+CosmeticCount*2) {
+        start(false); game.GetProfile().lightningCharges=0;
+        while(game.GetDistance()<10000) game.Update(.1);
+        if(game.GetProfile().lightningCharges!=2) { finishSmoke(false,"Live lightning reward failed"); return; }
+        ++smokeStep;
+    } else if(smokeStep==603+CosmeticCount*2) {
+        if(!lightningButton || lightningButton->getString().find("x2")==std::string::npos) { finishSmoke(false,"Lightning counter stale"); return; }
+        capture("69-lightning-earned.png"); ++smokeStep;
+    } else if(smokeStep==604+CosmeticCount*2) {
+        const float bottom=std::max(26.0f,Director::getInstance()->getSafeAreaRect().getMinY()+18.0f);
+        smokeTouch({240,bottom+60},{240,bottom+60});
+        if(game.GetSpeedSeconds()<=0 || game.GetProfile().lightningCharges!=1) { finishSmoke(false,"Lightning touch failed"); return; }
+        game.Spawn(EntityType::Ground,game.GetDistance()+.1);
+        ++smokeStep;
+    } else if(smokeStep==605+CosmeticCount*2) {
+        if(!game.IsPlaying() || lightningButton->getString().find("ATIVO")==std::string::npos) { finishSmoke(false,"Lightning protection or active label failed"); return; }
+        Profile restored; std::string error;
+        if(!restored.Load(savePath,error) || restored.lightningCharges!=1 || !restored.hasUsedLightning || restored.GrantLightningWelcomeBonus()) { finishSmoke(false,"Lightning consumption save failed"); return; }
+        capture("70-lightning-active.png");
+        finishSmoke(true,"Gameplay, menus, live lightning rewards, touch activation, protection and saved inventory passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

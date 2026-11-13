@@ -6,15 +6,15 @@ namespace Balance {
 inline constexpr double InitialSpeed = 10.0;
 inline constexpr double ActionSpeed = 24.0; // Keeps jump/slide distance unchanged.
 inline constexpr double MaximumSpeed = 60.0;
-inline double ScorePressure(double score) {
-    if (score <= 20000) return 0;
-    if (score < 50000) return (score - 20000) / 45000.0;
-    if (score < 100000) return 2.0 / 3.0 + (score - 50000) / 150000.0;
+inline double DistancePressure(double meters) {
+    if (meters <= 4000) return 0;
+    if (meters < 10000) return (meters - 4000) / 9000.0;
+    if (meters < 20000) return 2.0 / 3.0 + (meters - 10000) / 30000.0;
     return 1;
 }
-inline double RunSpeed(double distance, double score) {
+inline double RunSpeed(double distance) {
     const double base = InitialSpeed + distance * .012;
-    return (base < ActionSpeed ? base : ActionSpeed) + 36.0 * ScorePressure(score);
+    return (base < ActionSpeed ? base : ActionSpeed) + 36.0 * DistancePressure(distance);
 }
 inline constexpr double SpeedPerMeter = 0.012;
 inline constexpr double Gravity = -22.0;
@@ -28,11 +28,12 @@ inline constexpr double FishBiteDistance = 4.0;
 inline constexpr double ComboSeconds = 8.0;
 inline constexpr int FoodsPerMultiplier = 3;
 inline constexpr int MaximumMultiplier = 5;
-inline constexpr int CrabPoints = 20;
-inline constexpr int FishPoints = 30;
-inline constexpr int RareFishPoints = 100;
+inline constexpr int CrabCoins = 1;
+inline constexpr int FishCoins = 2;
+inline constexpr int RareFishCoins = 5;
 inline constexpr double ShieldSeconds = 12.0;
 inline constexpr double MagnetSeconds = 10.0;
+inline constexpr double LightningRewardMeters = 5000.0;
 inline constexpr double SpeedSeconds = 6.0;
 inline constexpr double SpeedMultiplier = 2.0;
 inline constexpr double LookAhead = 180.0;

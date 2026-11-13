@@ -10,9 +10,9 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     player.Reset();
     level.Reset(seed, procedural);
     distance = 0.0;
+    nextLightningDistance = Balance::LightningRewardMeters;
     speed = Balance::InitialSpeed;
-    foodScore = 0;
-    distanceScore = frenzyRemaining = 0;
+    frenzyRemaining = 0;
     frenzyMultiplier = 1;
     combo = runCoins = foods = obstaclesPassed = 0;
     comboRemaining = shieldRemaining = magnetRemaining = speedRemaining = 0.0;
@@ -22,10 +22,6 @@ void GameManager::StartGame(std::uint32_t seed, bool procedural) {
     completedGoals.clear();
     state = GameState::Playing;
     messages.emplace_back("Jaca no mangue! Pule as raizes e agache nos galhos.");
-}
-
-std::int64_t GameManager::GetScore() const {
-    return static_cast<std::int64_t>(distanceScore) + foodScore;
 }
 
 int GameManager::GetMultiplier() const {
@@ -48,6 +44,15 @@ bool GameManager::Slide() {
     return IsPlaying() && player.Slide();
 }
 
+bool GameManager::UseLightning() {
+    if (!IsPlaying() || speedRemaining > 0 || profile.lightningCharges <= 0) return false;
+    --profile.lightningCharges;
+    profile.hasUsedLightning = true;
+    speedRemaining = Balance::SpeedSeconds;
+    messages.emplace_back("DISPARADA! Protegido por 6 segundos!");
+    return true;
+}
+
 void GameManager::TogglePause() {
     if (state == GameState::Playing) state = GameState::Paused;
     else if (state == GameState::Paused) state = GameState::Playing;
@@ -67,7 +72,7 @@ void GameManager::Update(double deltaTime) {
         const double dt = std::min(deltaTime, Balance::PhysicsStep);
         deltaTime -= dt;
         speedRemaining = std::max(0.0, speedRemaining - dt);
-        speed = Balance::RunSpeed(distance, static_cast<double>(GetScore())) * (speedRemaining > 0 ? Balance::SpeedMultiplier : 1.0);
+        speed = Balance::RunSpeed(distance) * (speedRemaining > 0 ? Balance::SpeedMultiplier : 1.0);
         player.Update(dt, speed);
         shieldRemaining = std::max(0.0, shieldRemaining - dt);
         magnetRemaining = std::max(0.0, magnetRemaining - dt);
@@ -77,8 +82,14 @@ void GameManager::Update(double deltaTime) {
         }
         const double previous = distance;
         distance += speed * dt;
-        const double boosted = std::min(dt, frenzyRemaining);
-        distanceScore += speed * (dt + boosted * (frenzyMultiplier - 1));
+        while (distance >= nextLightningDistance) {
+            nextLightningDistance += Balance::LightningRewardMeters;
+            if (profile.lightningCharges < 999) {
+                ++profile.lightningCharges;
+                completedGoals.emplace_back("5.000 m percorridos: +1 raio");
+                messages.emplace_back("+1 RAIO! Ja pode usar nesta corrida.");
+            }
+        }
         frenzyRemaining = std::max(0.0, frenzyRemaining - dt);
         if (frenzyRemaining == 0) frenzyMultiplier = 1;
         for (const Entity& entity : level.Crossed(previous, distance)) {
@@ -87,7 +98,7 @@ void GameManager::Update(double deltaTime) {
         }
         if (IsPlaying()) {
             for(const auto& fish:level.TakeBiteableFish(distance,player.GetPositionY()+.5)) Resolve(fish,true);
-            level.GenerateAhead(distance, static_cast<double>(GetScore()));
+            level.GenerateAhead(distance);
         }
     }
 }
@@ -98,6 +109,10 @@ void GameManager::Spawn(EntityType type, double atDistance, double height) {
 
 void GameManager::Resolve(const Entity& entity, bool bitten) {
     if (IsObstacle(entity.type)) {
+        if (speedRemaining > 0) {
+            frameResolutions.push_back({entity, EntityOutcome::Passed});
+            return;
+        }
         const bool safe = RequiresJump(entity.type)
             ? player.GetPositionY() >= Balance::GroundClearance
             : player.IsGrounded() && player.IsSliding();
@@ -126,8 +141,8 @@ void GameManager::Resolve(const Entity& entity, bool bitten) {
         std::abs(player.GetPositionY() + 0.5 - entity.height) <= Balance::PickupReach;
     if (entity.type == EntityType::Coin && (reachable || magnetRemaining > 0.0)) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
-        ++runCoins;
-        messages.emplace_back("+1 moeda");
+        runCoins += GetFrenzyMultiplier();
+        messages.emplace_back("+" + std::to_string(GetFrenzyMultiplier()) + " moedas");
     } else if (IsFood(entity.type)) {
         if (!reachable) {
             frameResolutions.push_back({entity, EntityOutcome::Missed});
@@ -137,27 +152,27 @@ void GameManager::Resolve(const Entity& entity, bool bitten) {
         ++foods;
         ++combo;
         comboRemaining = Balance::ComboSeconds + (profile.owned[ComboUpgrade] ? 2.0 : 0.0);
-        const int base = entity.type == EntityType::Crab ? Balance::CrabPoints
-                       : entity.type == EntityType::Fish ? Balance::FishPoints : Balance::RareFishPoints;
-        const int points = base * GetMultiplier();
-        foodScore += points;
+        const int base = entity.type == EntityType::Crab ? Balance::CrabCoins
+                       : entity.type == EntityType::Fish ? Balance::FishCoins : Balance::RareFishCoins;
+        const int coins = base * GetMultiplier();
+        runCoins += coins;
         if (entity.type == EntityType::Fish || entity.type == EntityType::RareFish) {
             const bool rare = entity.type == EntityType::RareFish;
             frenzyMultiplier = std::max(GetFrenzyMultiplier(), rare ? 3 : 2);
             frenzyRemaining = std::max(frenzyRemaining, (rare ? 10.0 : 6.0) +
                                       (profile.owned[FrenzyUpgrade] ? 3.0 : 0.0));
-            messages.emplace_back("FRENESI: pontos de distancia x" + std::to_string(frenzyMultiplier));
+            messages.emplace_back("FRENESI: moedas do percurso x" + std::to_string(frenzyMultiplier));
         }
-        messages.emplace_back(std::string(EntityName(entity.type)) + ": +" + std::to_string(points) +
-                              " pontos | combo " + std::to_string(combo) + " x" + std::to_string(GetMultiplier()));
+        messages.emplace_back(std::string(EntityName(entity.type)) + ": +" + std::to_string(coins) +
+                              " moedas | combo " + std::to_string(combo) + " x" + std::to_string(GetMultiplier()));
     } else if (reachable && entity.type == EntityType::Shield) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         shieldRemaining = Balance::ShieldSeconds;
         messages.emplace_back("Escudo: protege de uma batida por ate 12 segundos.");
     } else if (reachable && entity.type == EntityType::Speed) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
-        speedRemaining = Balance::SpeedSeconds;
-        messages.emplace_back("DISPARADA! Velocidade em dobro por 6 segundos!");
+        profile.lightningCharges = std::min(999, profile.lightningCharges + 1);
+        messages.emplace_back("Raio guardado! Use o botao durante a corrida.");
     } else if (reachable && entity.type == EntityType::Magnet) {
         frameResolutions.push_back({entity, EntityOutcome::Collected});
         magnetRemaining = Balance::MagnetSeconds + (profile.owned[MagnetUpgrade] ? 4.0 : 0.0);
@@ -174,8 +189,7 @@ void GameManager::EndRun(const std::string& reason) {
     const auto oldLevel = profile.GetLevel();
     profile.coins += runCoins;
     profile.experience += xp;
-    if (GetScore() > profile.bestScore) {
-        profile.bestScore = GetScore();
+    if (distance > profile.bestDistance) {
         messages.emplace_back("NOVO RECORDE!");
     }
     profile.bestDistance = std::max(profile.bestDistance, distance);

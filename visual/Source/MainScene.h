@@ -42,7 +42,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, Preview0, Preview1, Preview2, ClosePreview, PreviewPrevious, PreviewNext, EquipPreview, ReplayTutorial, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
+    enum class Action { None, JacaMenu, Lightning, LightningShop, Preview0, Preview1, Preview2, ClosePreview, PreviewPrevious, PreviewNext, EquipPreview, ReplayTutorial, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -113,7 +113,8 @@ private:
     ax::DrawNode* world = nullptr;
     ax::DrawNode* panels = nullptr;
     ax::Node* ui = nullptr;
-    ax::Label* score = nullptr;
+    ax::Label* lightningButton = nullptr;
+    ax::Label* lightningProgress = nullptr;
     ax::Label* distance = nullptr;
     ax::Label* coins = nullptr;
     ax::Label* status = nullptr;
@@ -122,6 +123,9 @@ private:
     std::vector<Button> buttons;
     std::filesystem::path savePath;
     bool saveAllowed = true;
+    bool jacaHub = false;
+    bool jacaSection = false;
+    bool lightningShop = false;
     bool shop = false;
     bool upgradeShop = false;
     int shopPage = 0;
@@ -153,7 +157,7 @@ private:
     void sound(const char* name);
     ax::Label* text(const std::string& value, float size, ax::Vec2 point,
                     ax::Color4B color = ax::Color4B(247, 243, 219, 255), bool bold = false);
-    void button(const std::string& title, ax::Rect bounds, Action action, bool primary = false, float fontSize = 21);
+    ax::Label* button(const std::string& title, ax::Rect bounds, Action action, bool primary = false, float fontSize = 21);
     void smokeTick(float dt);
     void capture(const std::string& name);
     void smokeTouch(ax::Vec2 from, ax::Vec2 to);

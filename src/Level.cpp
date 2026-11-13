@@ -52,7 +52,7 @@ void Level::Spawn(EntityType type, double distance, double height) {
     });
 }
 
-void Level::GenerateAhead(double playerDistance, double score) {
+void Level::GenerateAhead(double playerDistance) {
     if (!generate) return;
     while (nextEncounter < playerDistance + Balance::LookAhead) {
         // Difficulty follows this run, never the saved profile: retries start gently.
@@ -70,9 +70,9 @@ void Level::GenerateAhead(double playerDistance, double score) {
             {EntityType::Ground, EntityType::Ground, EntityType::High},
             {EntityType::High, EntityType::Ground, EntityType::High}
         };
-        const double pressure = Balance::ScorePressure(score);
+        const double pressure = Balance::DistancePressure(nextEncounter);
         const int baseCount = pattern < 2 ? 1 : pattern < 4 ? 2 : 3;
-        const int count = score >= 20000 ? std::max(baseCount, 3 + static_cast<int>(pressure * 5)) : baseCount;
+        const int count = nextEncounter >= 4000 ? std::max(baseCount, 3 + static_cast<int>(pressure * 5)) : baseCount;
         // Fixed action travel leaves recovery distance even at extreme speed.
         const double actionGap = Balance::ActionSpeed * (1.65 - .30 * intensity) - 2.4 * pressure;
         double at = nextEncounter;
@@ -105,7 +105,7 @@ void Level::GenerateAhead(double playerDistance, double score) {
         // A short reward/recovery lane separates combinations.
         ++encounterCount;
         if (encounterCount % 4 == 0) {
-            Spawn((encounterCount / 4) % 3 == 0 ? EntityType::Speed : (encounterCount / 4) % 3 == 2 ? EntityType::Magnet : EntityType::Shield,
+            Spawn((encounterCount / 4) % 2 == 0 ? EntityType::Magnet : EntityType::Shield,
                   at + 29.0, 0.5);
         }
         // Espacamento permite terminar uma acao antes do proximo obstaculo.

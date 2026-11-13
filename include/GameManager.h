@@ -18,6 +18,7 @@ public:
     void Update(double deltaTime);
     bool Jump();
     bool Slide();
+    bool UseLightning();
     void TogglePause();
     void EndRun(const std::string& reason = "Corrida encerrada.");
     void ReturnToMenu();
@@ -35,7 +36,6 @@ public:
     Profile& GetProfile() { return profile; }
     double GetDistance() const { return distance; }
     double GetSpeed() const { return speed; }
-    std::int64_t GetScore() const;
     int GetCombo() const { return combo; }
     int GetMultiplier() const;
     int GetRunCoins() const { return runCoins; }
@@ -45,6 +45,7 @@ public:
     const std::vector<std::string>& GetCompletedGoals() const { return completedGoals; }
     std::int64_t GetMissionProgress(int slot) const;
     double GetShieldSeconds() const { return shieldRemaining; }
+    double GetNextLightningDistance() const { return nextLightningDistance; }
     double GetSpeedSeconds() const { return speedRemaining; }
     double GetMagnetSeconds() const { return magnetRemaining; }
     double GetFrenzySeconds() const { return frenzyRemaining; }
@@ -61,8 +62,6 @@ private:
     Profile profile;
     double distance = 0.0;
     double speed = 0.0;
-    std::int64_t foodScore = 0;
-    double distanceScore = 0;
     double frenzyRemaining = 0;
     int frenzyMultiplier = 1;
     int combo = 0;
@@ -73,6 +72,7 @@ private:
     double shieldRemaining = 0.0;
     double magnetRemaining = 0.0;
     double speedRemaining = 0.0;
+    double nextLightningDistance = 5000.0;
     std::vector<std::string> messages;
     std::vector<EntityResolution> frameResolutions;
     ProgressRewards progressRewards;

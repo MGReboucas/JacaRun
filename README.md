@@ -1,5 +1,17 @@
 # JACARUN
 
+**0.9.29 ? Presente de boas-vindas:** +5 raios, uma ?nica vez por perfil, para experimentar durante a corrida. O presente ? salvo ao abrir o jogo, antes do primeiro uso; fechar e reabrir n?o repete. Save v7 registra concess?o e uso. Perfis v1?v6 recebem o presente uma vez na migra??o, pois n?o tinham hist?rico de uso. Estoque anterior e progresso preservados. APK: `output/JacaRun-0.9.29-debug.apk`.
+
+**0.9.28 ? Dist?ncia como medida da corrida:** pontua??o removida do n?cleo, HUD, resultados, recordes e novos saves. Metros ? esquerda, moedas ? direita; dificuldade aumenta somente pela dist?ncia (press?o extra dos 4.000 aos 20.000 m). Alimentos d?o moedas (caranguejo 1, peixe 2, raro 5), multiplicadas pelo combo. Peixes ativam moedas do percurso x2/x3; as melhorias continuam ?teis. Save v6 migra v1?v5, descartando apenas a antiga pontua??o e preservando progresso. Raios continuam a cada 5.000 m. As notas de vers?es anteriores abaixo s?o hist?ricas. APK: `output/JacaRun-0.9.28-debug.apk`.
+
+**0.9.27 ? Raios durante a corrida:** cada 5.000 metros concede imediatamente uma carga (10.000 m = 2, 15.000 m = 3). O contador atualiza durante a partida, mostra a dist?ncia at? o pr?ximo raio e a dura??o quando ativo. Toque sem estoque explica a meta. A recompensa n?o ? repetida ao encerrar. Pontos n?o contam como metros. APK: `output/JacaRun-0.9.27-debug.apk`.
+
+**0.9.26 ? Menu Seu Jaca:** re?ne Visuais e melhorias, Loja online e Miss?es e conquistas. Voltar de cada se??o retorna ao Seu Jaca; voltar do Seu Jaca retorna ? tela inicial. APK: `output/JacaRun-0.9.26-debug.apk`.
+
+**0.9.25 ? Pacotes de moedas:** loja online re?ne raios e moedas, vendidos separadamente pelos mesmos pre?os. Moedas: 2.000 por R$ 2,99; 4.500 por R$ 4,99; 10.000 por R$ 9,99. A cobran?a e a entrega continuam indispon?veis at? a integra??o do servidor e do Mercado Pago. APK: `output/JacaRun-0.9.25-debug.apk`.
+
+**0.9.24 ? Raios guardados:** bot?o durante a corrida (tecla E no PC), velocidade dupla e prote??o contra obst?culos por 6 s. Uma carga por corrida encerrada com pelo menos 5.000 m; n?o aparece mais automaticamente no percurso. Estoque salvo em v5, com leitura de v1?v4. Loja de raios no menu com pre?os propostos (2/R$ 2,99; 4/R$ 4,99; 10/R$ 9,99). **Pagamento ainda indispon?vel:** faltam servidor, identidade online do jogador e integra??o com a conta vendedora. Nenhuma cobran?a ou entrega paga ? simulada.
+
 **Atualização 0.9.16:** a pausa abre a mesma tela de Configurações do menu inicial. Voltar retorna à pausa, e a partida permanece parada enquanto o som é ajustado. APK: `output/JacaRun-0.9.16-debug.apk`.
 
 **Atualização 0.9.15 — margens dos menus:** mais espaço nos rodapés de missões/conquistas, loja e ajuda; conteúdo dos cartões limitado à área interna; botões com margens mínimas de 16 na horizontal e 10 na vertical. Textos longos e páginas de recompensas respeitam seus limites. APK: `output/JacaRun-0.9.15-debug.apk`.

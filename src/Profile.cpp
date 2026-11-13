@@ -96,6 +96,15 @@ const std::array<Accessory, ShopItemCount>& AccessoryCatalog() {
         {"Bandana vermelha", 15000, "Uma marca de persistencia. Visual."},
         {"Coroa do mangue", 30000, "Conquiste seu reinado. Visual."},
         {"Capacete lunar", 50000, "Para quem foi longe demais. Visual."},
+        {"Bandana oceano", 3500, "Azul para correr junto da mare."},
+        {"Oculos sunset", 6500, "Lentes quentes de fim de tarde."},
+        {"Chapeu de explorador", 11000, "Uma nova trilha a cada corrida."},
+        {"Coroa de gelo", 18000, "Brilho gelado no calor do mangue."},
+        {"Cartola da noite", 24000, "Elegancia em cada passada."},
+        {"Capitao do mangue", 32000, "O tesouro esta no caminho."},
+        {"Ninja da floresta", 42000, "Passos leves, olhar atento."},
+        {"Antenas cosmicas", 60000, "Sintonizado em outra galaxia."},
+        {"Rei solar", 85000, "O brilho maximo da colecao."},
         {"F\u00f4lego do combo", 12000, "Combo dura +2 s sem comer."},
         {"\u00cdm\u00e3 duradouro", 20000, "Cada \u00edm\u00e3 coletado dura +4 s."},
         {"Frenesi prolongado", 35000, "B\u00f4nus dos peixes dura +3 s."}
@@ -140,10 +149,10 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
     }
     std::string extra;
     constexpr std::int64_t limit = 1000000000000LL;
-    const unsigned int allowedMask = version == 1 ? 15u : (1u << ShopItemCount) - 1;
-    const int allowedEquipped = version == 1 ? 4 : CosmeticCount;
+    const unsigned int allowedMask = version == 1 ? 15u : version < 4 ? 1023u : (1u << ShopItemCount) - 1;
+    const int allowedEquipped = version == 1 ? 4 : version < 4 ? 7 : CosmeticCount;
     bool progressValid = true;
-    if (version == 3) {
+    if (version >= 3) {
         if (!(input >> candidate.achievements >> candidate.missionsCompleted)) progressValid = false;
         for (auto& value : candidate.lifetime)
             if (!(input >> value) || value < 0 || value > limit) progressValid = false;
@@ -157,7 +166,7 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
         if (candidate.achievements >= (1u << AchievementCount) || candidate.missionsCompleted < 0 ||
             candidate.missionsCompleted > limit) progressValid = false;
     }
-    if (magic != "JACARUN" || (version != 1 && version != 2 && version != 3) || !progressValid || (input >> extra) ||
+    if (magic != "JACARUN" || (version != 1 && version != 2 && version != 3 && version != 4) || !progressValid || (input >> extra) ||
         candidate.coins < 0 || candidate.coins > limit || candidate.experience < 0 ||
         candidate.experience > limit || candidate.bestScore < 0 || candidate.bestScore > limit ||
         !std::isfinite(candidate.bestDistance) || candidate.bestDistance < 0 || candidate.bestDistance > limit ||
@@ -166,6 +175,7 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
         error = "Save invalido ou de versao incompativel. O arquivo foi preservado.";
         return false;
     }
+    if (version < 4) mask = (mask & 127u) | ((mask >> 7) << CosmeticCount);
     for (std::size_t i = 0; i < candidate.owned.size(); ++i) candidate.owned[i] = (mask & (1u << i)) != 0;
     *this = candidate;
     return true;
@@ -181,7 +191,7 @@ bool Profile::Save(const std::filesystem::path& path, std::string& error) const 
     std::ofstream output(temporary, std::ios::trunc);
     unsigned int mask = 0;
     for (std::size_t i = 0; i < owned.size(); ++i) if (owned[i]) mask |= 1u << i;
-    output << "JACARUN 3\n" << coins << ' ' << experience << ' ' << bestScore << ' '
+    output << "JACARUN 4\n" << coins << ' ' << experience << ' ' << bestScore << ' '
            << std::setprecision(17) << bestDistance << ' ' << mask << ' ' << equipped << '\n';
     output << achievements << ' ' << missionsCompleted;
     for (const auto value : lifetime) output << ' ' << value;

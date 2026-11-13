@@ -728,8 +728,37 @@ void NearbyFishBites() {
     }
 }
 
+void ExpandedShopPersistence() {
+    const auto path=std::filesystem::temp_directory_path()/"jacarun-expanded-shop-test.save";
+    std::string error;
+    for(int version:{2,3}) {
+        std::ofstream out(path);
+        out << "JACARUN " << version << "\n777 200 3000 2200 1023 6\n";
+        if(version==3) out << "0 0 0 0 0 0 0\n0 0\n1 0\n2 0\n";
+        out.close();
+        Profile old; CHECK(old.Load(path,error));
+        CHECK(old.coins==777 && old.equipped==6);
+        CHECK(old.owned[ComboUpgrade] && old.owned[MagnetUpgrade] && old.owned[FrenzyUpgrade]);
+        for(int id=7;id<CosmeticCount;++id) CHECK(!old.owned[id]);
+    }
+    Profile profile;
+    for(int id=1;id<ShopItemCount;++id) {
+        profile.coins=AccessoryCatalog()[id].price-1;
+        CHECK(!profile.Buy(id));
+        ++profile.coins;
+        CHECK(profile.Buy(id) && profile.coins==0);
+        CHECK(!profile.Buy(id));
+        CHECK(profile.Equip(id)==(id<CosmeticCount));
+    }
+    CHECK(profile.Save(path,error));
+    Profile restored; CHECK(restored.Load(path,error));
+    CHECK(restored.owned==profile.owned && restored.equipped==CosmeticCount-1);
+    std::filesystem::remove(path);
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
+        {"catalogo expandido e migracao v2/v3", ExpandedShopPersistence},
         {"disparada: velocidade, pausa, expiracao e reinicio", SpeedPowerLifecycle}, {"mordida por proximidade", NearbyFishBites}, {"acoes do jogador", PlayerActions}, {"queda rapida e deslize automatico", DiveIntoSlide}, {"pulo interrompe deslize", SlideIntoJump}, {"fisica por tempo", TimeBasedPhysics},
         {"cruzamento e consumo unico", CrossingAndConsumption}, {"colisao terrestre", GroundCollisions},
         {"colisao superior", HighCollisions}, {"alimentos e combos", FoodAndCombos},

@@ -28,6 +28,7 @@
 #include "EnvironmentCycle.h"
 #include "CharacterAnimation.h"
 #include "CharacterAtlas.h"
+#include "CosmeticArt.h"
 #include "StoryAtlas.h"
 #include "StoryContactAtlas.h"
 #include "audio/AudioEngine.h"
@@ -240,6 +241,22 @@ void MainScene::act(Action action) {
             }
         }
         break;
+    case Action::Preview0: case Action::Preview1: case Action::Preview2:
+        previewItem=shopPage*3+static_cast<int>(action)-static_cast<int>(Action::Preview0);
+        if(previewItem>=CosmeticCount) previewItem=-1;
+        rebuildUI(); break;
+    case Action::ClosePreview: previewItem=-1; rebuildUI(); break;
+    case Action::PreviewPrevious: previewItem=(previewItem+CosmeticCount-1)%CosmeticCount; rebuildUI(); break;
+    case Action::PreviewNext: previewItem=(previewItem+1)%CosmeticCount; rebuildUI(); break;
+    case Action::EquipPreview:
+        if(previewItem>=0 && previewItem<CosmeticCount) {
+            if(game.GetProfile().owned[previewItem] || game.BuyAccessory(previewItem)) {
+                game.EquipAccessory(previewItem); shopNotice="Visual equipado!"; save();
+            } else shopNotice="Faltam "+whole(AccessoryCatalog()[previewItem].price-game.GetProfile().coins)+" moedas.";
+            rebuildUI();
+        }
+        break;
+    case Action::ReplayTutorial: tutorialTime=0; animateTutorial(); break;
     case Action::Settings: settings=true; shop=goals=help=false; rebuildUI(); break;
     case Action::Help: settings=false; help=true; rebuildUI(); break;
     case Action::Jump:
@@ -259,9 +276,9 @@ void MainScene::act(Action action) {
         break;
     case Action::Menu: game.ReturnToMenu(); shop = goals = help = settings = false; save(); rebuildUI(); break;
     case Action::Shop:
-        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; shopNotice="Escolha seu visual. Deixe sua marca!"; rebuildUI(); }
+        if (!game.IsPlaying() && game.GetState() != GameState::Paused) { shop = true; previewItem=-1; shopNotice="Toque no Jaca para experimentar de perto."; rebuildUI(); }
         break;
-    case Action::Back: shop = goals = help = settings = false; rebuildUI(); break;
+    case Action::Back: previewItem=-1; shop = goals = help = settings = false; rebuildUI(); break;
     case Action::Goals:
         if (!game.IsPlaying() && game.GetState() != GameState::Paused) {
             shop = false; goals = true; goalPage = 0; rebuildUI();
@@ -277,7 +294,7 @@ void MainScene::act(Action action) {
         }
         if(!soundEnabled) { AudioEngine::stopAll(); musicId=-1; } else sound("coin");
         rebuildUI(); break;
-    case Action::Looks: upgradeShop=false; shopPage=0; shopNotice="Visuais mudam o estilo do seu Jaca."; rebuildUI(); break;
+    case Action::Looks: upgradeShop=false; shopPage=0; shopNotice="Toque no Jaca para experimentar de perto."; rebuildUI(); break;
     case Action::Upgrades: upgradeShop=true; shopPage=0; shopNotice="Melhorias permanentes para ir mais longe."; rebuildUI(); break;
     case Action::Previous:
         if(goals) goalPage=std::max(0,goalPage-1); else if(shop) shopPage=std::max(0,shopPage-1); else if(resultPage>0) --resultPage;
@@ -510,8 +527,74 @@ void MainScene::animateStory() {
     if(fade>0) rect(storyFade,{0,0,480,h},Color4F(.015f,.07f,.08f,fade));
 }
 
+void MainScene::animateTutorial() {
+    if(!tutorialJaca || !tutorialEffects) return;
+    const float loop=std::fmod(tutorialTime,12.0f);
+    const int beat=static_cast<int>(loop/4);
+    const float t=std::fmod(loop,4.0f);
+    const bool paused=beat==2 && t>=1.4f && t<3.2f;
+    const float travel=beat==2 ? (t<1.4f?t:t<3.2f?1.4f:t-1.8f) : t;
+    const bool jump=beat==0 && t>1 && t<2.7f;
+    const bool slide=beat==1 && t>1 && t<2.7f;
+    const float flight=jump?std::sin((t-1)/1.7f*3.14159265f):0;
+    const int frame=jump?((t<1.55f)?0:(t<2.1f)?1:2):slide?3:static_cast<int>(travel*10)%8;
+    const auto crop=(jump||slide)?ActionCrops[frame]:RunCrops[frame];
+    tutorialJaca->setTexture((jump||slide)?"art/jaca-actions-v2.png":"art/jaca-run-v2.png");
+    tutorialJaca->setTextureRect(Rect(crop.x,crop.y,crop.width,crop.height));
+    tutorialJaca->setScale((slide?48.0f:100.0f)/crop.height);
+    tutorialJaca->setPosition({112,84+flight*92});
+    tutorialObstacle->setVisible(beat!=2);
+    tutorialObstacle->setTextureRect(beat==0?Rect(8,110,365,305):Rect(1155,125,375,295));
+    tutorialObstacle->setScaleX((beat==0?54.0f:84.0f)/tutorialObstacle->getTextureRect().size.width);
+    tutorialObstacle->setScaleY((beat==0?42.0f:80.0f)/tutorialObstacle->getTextureRect().size.height);
+    tutorialObstacle->setPosition({std::clamp(320-travel*110, -55.0f,345.0f),beat==0?84.0f:142.0f});
+    tutorialCaption->setString(beat==0?"1 / 3   PULO":beat==1?"2 / 3   DESLIZE":paused?"3 / 3   PAUSADO":"3 / 3   PAUSA E RETOMADA");
+    auto d=tutorialEffects; d->clear();
+    // Playback timeline and moving scenery stop with the demonstrated pause.
+    for(int i=0;i<7;++i) {
+        float x=std::fmod(i*65.0f-travel*110+650,430.0f)-15;
+        d->drawSegment({x,66},{x+18,66},1.4f,Color4F(1,.83f,.34f,.65f));
+    }
+    for(int i=0;i<3;++i) {
+        rect(d,{10+i*130.0f,10,120,4},Color4F(1,1,1,.25f));
+        if(i<=beat) rect(d,{10+i*130.0f,10,120*(i<beat?1:t/4),4},Lime);
+    }
+    if(beat<2 && t<1.5f) {
+        const float gesture=std::clamp((t-.25f)/.85f,0.0f,1.0f);
+        const float from=beat==0?120.0f:220.0f, to=beat==0?220.0f:120.0f;
+        d->drawSegment({330,from},{330,to},2,Color4F(1,1,1,.7f));
+        const float arrow=beat==0?-10.0f:10.0f;
+        d->drawSegment({330,to},{323,to+arrow},2,Color4F(1,1,1,.9f));
+        d->drawSegment({330,to},{337,to+arrow},2,Color4F(1,1,1,.9f));
+        const Vec2 finger(330,from+(to-from)*gesture);
+        ellipse(d,finger,17,17,Color4F(1,1,1,.24f));
+        ellipse(d,finger,9,9,Color4F(1,.89f,.64f,1));
+    }
+    if(beat==2) {
+        pill(d,{342,222,44,44},Ink);
+        rect(d,{354,235,5,19},Color4F(1,1,1,1));
+        rect(d,{367,235,5,19},Color4F(1,1,1,1));
+        if(t>.65f && t<1.65f) {
+            const float approach=std::clamp((t-.65f)/.75f,0.0f,1.0f);
+            const Vec2 finger(364,195+49*approach);
+            ellipse(d,finger,17,17,Color4F(1,1,1,.3f));
+            ellipse(d,finger,9,9,Color4F(1,.89f,.64f,1));
+        }
+        if(paused) {
+            pill(d,{151,137,100,52},Color4F(.025f,.14f,.15f,.92f));
+            Vec2 play[]={{193,151},{193,175},{215,163}};
+            d->drawSolidPoly(play,3,Lime);
+            if(t>2.6f) {
+                ellipse(d,{204,160},18,18,Color4F(1,1,1,.3f));
+                ellipse(d,{204,160},8,8,Color4F(1,.89f,.64f,1));
+            }
+        }
+    }
+}
+
 void MainScene::rebuildUI() {
     storyJaca=storyHippo=storyStage=storyContact=storyOpeningFish=nullptr; storyContactSprite=storyHippoSprite=storyJacaSprite=storyBackground=nullptr; storyLine=storyNote=storyExclamation=nullptr; storyEffects=storyFade=storyProgress=nullptr;
+    tutorialJaca=tutorialObstacle=nullptr; tutorialEffects=nullptr; tutorialCaption=nullptr;
     ui->removeAllChildren(); panels->clear(); buttons.clear(); menuHint=nullptr; menuBrand=nullptr;
     score = distance = coins = status = pace = gestureHint = coinNotice = nullptr;
     missionHud = missionToast = resultGoals = nullptr;
@@ -533,26 +616,32 @@ void MainScene::rebuildUI() {
         return;
     }
     if(help) {
-        pill(panels,{20,center-354,440,684},Ink);
-        text("COMO JOGAR",32,{240,center+270},Cream,true);
-        text("Aprenda no seu ritmo",20,{240,center+227},Muted);
-        const char* titles[]={"1. PULE","2. DESLIZE","3. PAUSE"};
-        const char* details[]={"Para cima: pule os obst\u00e1culos.\nTamb\u00e9m funciona agachado.",
-                              "Para baixo: deslize sob galhos.\nNo ar: des\u00e7a e deslize.",
-                              "Toque em II no canto da tela.\nDois dedos tamb\u00e9m pausam."};
-        for(int row=0;row<3;++row) {
-            const float y=center+105-row*110.0f;
-            pill(panels,{40,y-32,400,99},Color4F(.08f,.25f,.24f,1));
-            fitLabel(text(titles[row],22,{240,y+41},Color4B(199,240,100,255),true),368,28);
-            auto instructions=text(details[row],19,{240,y-1},Cream);
-            instructions->setAlignment(TextHAlignment::CENTER); fitLabel(instructions,368,40);
-        }
-        text("Moedas compram visuais e melhorias.\nPegue os peixes que saltam da \u00e1gua.",17,{240,center-186},Muted)->setAlignment(TextHAlignment::CENTER);
-        button("VAMOS CORRER",{55,center-273,370,56},Action::Play,true);
-        button("VOLTAR",{150,center-324,180,44},Action::Back);
+        tutorialTime=0;
+        pill(panels,{20,center-382,440,682},Ink);
+        text("VEJA O JACA EM A\u00c7\u00c3O",27,{240,center+251},Cream,true);
+        text("Um toque de aventura",18,{240,center+215},Muted);
+        auto stage=Node::create(); ui->addChild(stage);
+        stage->setPosition({40,center-100});
+        auto background=Sprite::create("art/mangue.png");
+        background->setAnchorPoint({0,0}); background->setPosition({0,0});
+        background->setScaleX(400/background->getContentSize().width);
+        background->setScaleY(280/background->getContentSize().height); stage->addChild(background);
+        auto ground=DrawNode::create(); stage->addChild(ground);
+        rect(ground,{0,0,400,65},Color4F(.07f,.45f,.43f,1));
+        rect(ground,{0,58,400,22},Color4F(.43f,.28f,.13f,1));
+        rect(ground,{0,78,400,6},Color4F(.78f,.94f,.39f,1));
+        tutorialObstacle=Sprite::create("art/objects-atlas.png",Rect(8,110,365,305));
+        tutorialObstacle->setAnchorPoint({.5f,0}); stage->addChild(tutorialObstacle);
+        tutorialJaca=Sprite::create("art/jaca-run-v2.png");
+        tutorialJaca->setAnchorPoint({.5f,0}); stage->addChild(tutorialJaca);
+        tutorialEffects=DrawNode::create(); stage->addChild(tutorialEffects,3);
+        tutorialCaption=text("",22,{240,center-135},Color4B(199,240,100,255),true);
+        button("REVER",{55,center-214,370,56},Action::ReplayTutorial,false,21);
+        button("VAMOS CORRER",{55,center-286,370,56},Action::Play,true);
+        button("VOLTAR",{55,center-358,370,56},Action::Back,false,21);
+        animateTutorial();
         return;
-    }
-    if (goals) {
+    }    if (goals) {
         const auto& profile = game.GetProfile();
         pill(panels, {20, center-360, 440, 690}, Color4F(.035f,.17f,.18f,1));
         text("CADA CORRIDA CONTA", 16, {240,center+293}, Muted);
@@ -585,6 +674,27 @@ void MainScene::rebuildUI() {
         fitLabel(text(saveWarning.empty()?"B\u00f4nus creditados ao encerrar a corrida.":saveWarning,13,{240,center-330},Muted),392,22);
         return;
     }
+    if(shop && previewItem>=0) {
+        const auto& profile=game.GetProfile();
+        const auto& item=AccessoryCatalog()[previewItem];
+        rect(panels,{0,0,480,viewHeight},Color4F(.015f,.07f,.08f,.65f));
+        pill(panels,{20,center-350,440,680},Ink);
+        text("PROVADOR DO JACA",15,{240,center+290},Muted,true);
+        fitLabel(text(item.name,29,{240,center+252},Cream,true),396,36);
+        text("Veja como fica no seu parceiro",17,{240,center+213},Muted);
+        ellipse(panels,{240,center+40},150,148,Color4F(.10f,.29f,.24f,1));
+        ellipse(panels,{240,center-105},101,16,Color4F(.018f,.09f,.08f,.8f));
+        drawCrocodile({250,center-101},2.10f,panels,previewItem);
+        button("<",{36,center+8,48,48},Action::PreviewPrevious);
+        button(">",{396,center+8,48,48},Action::PreviewNext);
+        const bool owned=profile.owned[previewItem],equipped=profile.equipped==previewItem;
+        text(owned?(equipped?"EQUIPADO":"NA SUA COLECAO"):whole(item.price)+" MOEDAS",20,{240,center-149},Color4B(255,219,122,255),true);
+        button(equipped?"EM USO":owned?"EQUIPAR":"COMPRAR E EQUIPAR",{55,center-226,370,56},equipped?Action::None:Action::EquipPreview,true,20);
+        button("VOLTAR A LOJA",{55,center-298,370,56},Action::ClosePreview,false,20);
+        const std::string balance=!owned && profile.coins<item.price ? "Faltam "+whole(item.price-profile.coins)+" moedas" : "Seu saldo: "+whole(profile.coins)+" moedas";
+        fitLabel(text(balance,15,{240,center-326},Muted),390,22);
+        return;
+    }
     if (shop) {
         const auto& profile=game.GetProfile();
         const int pages=(CosmeticCount+2)/3;
@@ -592,7 +702,7 @@ void MainScene::rebuildUI() {
         rect(panels,{0,0,480,viewHeight},Color4F(.015f,.07f,.08f,.48f));
         pill(panels,{18,center-367,444,703},Color4F(.25f,.39f,.24f,1));
         pill(panels,{21,center-364,438,697},Color4F(.035f,.14f,.15f,1));
-        art(panels,"art/jaca-portrait.png",{0,0,512,512},{39,center+237},{72,72},1);
+        art(panels,"art/jaca-idle-v2.png",{96,94,240,240},{39,center+237},{72,72},1);
         text("LOJA DO MANGUE",14,{126,center+296},gold,true)->setAnchorPoint({0,.5f});
         fitLabel(text("Seu Jaca, seu estilo",28,{126,center+266},Cream,true),310,36)->setAnchorPoint({0,.5f});
         pill(panels,{40,center+198,400,34},Color4F(.09f,.26f,.23f,1));
@@ -601,9 +711,6 @@ void MainScene::rebuildUI() {
         fitLabel(text("SUAS CONQUISTAS RENDEM",12,{424,center+215},Muted),164,20)->setAnchorPoint({1,.5f});
         button("VISUAIS",{40,center+145,192,44},Action::Looks,!upgradeShop);
         button("MELHORIAS",{248,center+145,192,44},Action::Upgrades,upgradeShop);
-        const char* descriptions[]={"O parceiro de toda aventura.","Sol na cara? Vai de boné.",
-            "Estilo de sangue frio.","Pronto para explorar o mangue.","Um toque de coragem.",
-            "O mangue tem um novo rei.","Seu estilo foi longe demais!"};
         for(int row=0;row<3;++row) {
             const int id=(upgradeShop?CosmeticCount:shopPage*3)+row;
             if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
@@ -614,20 +721,20 @@ void MainScene::rebuildUI() {
             const float y=center+22-row*110.0f;
             pill(panels,{35,y-1,410,103},active?Color4F(.48f,.67f,.27f,1):Color4F(.16f,.34f,.29f,1));
             pill(panels,{37,y+1,406,99},active?Color4F(.10f,.29f,.23f,1):Color4F(.065f,.22f,.21f,1));
-            pill(panels,{44,y+8,101,83},Color4F(.035f,.15f,.16f,1));
+            ellipse(panels,{105,y+48},65,44,Color4F(.11f,.32f,.27f,1));
             if(upgradeShop) {
                 ellipse(panels,{94,y+53},30,30,Color4F(.13f,.37f,.30f,1));
                 const char* symbols[]={"+2s","+4s","+3s"};
                 const char* effects[]={"COMBO","IMA","FRENESI"};
                 text(symbols[row],25,{94,y+56},gold,true);
                 text(effects[row],12,{94,y+23},mint,true);
-            } else drawCrocodile({91,y+14},.68f,panels,id);
-            auto name=text(item.name,20,{155,y+80},Cream,true);
-            fitLabel(name,272,26)->setAnchorPoint({0,.5f});
-            auto detail=text(upgradeShop?item.description:descriptions[id],13,{155,y+57},Muted);
-            fitLabel(detail,272,21)->setAnchorPoint({0,.5f});
+            } else { ellipse(panels,{108,y+9},39,5,Color4F(.015f,.08f,.07f,.55f)); drawCrocodile({111,y+8},.80f,panels,id); buttons.push_back({Rect(44,y+4,128,94),static_cast<Action>(static_cast<int>(Action::Preview0)+row)}); }
+            auto name=text(item.name,19,{181,y+80},Cream,true);
+            fitLabel(name,246,26)->setAnchorPoint({0,.5f});
+            auto detail=text(item.description,12,{181,y+57},Muted);
+            fitLabel(detail,246,21)->setAnchorPoint({0,.5f});
             const std::string price=owned?(equipped?"SEU FAVORITO":upgradeShop?"PERMANENTE":"NA COLECAO"):whole(item.price)+" moedas";
-            fitLabel(text(price,14,{155,y+24},owned?mint:gold,true),133,22)->setAnchorPoint({0,.5f});
+            fitLabel(text(price,13,{181,y+24},owned?mint:gold,true),112,22)->setAnchorPoint({0,.5f});
             const std::string caption=active?(upgradeShop?"ATIVA":"EM USO"):owned?"EQUIPAR":"COMPRAR";
             if(active) {
                 pill(panels,{300,y+5,130,40},Color4F(.17f,.36f,.25f,1));
@@ -638,7 +745,7 @@ void MainScene::rebuildUI() {
             if(shopPage>0) button("<",{40,center-253,55,44},Action::Previous);
             text("COLECAO  "+whole(shopPage+1)+" / "+whole(pages),14,{240,center-232},Muted);
             if(shopPage+1<pages) button(">",{385,center-253,55,44},Action::Next);
-            if(shopPage==pages-1) {
+            if(shopPage==pages-1 && CosmeticCount%3==1) {
                 text("Cada corrida, um novo estilo.",22,{240,center-40},Cream,true);
                 text("Junte moedas e complete sua colecao!",16,{240,center-73},Muted);
             }
@@ -662,7 +769,7 @@ void MainScene::rebuildUI() {
         menuHint=text("TOQUE NO JACA OU NO BOT\u00c3O",14,{240,viewHeight*.53f},Cream);
         menuHint->enableOutline(Color4B(28,55,22,255),2);
         button("TOQUE PARA COME\u00c7AR",{44,bottom+105,392,64},Action::Play,true,22);
-        button("COMO JOGAR",{24,bottom+14,144,54},Action::Help,false,16);
+        button("TUTORIAL",{24,bottom+14,144,54},Action::Help,false,16);
         button("INTRO",{176,bottom+14,84,54},Action::ReplayStory,false,16);
         button("CONFIGURA\u00c7\u00d5ES",{268,bottom+14,188,54},Action::Settings,false,16);
         if (!saveWarning.empty()) text(saveWarning, 13, {240, bottom-7}, Color4B(255,194,116,255));
@@ -692,10 +799,6 @@ void MainScene::rebuildUI() {
         coinNotice = text("",30,{240,top-285},Color4B(255,224,128,255),true);
         coinNotice->enableOutline(Color4B(8,27,25,255),3);
         missionToast->enableOutline(Color4B(13,47,42,230),2);
-        gestureHint = text("ARRASTE PARA CIMA: PULO\nPARA BAIXO: DESLIZE  /  2 DEDOS: PAUSA\nPEGUE OS PEIXES QUANDO SALTAREM",
-                           17, {240, bottom + 49}, Cream);
-        gestureHint->setAlignment(TextHAlignment::CENTER);
-        gestureHint->enableOutline(Color4B(13,47,42,210), 1);
         return;
     }
     // Let the impact, recoil and collapse read before covering the lane with results.
@@ -861,10 +964,15 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
     const bool defeated=!target && game.GetState()==GameState::GameOver;
     auto pose=AnimateJaca(motion,idle,!airborne,sliding,game.GetPlayer().IsDiving(),defeated,
         game.GetPlayer().GetVelocityY(),target==menuActor && !chaseEntry?entrance.time:-1);
+    if(previewAccessory>=0) { pose.atlas=JacaAtlas::Idle; pose.frame=0; pose.width=84; pose.height=103; pose.angle=pose.bob=0; pose.scaleX=pose.scaleY=1; }
     const auto& bounds=pose.atlas==JacaAtlas::Run?RunCrops[pose.frame]:
                        pose.atlas==JacaAtlas::Idle?IdleCrops[pose.frame]:ActionCrops[pose.frame];
+    const int accessory=previewAccessory>=0?previewAccessory:game.GetProfile().equipped;
     const char* file=pose.atlas==JacaAtlas::Run?"art/jaca-run-v2.png":
                      pose.atlas==JacaAtlas::Idle?"art/jaca-idle-v2.png":"art/jaca-actions-v2.png";
+    if(accessory>0)
+        file=pose.atlas==JacaAtlas::Run?"art/jaca-run-bare-v1.png":
+             pose.atlas==JacaAtlas::Idle?"art/jaca-idle-bare-v1.png":"art/jaca-actions-bare-v1.png";
     const Rect crop(static_cast<float>(bounds.x),static_cast<float>(bounds.y),
                     static_cast<float>(bounds.width),static_cast<float>(bounds.height));
     // Keep pixel density stable across stride frames instead of stretching every pose to a box.
@@ -890,30 +998,7 @@ void MainScene::drawCrocodile(Vec2 feet, float scale, DrawNode* target, int prev
             decor->drawSolidPoly(star,8,Color4F(1,.82f,.13f,1));
         }
     }
-    const int accessory=previewAccessory>=0?previewAccessory:game.GetProfile().equipped;
-    // Cosmetic overlays use atlas-local coordinates, so previews and gameplay share the same look.
-    const Vec2 eye(crop.size.width*.73f,crop.size.height*.67f);
-    const Vec2 cap(crop.size.width*.57f,crop.size.height*.87f);
-    if(accessory==1) {
-        ellipse(decor,cap,43,18,Color4F(1,.58f,.08f,.95f));
-    } else if(accessory==2) {
-        ellipse(decor,eye,26,19,Ink);
-        decor->drawSegment(eye-Vec2(35,-7),eye+Vec2(25,7),5,Ink);
-        decor->drawSegment(eye+Vec2(3,9),eye+Vec2(15,15),3,Color4F(.5f,.9f,1,1));
-    } else if(accessory==3) {
-        ellipse(decor,cap,65,12,Color4F(.85f,.62f,.24f,1));
-        rect(decor,{cap.x-33,cap.y,66,32},Color4F(.97f,.78f,.36f,1));
-    } else if(accessory==4) {
-        decor->drawSegment(cap-Vec2(36,8),cap+Vec2(38,-8),8,Color4F(.9f,.06f,.12f,1));
-        decor->drawSegment(cap-Vec2(30,8),cap-Vec2(62,32),8,Color4F(.9f,.06f,.12f,1));
-    } else if(accessory==5) {
-        Vec2 crown[]={cap+Vec2(-38,0),cap+Vec2(-45,45),cap+Vec2(-17,27),cap+Vec2(0,58),cap+Vec2(18,27),cap+Vec2(44,45),cap+Vec2(37,0)};
-        decor->drawSolidPoly(crown,7,Color4F(1,.8f,.14f,1));
-        ellipse(decor,cap+Vec2(0,12),7,9,Color4F(.95f,.1f,.12f,1));
-    } else if(accessory==6) {
-        decor->drawCircle(eye,82,0,48,false,Color4F(.65f,.92f,1,.9f));
-        ellipse(decor,eye+Vec2(45,45),9,21,Color4F(.8f,.98f,1,.65f));
-    }
+    DrawJacaAccessory(decor,accessory,pose.atlas,pose.frame,bounds);
     if(shield) {
         // Transparent front surface, luminous rim and counter-rotating energy trails.
         ellipse(drawing,shieldCenter,shieldX*.97f,shieldY*.97f,Color4F(.36f,.88f,1,.055f*shieldAlpha));
@@ -1330,6 +1415,7 @@ void MainScene::update(float dt) {
     // Clamp a slow frame instead of teleporting through obstacles after a stall.
     dt=std::clamp(dt,0.0f,0.1f);
     clock += dt;
+    if(help && tutorialJaca) { tutorialTime+=dt; animateTutorial(); }
     soundCooldown=std::max(0.0f,soundCooldown-dt);
     const auto before=game.GetState();
     if(story.active) {
@@ -1598,10 +1684,19 @@ void MainScene::smokeTick(float dt) {
     }
     else if(smokeStep==41 && smokeTime>0.7f) {
         if(!help) { finishSmoke(false,"Help did not open"); return; }
-        capture("20-help.png"); smokeStep=42;
+                tutorialTime=1.8f; animateTutorial(); capture("20-help.png"); smokeStep=420;
     }
-    else if(smokeStep==42 && smokeTime>0.85f) { act(Action::Back); smokeStep=1; }
-    else if(smokeStep==1 && smokeTime>0.9f) {
+    else if(smokeStep==420) {
+        tutorialTime=5.8f; animateTutorial(); capture("62-tutorial-slide.png"); smokeStep=421;
+    }
+    else if(smokeStep==421) {
+        tutorialTime=10.0f; animateTutorial(); capture("63-tutorial-pause.png"); smokeStep=42;
+    }
+    else if(smokeStep==42 && smokeTime>0.85f) {
+        act(Action::ReplayTutorial);
+        if(tutorialTime!=0) { finishSmoke(false,"Tutorial replay failed"); return; }
+        act(Action::Back); smokeStep=1;
+    }    else if(smokeStep==1 && smokeTime>0.9f) {
         start(false);
         const auto safe=Director::getInstance()->getSafeAreaRect();
         const float top=std::min(viewHeight-28.0f,safe.getMaxY()-24.0f);
@@ -1990,7 +2085,40 @@ void MainScene::smokeTick(float dt) {
         if(story.active) { finishSmoke(false,"Story repeated after run"); return; }
         for(const char* file:{"art/bento-story-v1.png","art/jaca-story-v1.png","art/story-creek-v1.png","art/jaca-actions-v2.png"})
             if(!Director::getInstance()->getTextureCache()->getTextureForKey(file)) { finishSmoke(false,"Story or defeat art missing"); return; }
-        finishSmoke(true,"Gameplay, defeat image, integrated Dourado poses, bite sequence, protective Bento, chase, replay and skip passed.");
+        act(Action::Shop); shopPage=0; upgradeShop=false; rebuildUI();
+        smokeTouch({105,viewHeight*.52f+65},{105,viewHeight*.52f+65});
+        if(previewItem!=0) { finishSmoke(false,"Cosmetic fitting room did not open"); return; }
+        smokeStep=500;
+    }
+    if(smokeStep>=500 && smokeStep<=531) {
+        const int item=(smokeStep-500)/2;
+        if((smokeStep-500)%2==0) {
+            previewItem=item; rebuildUI(); ++smokeStep;
+        } else {
+            capture("64-fitting-"+std::to_string(item)+".png");
+            if(item==CosmeticCount-1) {
+                const auto wallet=game.GetProfile().coins;
+                act(Action::EquipPreview);
+                if(!game.GetProfile().owned[6] && game.GetProfile().coins!=wallet) {
+                    finishSmoke(false,"Unaffordable fitting changed wallet"); return;
+                }
+
+                smokeStep=532;
+            } else ++smokeStep;
+        }
+    } else if(smokeStep==532) {
+        act(Action::ClosePreview);
+        if(previewItem!=-1 || !shop) { finishSmoke(false,"Fitting back failed"); return; }
+        game.GetProfile().owned[1]=true; game.EquipAccessory(1);
+        shop=false; start(false); smokeStep=533;
+    } else if(smokeStep==533 && d>1) {
+        capture("65-cosmetic-run.png"); game.Jump(); smokeStep=534;
+    } else if(smokeStep==534 && game.GetPlayer().GetPositionY()>1.3) {
+        capture("66-cosmetic-jump.png"); game.Slide(); smokeStep=535;
+    } else if(smokeStep==535 && game.GetPlayer().IsGrounded()) {
+        capture("67-cosmetic-slide.png"); smokeStep=536;
+    } else if(smokeStep==536) {
+        finishSmoke(true,"Gameplay, tutorial, shop, fitting room, equipped run/jump/slide and story passed.");
     }
     if(smokeStep>=2 && smokeStep<=3 && game.GetState()==GameState::GameOver)
         finishSmoke(false,"Unexpected early collision");

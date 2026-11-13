@@ -42,7 +42,7 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
+    enum class Action { None, Preview0, Preview1, Preview2, ClosePreview, PreviewPrevious, PreviewNext, EquipPreview, ReplayTutorial, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -95,6 +95,12 @@ private:
     int coinNoticeCount = 0, lastPace = -1;
     bool goals = false, achievementTab = false;
     bool help = false;
+    float tutorialTime = 0;
+    ax::Sprite* tutorialJaca = nullptr;
+    ax::Sprite* tutorialObstacle = nullptr;
+    ax::DrawNode* tutorialEffects = nullptr;
+    ax::Label* tutorialCaption = nullptr;
+    void animateTutorial();
     bool settings = false;
     int goalPage = 0;
     std::size_t resultPage = 0;
@@ -119,6 +125,7 @@ private:
     bool shop = false;
     bool upgradeShop = false;
     int shopPage = 0;
+    int previewItem = -1;
     std::string shopNotice = "Compras permanentes com moedas da corrida.";
     std::string saveWarning;
     ax::Vec2 touchStart;

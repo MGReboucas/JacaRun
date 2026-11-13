@@ -12,9 +12,9 @@ struct Accessory {
     const char* description;
 };
 
-inline constexpr int CosmeticCount = 7;
-inline constexpr int ShopItemCount = 10;
-inline constexpr int ComboUpgrade = 7, MagnetUpgrade = 8, FrenzyUpgrade = 9;
+inline constexpr int CosmeticCount = 16;
+inline constexpr int ShopItemCount = 19;
+inline constexpr int ComboUpgrade = CosmeticCount, MagnetUpgrade = CosmeticCount + 1, FrenzyUpgrade = CosmeticCount + 2;
 const std::array<Accessory, ShopItemCount>& AccessoryCatalog();
 
 enum class GoalMetric { Distance, Coins, Obstacles, Foods, Runs, BestDistance };

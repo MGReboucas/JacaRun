@@ -166,6 +166,36 @@ void ellipse(DrawNode* d, Vec2 p, float rx, float ry, Color4F color) {
 void rect(DrawNode* d, Rect r, Color4F color) {
     d->drawSolidRect(r.origin, r.origin + Vec2(r.size.width, r.size.height), color);
 }
+// Each successive pack adds an icon; combos show both rewards together.
+void shopThumbnail(DrawNode* d, Vec2 center, const OnlineShopItem& item, int tier) {
+    ellipse(d,center,31,27,Color4F(.035f,.18f,.18f,1));
+    const bool combo=item.coins>0 && item.rays>0;
+    const int count=std::clamp(tier+1,1,9);
+    auto reward=[&](bool coin, float offset) {
+        const float scale=combo?.66f:1.0f;
+        const int columns=combo?2:3;
+        const int rows=(count+columns-1)/columns;
+        for(int i=0;i<count;++i) {
+            const int row=i/columns;
+            const int inRow=std::min(columns,count-row*columns);
+            const Vec2 p=center+Vec2(offset+(i%columns-(inRow-1)*.5f)*17*scale,
+                                     ((rows-1)*.5f-row)*15*scale);
+            if(coin) {
+                ellipse(d,p+Vec2(0,-2*scale),7.5f*scale,8*scale,Color4F(.66f,.35f,.06f,1));
+                ellipse(d,p,7.5f*scale,8*scale,Color4F(1,.76f,.18f,1));
+                ellipse(d,p,5.2f*scale,5.8f*scale,Color4F(1,.9f,.43f,1));
+                rect(d,{p.x-scale,p.y-3*scale,2*scale,6*scale},Color4F(.77f,.45f,.08f,1));
+            } else {
+                const Vec2 shape[]={{2,10},{-7,-1},{-1,-1},{-3,-10},{7,2},{1,2}};
+                Vec2 vertices[6];
+                for(int j=0;j<6;++j) vertices[j]=p+shape[j]*scale;
+                d->drawSolidPoly(vertices,6,Color4F(1,.86f,.24f,1));
+            }
+        }
+    };
+    if(item.coins>0) reward(true,combo?-14.0f:0.0f);
+    if(item.rays>0) reward(false,combo?14.0f:0.0f);
+}
 void pill(DrawNode* d, Rect r, Color4F color) {
     const float radius = std::min({r.size.height / 2, r.size.width / 2, 18.0f});
     std::vector<Vec2> outline;
@@ -774,14 +804,14 @@ void MainScene::rebuildUI() {
         text("SEU JACA",32,{240,center+200},Cream,true);
         text(whole(game.GetProfile().coins)+" MOEDAS   |   "+whole(game.GetProfile().lightningCharges)+" RAIOS",18,{240,center+150},Muted);
         button("VISUAIS E MELHORIAS",{55,center+50,370,60},Action::Shop,false,21);
-        button("LOJA ONLINE",{55,center-30,370,60},Action::LightningShop,false,21);
-        button("MISSOES E CONQUISTAS",{55,center-110,370,60},Action::Goals,false,21);
+        button("MISSOES E CONQUISTAS",{55,center-30,370,60},Action::Goals,false,21);
+        button("LOJA DO JACA",{55,center-110,370,60},Action::LightningShop,false,21);
         button("VOLTAR",{140,center-215,200,48},Action::Back);
         return;
     }
     if(lightningShop && shop) {
         pill(panels,{24,center-310,432,600},Ink);
-        text("LOJA ONLINE",30,{240,center+240},Cream,true);
+        fitLabel(text("LOJA DO JACA",30,{240,center+240},Cream,true),392,38);
         text("RAIOS: "+whole(game.GetProfile().lightningCharges)+"   |   MOEDAS: "+whole(game.GetProfile().coins),18,{240,center+195},Cream,true);
         button("RAIOS",{40,center+132,124,44},Action::OnlineRays,onlineTab==0,19);
         button("MOEDAS",{178,center+132,124,44},Action::OnlineCoins,onlineTab==1,19);
@@ -792,13 +822,19 @@ void MainScene::rebuildUI() {
             const float y=center+55-row*74;
             const auto& item=OnlineShopCatalog[onlineTab*OnlineShopItemsPerTab+onlinePage*OnlineShopPageSize+row];
             pill(panels,{40,y-31,400,68},Color4F(.07f,.25f,.25f,1));
-            text(item.title,onlineTab==2?16:21,{172,y+13},Cream,true);
-            text(item.price,20,{172,y-14},Color4B(199,240,100,255),true);
+            shopThumbnail(panels,{79,y+3},item,onlinePage*OnlineShopPageSize+row);
+            std::string title=item.title;
+            if(onlineTab==2) {
+                const auto plus=title.find(" + ");
+                if(plus!=std::string::npos) title.replace(plus,3," +\n");
+            }
+            fitLabel(text(title,onlineTab==2?17:21,{209,y+14},Cream,true),184,35);
+            fitLabel(text(item.price,20,{209,y-16},Color4B(199,240,100,255),true),184,23);
             button(onlineBusy?"AGUARDE":"COMPRAR",{310,y-22,116,44},static_cast<Action>(static_cast<int>(Action::OnlineBuy0)+row),false,17);
         }
-        if(onlinePage>0) button("ANTERIOR",{40,center-172,126,36},Action::OnlinePrevious,false,16);
+        if(onlinePage>0) button("<",{40,center-172,126,36},Action::OnlinePrevious);
         text(std::to_string(onlinePage+1)+" / "+std::to_string(OnlineShopPageCount),17,{240,center-154},Cream,true);
-        if(onlinePage+1<OnlineShopPageCount) button("PROXIMA",{314,center-172,126,36},Action::OnlineNext,false,16);
+        if(onlinePage+1<OnlineShopPageCount) button(">",{314,center-172,126,36},Action::OnlineNext);
         button(onlineBusy?"AGUARDE...":"VERIFICAR COMPRAS",{70,center-223,340,38},Action::VerifyPurchases,false,18);
         text(onlineNotice,14,{240,center-242},Cream);
         button("VOLTAR",{140,center-296,200,40},Action::Back);

@@ -1,0 +1,164 @@
+[
+  {
+    "sku": "rays_2",
+    "cents": 299,
+    "rays": 2,
+    "coins": 0
+  },
+  {
+    "sku": "rays_4",
+    "cents": 499,
+    "rays": 4,
+    "coins": 0
+  },
+  {
+    "sku": "rays_10",
+    "cents": 999,
+    "rays": 10,
+    "coins": 0
+  },
+  {
+    "sku": "rays_20",
+    "cents": 1799,
+    "rays": 20,
+    "coins": 0
+  },
+  {
+    "sku": "rays_30",
+    "cents": 2499,
+    "rays": 30,
+    "coins": 0
+  },
+  {
+    "sku": "rays_50",
+    "cents": 3999,
+    "rays": 50,
+    "coins": 0
+  },
+  {
+    "sku": "rays_70",
+    "cents": 4999,
+    "rays": 70,
+    "coins": 0
+  },
+  {
+    "sku": "rays_85",
+    "cents": 5999,
+    "rays": 85,
+    "coins": 0
+  },
+  {
+    "sku": "rays_100",
+    "cents": 6999,
+    "rays": 100,
+    "coins": 0
+  },
+  {
+    "sku": "coins_2000",
+    "cents": 299,
+    "rays": 0,
+    "coins": 2000
+  },
+  {
+    "sku": "coins_4500",
+    "cents": 499,
+    "rays": 0,
+    "coins": 4500
+  },
+  {
+    "sku": "coins_10000",
+    "cents": 999,
+    "rays": 0,
+    "coins": 10000
+  },
+  {
+    "sku": "coins_25000",
+    "cents": 1999,
+    "rays": 0,
+    "coins": 25000
+  },
+  {
+    "sku": "coins_50000",
+    "cents": 3499,
+    "rays": 0,
+    "coins": 50000
+  },
+  {
+    "sku": "coins_100000",
+    "cents": 5999,
+    "rays": 0,
+    "coins": 100000
+  },
+  {
+    "sku": "coins_250000",
+    "cents": 12999,
+    "rays": 0,
+    "coins": 250000
+  },
+  {
+    "sku": "coins_500000",
+    "cents": 22999,
+    "rays": 0,
+    "coins": 500000
+  },
+  {
+    "sku": "coins_1000000",
+    "cents": 39999,
+    "rays": 0,
+    "coins": 1000000
+  },
+  {
+    "sku": "combo_small",
+    "cents": 539,
+    "rays": 2,
+    "coins": 2000
+  },
+  {
+    "sku": "combo_medium",
+    "cents": 899,
+    "rays": 4,
+    "coins": 4500
+  },
+  {
+    "sku": "combo_large",
+    "cents": 1799,
+    "rays": 10,
+    "coins": 10000
+  },
+  {
+    "sku": "combo_20_25000",
+    "cents": 3419,
+    "rays": 20,
+    "coins": 25000
+  },
+  {
+    "sku": "combo_30_50000",
+    "cents": 5399,
+    "rays": 30,
+    "coins": 50000
+  },
+  {
+    "sku": "combo_50_100000",
+    "cents": 8999,
+    "rays": 50,
+    "coins": 100000
+  },
+  {
+    "sku": "combo_70_250000",
+    "cents": 16199,
+    "rays": 70,
+    "coins": 250000
+  },
+  {
+    "sku": "combo_85_500000",
+    "cents": 26099,
+    "rays": 85,
+    "coins": 500000
+  },
+  {
+    "sku": "combo_100_1000000",
+    "cents": 42299,
+    "rays": 100,
+    "coins": 1000000
+  }
+]

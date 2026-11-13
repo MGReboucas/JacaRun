@@ -33,6 +33,39 @@ import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 
 public class AppActivity extends AxmolActivity {
+    // Invoked on a native worker thread. Never override the platform trust manager or hostname verifier.
+    public static String shopRequest(String address, String token, String body, String key) {
+        javax.net.ssl.HttpsURLConnection connection = null;
+        try {
+            java.net.URL url = new java.net.URL(address);
+            if (!"https".equals(url.getProtocol()) || url.getUserInfo() != null) return "";
+            connection = (javax.net.ssl.HttpsURLConnection) url.openConnection();
+            connection.setInstanceFollowRedirects(false);
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(15000);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Authorization", "Bearer " + token);
+            connection.setRequestProperty("Idempotency-Key", key);
+            if (!body.isEmpty()) {
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                try (java.io.OutputStream out = connection.getOutputStream()) {
+                    out.write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+            }
+            int status = connection.getResponseCode();
+            if (status < 200 || status >= 300) return "";
+            try (java.io.InputStream in = connection.getInputStream(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096]; int n;
+                while ((n = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, n);
+                    if (out.size() > 65536) return "";
+                }
+                return out.toString("UTF-8");
+            }
+        } catch (Exception ignored) { return ""; }
+        finally { if (connection != null) connection.disconnect(); }
+    }
     static {
         // DNT remove, some android simulator require explicit load shared libraries, otherwise will crash
         SharedLoader.load();

@@ -1,5 +1,11 @@
 # JACARUN
 
+**0.9.32 — Pacotes maiores:** 27 opções em três abas, cada uma com três páginas. Raios até 100, moedas até 1.000.000 e combos equivalentes com cerca de 10% de desconto. Catálogo compartilhado entre jogo e servidor em `server/catalog.json`; gerar o cabeçalho com `node scripts/generate-shop-catalog.mjs`. [Quantidades e preços](docs/CATALOGO_LOJA.md). APK de teste: `output/JacaRun-0.9.32-debug.apk`. Pagamentos nas lojas móveis continuam desativados.
+
+**0.9.31 — Loja por categoria:** abas Raios, Moedas e Combos. Cada pacote mostra quantidade, preço e botão Comprar. Combos de 2 raios + 2.000 moedas (R$ 5,39), 4 + 4.500 (R$ 8,99) e 10 + 10.000 (R$ 17,99), com cerca de 10% de desconto. Compras nas lojas móveis continuam indisponíveis até integrar o faturamento nativo. APK: `output/JacaRun-0.9.31-debug.apk`.
+
+**Loja online — integração em desenvolvimento:** 27 pacotes em três abas e verificação de compras, API Node/SQLite, Checkout Pro, validação de webhook e entrega idempotente. Save v8 mantém o progresso anterior e os totais pagos. A loja permanece desativada até configurar domínio HTTPS, credenciais e homologar pagamentos. O inventário ainda é local/offline. [Configuração, testes e limites](server/README.md).
+
 **0.9.29 ? Presente de boas-vindas:** +5 raios, uma ?nica vez por perfil, para experimentar durante a corrida. O presente ? salvo ao abrir o jogo, antes do primeiro uso; fechar e reabrir n?o repete. Save v7 registra concess?o e uso. Perfis v1?v6 recebem o presente uma vez na migra??o, pois n?o tinham hist?rico de uso. Estoque anterior e progresso preservados. APK: `output/JacaRun-0.9.29-debug.apk`.
 
 **0.9.28 ? Dist?ncia como medida da corrida:** pontua??o removida do n?cleo, HUD, resultados, recordes e novos saves. Metros ? esquerda, moedas ? direita; dificuldade aumenta somente pela dist?ncia (press?o extra dos 4.000 aos 20.000 m). Alimentos d?o moedas (caranguejo 1, peixe 2, raro 5), multiplicadas pelo combo. Peixes ativam moedas do percurso x2/x3; as melhorias continuam ?teis. Save v6 migra v1?v5, descartando apenas a antiga pontua??o e preservando progresso. Raios continuam a cada 5.000 m. As notas de vers?es anteriores abaixo s?o hist?ricas. APK: `output/JacaRun-0.9.28-debug.apk`.

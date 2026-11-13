@@ -138,6 +138,16 @@ bool Profile::GrantLightningWelcomeBonus() {
     return true;
 }
 
+bool Profile::ApplyPaidTotals(std::int64_t totalCoins, std::int64_t totalRays) {
+    constexpr std::int64_t limit = 1000000000000LL;
+    if (totalCoins < paidCoins || totalRays < paidRays || totalCoins > limit || totalRays > limit ||
+        totalCoins-paidCoins > limit-coins || totalRays-paidRays > 999-lightningCharges) return false;
+    coins += totalCoins-paidCoins;
+    lightningCharges += static_cast<int>(totalRays-paidRays);
+    paidCoins = totalCoins; paidRays = totalRays;
+    return true;
+}
+
 bool Profile::Load(const std::filesystem::path& path, std::string& error) {
     error.clear();
     std::error_code ec;
@@ -183,7 +193,13 @@ bool Profile::Load(const std::filesystem::path& path, std::string& error) {
         candidate.lightningWelcomeClaimed = claimed == 1;
         candidate.hasUsedLightning = used == 1;
     }
-    if (magic != "JACARUN" || (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 && version != 6 && version != 7) || !progressValid || (input >> extra) ||
+    if (version >= 8) {
+        if (!(input >> candidate.shopToken >> candidate.paidCoins >> candidate.paidRays) ||
+            candidate.paidCoins < 0 || candidate.paidCoins > limit || candidate.paidRays < 0 || candidate.paidRays > limit) progressValid = false;
+        if (candidate.shopToken == "-") candidate.shopToken.clear();
+        else if (candidate.shopToken.size() != 64 || candidate.shopToken.find_first_not_of("0123456789abcdef") != std::string::npos) progressValid = false;
+    }
+    if (magic != "JACARUN" || version < 1 || version > 8 || !progressValid || (input >> extra) ||
         candidate.coins < 0 || candidate.coins > limit || candidate.experience < 0 ||
         candidate.experience > limit || legacyPoints < 0 || legacyPoints > limit ||
         !std::isfinite(candidate.bestDistance) || candidate.bestDistance < 0 || candidate.bestDistance > limit ||
@@ -208,7 +224,7 @@ bool Profile::Save(const std::filesystem::path& path, std::string& error) const 
     std::ofstream output(temporary, std::ios::trunc);
     unsigned int mask = 0;
     for (std::size_t i = 0; i < owned.size(); ++i) if (owned[i]) mask |= 1u << i;
-    output << "JACARUN 7\n" << coins << ' ' << experience << ' '
+    output << "JACARUN 8\n" << coins << ' ' << experience << ' '
            << std::setprecision(17) << bestDistance << ' ' << mask << ' ' << equipped << '\n';
     output << achievements << ' ' << missionsCompleted;
     for (const auto value : lifetime) output << ' ' << value;
@@ -216,6 +232,7 @@ bool Profile::Save(const std::filesystem::path& path, std::string& error) const 
     for (int slot = 0; slot < MissionSlots; ++slot)
         output << missionIds[slot] << ' ' << missionProgress[slot] << '\n';
     output << lightningCharges << '\n' << lightningWelcomeClaimed << ' ' << hasUsedLightning << '\n';
+    output << (shopToken.empty() ? "-" : shopToken) << ' ' << paidCoins << ' ' << paidRays << '\n';
     output.flush();
     const bool written = output.good();
     output.close();

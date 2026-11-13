@@ -613,7 +613,7 @@ void LegacyPointsMigration() {
     Profile profile; std::string error; CHECK(profile.Load(path,error));
     CHECK(profile.coins==777 && profile.experience==650 && profile.bestDistance==1906 && profile.lightningCharges==3);
     CHECK(profile.Save(path,error));
-    { std::ifstream in(path); std::string magic; int version; in>>magic>>version; CHECK(version==7); }
+    { std::ifstream in(path); std::string magic; int version; in>>magic>>version; CHECK(version==8); }
     Profile restored; CHECK(restored.Load(path,error));
     CHECK(restored.coins==777 && restored.bestDistance==1906 && restored.lightningCharges==3);
     GameManager normal, fed; normal.StartGame(1,false); fed.StartGame(1,false);
@@ -836,8 +836,31 @@ void ExpandedShopPersistence() {
     std::filesystem::remove(path);
 }
 
+void PaidShopPersistence() {
+    Profile profile;
+    profile.shopToken=std::string(64,'a'); profile.coins=50; profile.lightningCharges=5;
+    CHECK(profile.ApplyPaidTotals(2000,2));
+    CHECK(profile.coins==2050 && profile.lightningCharges==7);
+    CHECK(profile.ApplyPaidTotals(2000,2));
+    CHECK(profile.coins==2050 && profile.lightningCharges==7);
+    CHECK(!profile.ApplyPaidTotals(1999,2));
+    CHECK(!profile.ApplyPaidTotals(2000,1000));
+    const auto path=std::filesystem::path("output/paid-shop-test.save");
+    std::string error;
+    CHECK(profile.Save(path,error));
+    Profile restored; CHECK(restored.Load(path,error));
+    CHECK(restored.shopToken==profile.shopToken && restored.paidCoins==2000 && restored.paidRays==2);
+    restored.coins-=100; restored.lightningCharges-=1;
+    CHECK(restored.ApplyPaidTotals(2000,2));
+    CHECK(restored.coins==1950 && restored.lightningCharges==6);
+    CHECK(restored.ApplyPaidTotals(6500,6));
+    CHECK(restored.coins==6450 && restored.lightningCharges==10);
+    std::filesystem::remove(path);
+}
+
 int main() {
     const std::vector<std::pair<const char*, std::function<void()>>> tests = {
+        {"compras online sem entrega duplicada e save v8", PaidShopPersistence},
         {"presente de cinco raios uma unica vez", LightningWelcomeBonus},
         {"migracao v5 sem pontos e distancia real", LegacyPointsMigration},
         {"raios: recompensa rara e estoque", LightningRewards},

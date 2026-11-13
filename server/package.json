@@ -1,0 +1,1 @@
+{"name":"jacarun-shop","private":true,"type":"module","engines":{"node":">=24.14"},"scripts":{"start":"node server.mjs","test":"node ../scripts/generate-shop-catalog.mjs --check && node --test shop.test.mjs http.test.mjs"}}

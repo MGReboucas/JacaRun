@@ -38,6 +38,9 @@ struct ProgressRewards {
 };
 
 struct Profile {
+    std::string shopToken;
+    std::int64_t paidCoins = 0, paidRays = 0;
+    bool ApplyPaidTotals(std::int64_t totalCoins, std::int64_t totalRays);
     int lightningCharges = 0;
     bool lightningWelcomeClaimed = false;
     bool hasUsedLightning = false;

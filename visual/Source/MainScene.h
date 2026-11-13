@@ -42,7 +42,11 @@ public:
     void suspend();
     void save();
 private:
-    enum class Action { None, JacaMenu, Lightning, LightningShop, Preview0, Preview1, Preview2, ClosePreview, PreviewPrevious, PreviewNext, EquipPreview, ReplayTutorial, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2 };
+    void onlineRequest(int product = -1);
+    bool onlineBusy = false;
+    int onlineTab = 0, onlinePage = 0;
+    std::string onlineNotice = "Escolha o pacote para comprar.";
+    enum class Action { None, JacaMenu, Lightning, LightningShop, Preview0, Preview1, Preview2, ClosePreview, PreviewPrevious, PreviewNext, EquipPreview, ReplayTutorial, SkipStory, ReplayStory, Play, Pause, Jump, Slide, Menu, Shop, Back, Looks, Upgrades, Previous, Next, Help, Goals, Missions, Achievements, Settings, Sound, Item0, Item1, Item2, OnlineBuy0, OnlineBuy1, OnlineBuy2, VerifyPurchases, OnlineRays, OnlineCoins, OnlineCombos, OnlinePrevious, OnlineNext };
     struct Button { ax::Rect bounds; Action action; };
     GameManager game;
     RunPresentation presentation;
@@ -128,6 +132,7 @@ private:
     bool lightningShop = false;
     bool shop = false;
     bool upgradeShop = false;
+    bool insufficientCoins = false;
     int shopPage = 0;
     int previewItem = -1;
     std::string shopNotice = "Compras permanentes com moedas da corrida.";

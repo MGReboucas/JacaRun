@@ -1,0 +1,13 @@
+import { mkdirSync } from 'node:fs';
+import { Shop, MercadoPago } from './shop.mjs';
+import { createShopServer } from './http.mjs';
+const env=process.env;
+for (const key of ['MP_ACCESS_TOKEN','MP_WEBHOOK_SECRET','MP_COLLECTOR_ID','SHOP_PUBLIC_URL']) if (!env[key]) throw new Error('Missing '+key);
+const origin=new URL(env.SHOP_PUBLIC_URL);
+if (origin.protocol!=='https:' || origin.username || origin.password || origin.pathname!=='/' || origin.search || origin.hash) throw new Error('SHOP_PUBLIC_URL must be an HTTPS origin');
+mkdirSync('data',{recursive:true});
+const provider=new MercadoPago({token:env.MP_ACCESS_TOKEN,secret:env.MP_WEBHOOK_SECRET,collector:env.MP_COLLECTOR_ID,origin:origin.origin,live:env.MP_LIVE==='true'});
+const shop=new Shop(env.SHOP_DB ?? 'data/shop.sqlite',provider);
+const server=createShopServer(shop,provider,{enabled:env.SHOP_ENABLED==='true'});
+server.listen(Number(env.PORT ?? 8080),env.HOST ?? '127.0.0.1',()=>console.log('JacaRun shop listening'));
+for(const signal of ['SIGTERM','SIGINT']) process.on(signal,()=>server.close(()=>{shop.db.close();process.exit(0);}));

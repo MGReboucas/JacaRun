@@ -32,6 +32,11 @@
 #include "StoryAtlas.h"
 #include "StoryContactAtlas.h"
 #include "audio/AudioEngine.h"
+#include "ShopTransport.h"
+#include "OnlineShopCatalog.h"
+#include "rapidjson/document.h"
+#include <thread>
+#include <random>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -39,7 +44,111 @@
 #include <fstream>
 
 using namespace ax;
+
+void MainScene::onlineRequest(int product) {
+    if (onlineBusy || !lightningShop || game.GetState()!=GameState::Menu) return;
+#if AX_TARGET_PLATFORM == AX_PLATFORM_ANDROID && !defined(JACARUN_DIRECT_ANDROID_SALES)
+    // Store builds must never fall through to an external checkout. Native billing is not integrated yet.
+    onlineNotice="Compras indisponiveis nesta versao."; rebuildUI(); return;
+#elif AX_TARGET_PLATFORM == AX_PLATFORM_IOS
+    onlineNotice="Compras indisponiveis nesta versao."; rebuildUI(); return;
+#endif
+    if (!saveAllowed || smokeStep>=0) { onlineNotice="Compras exigem progresso disponivel."; rebuildUI(); return; }
+    rapidjson::Document config;
+    const auto contents=FileUtils::getInstance()->getStringFromFile("shop-config.json");
+    config.Parse(contents.c_str());
+    std::string base;
+    if (!config.HasParseError() && config.IsObject() && config.HasMember("url") && config["url"].IsString()) base=config["url"].GetString();
+    if (base.rfind("https://",0)!=0 || base.size()<9 || base.find_first_of("\r\n?#@",8)!=std::string::npos) {
+        onlineNotice="Loja ainda nao ativada pelo servidor."; rebuildUI(); return;
+    }
+    while(base.back()=='/') base.pop_back();
+    const auto token=game.GetProfile().shopToken;
+    const bool registering=token.empty();
+    if (product < -1 || product >= static_cast<int>(OnlineShopCatalog.size())) return;
+    std::string key, keyName;
+    if (!registering && product>=0) {
+        keyName="shop-order-"+token+"-"+OnlineShopCatalog[product].sku;
+        key=UserDefault::getInstance()->getStringForKey(keyName.c_str(),"");
+        if(key.empty()) {
+            std::random_device random;
+            const char* hex="0123456789abcdef";
+            for(int i=0;i<32;++i) key+=hex[random() & 15];
+            UserDefault::getInstance()->setStringForKey(keyName.c_str(),key);
+            UserDefault::getInstance()->flush();
+        }
+    }
+    const std::string path=registering?"/v1/sessions":product<0?"/v1/wallet":"/v1/orders";
+    const std::string body=registering?"{}":product<0?"":std::string("{\"sku\":\"")+OnlineShopCatalog[product].sku+"\"}";
+    onlineBusy=true; onlineNotice="Conectando com seguranca..."; rebuildUI();
+    auto scheduler=Director::getInstance()->getScheduler();
+    retain();
+    std::thread([this,scheduler,base,path,token,body,key,keyName,registering,product] {
+        std::string response;
+        try { response=ShopRequest(base+path,token,body,key); } catch (...) {}
+        scheduler->runOnAxmolThread([this,response,keyName,registering,product] {
+            onlineBusy=false;
+            rapidjson::Document result; result.Parse(response.c_str());
+            bool retry=false;
+            onlineNotice="Falha na conexao. Tente verificar de novo.";
+            if (!result.HasParseError() && result.IsObject()) {
+                if (registering && result.HasMember("token") && result["token"].IsString()) {
+                    const std::string value=result["token"].GetString();
+                    if(value.size()==64 && value.find_first_not_of("0123456789abcdef")==std::string::npos) {
+                        Profile candidate=game.GetProfile(); candidate.shopToken=value;
+                        std::string error;
+                        if(candidate.Save(savePath,error)) { game.GetProfile()=candidate; retry=true; }
+                        else onlineNotice="Falha ao salvar. Compra nao iniciada.";
+                    }
+                } else if(product<0 && result.HasMember("coins") && result["coins"].IsInt64() && result.HasMember("rays") && result["rays"].IsInt64()) {
+                    Profile candidate=game.GetProfile();
+                    if(candidate.ApplyPaidTotals(result["coins"].GetInt64(),result["rays"].GetInt64())) {
+                        std::string error;
+                        if(candidate.Save(savePath,error)) { game.GetProfile()=candidate; onlineNotice="Saldo atualizado. Pendentes: verifique depois."; }
+                        else onlineNotice="Falha ao salvar. Verifique novamente.";
+                    } else onlineNotice="Saldo nao aplicado. Libere estoque ou suporte.";
+                } else if (product>=0 && result.HasMember("checkout") && result["checkout"].IsString() && result.HasMember("state") && result["state"].IsString()) {
+                    const std::string state=result["state"].GetString();
+                    if(state=="paid" || state=="expired") {
+                        UserDefault::getInstance()->setStringForKey(keyName.c_str(),""); UserDefault::getInstance()->flush();
+                        onlineNotice=state=="paid"?"Pedido pago. Toque em VERIFICAR COMPRAS.":"Pedido expirou. Verifique antes de recomprar.";
+                    } else if(state=="pending") {
+                        const std::string url=result["checkout"].GetString();
+                        if(url.rfind("https://www.mercadopago.com.br/",0)==0 || url.rfind("https://sandbox.mercadopago.com.br/",0)==0) {
+                            if(lightningShop && game.GetState()==GameState::Menu) {
+                                Application::getInstance()->openURL(url);
+                                onlineNotice="Ao voltar, toque em VERIFICAR COMPRAS.";
+                            } else onlineNotice="Pedido pronto. Toque no pacote para abrir.";
+                        }
+                    } else onlineNotice="Pedido em analise. Entre em contato.";
+                }
+            }
+            if(lightningShop) rebuildUI();
+            if(retry) onlineRequest(product);
+            release();
+        });
+    }).detach();
+}
 namespace {
+const std::array<int, CosmeticCount>& visualOrder() {
+    static const auto order=[] {
+        std::array<int, CosmeticCount> ids{};
+        for(int i=0;i<CosmeticCount;++i) ids[i]=i;
+        std::stable_sort(ids.begin(),ids.end(),[](int a,int b) {
+            return AccessoryCatalog()[a].price<AccessoryCatalog()[b].price;
+        });
+        return ids;
+    }();
+    return order;
+}
+int visualAt(int index) {
+    return index>=0 && index<CosmeticCount ? visualOrder()[index] : -1;
+}
+int adjacentVisual(int id,int direction) {
+    const auto& order=visualOrder();
+    const int index=static_cast<int>(std::find(order.begin(),order.end(),id)-order.begin());
+    return order[(index+direction+CosmeticCount)%CosmeticCount];
+}
 constexpr float Contact = 168;
 // More preview distance at top speed while keeping the character prominent.
 constexpr float PixelsPerMeter = 9;
@@ -231,9 +340,16 @@ void MainScene::start(bool procedural) {
     rebuildUI();
 }
 void MainScene::act(Action action) {
+    if(!shop) insufficientCoins=false;
     if(story.active) {
         if(action==Action::SkipStory || action==Action::Play || action==Action::Pause || action==Action::Back) {
             story.Skip(); if(storyMusicId>=0) AudioEngine::stop(storyMusicId); storyMusicId=-1; chaseEntry=true; entrance.time=0; rebuildUI();
+        }
+        return;
+    }
+    if(insufficientCoins) {
+        if(action==Action::Shop || action==Action::Back) {
+            insufficientCoins=false; previewItem=-1; rebuildUI();
         }
         return;
     }
@@ -253,17 +369,17 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::Preview0: case Action::Preview1: case Action::Preview2:
-        previewItem=shopPage*3+static_cast<int>(action)-static_cast<int>(Action::Preview0);
+        previewItem=visualAt(shopPage*3+static_cast<int>(action)-static_cast<int>(Action::Preview0));
         if(previewItem>=CosmeticCount) previewItem=-1;
         rebuildUI(); break;
     case Action::ClosePreview: previewItem=-1; rebuildUI(); break;
-    case Action::PreviewPrevious: previewItem=(previewItem+CosmeticCount-1)%CosmeticCount; rebuildUI(); break;
-    case Action::PreviewNext: previewItem=(previewItem+1)%CosmeticCount; rebuildUI(); break;
+    case Action::PreviewPrevious: previewItem=adjacentVisual(previewItem,-1); rebuildUI(); break;
+    case Action::PreviewNext: previewItem=adjacentVisual(previewItem,1); rebuildUI(); break;
     case Action::EquipPreview:
         if(previewItem>=0 && previewItem<CosmeticCount) {
             if(game.GetProfile().owned[previewItem] || game.BuyAccessory(previewItem)) {
                 game.EquipAccessory(previewItem); shopNotice="Visual equipado!"; save();
-            } else shopNotice="Faltam "+whole(AccessoryCatalog()[previewItem].price-game.GetProfile().coins)+" moedas.";
+            } else { insufficientCoins=true; shopNotice="Faltam "+whole(AccessoryCatalog()[previewItem].price-game.GetProfile().coins)+" moedas."; previewItem=-1; }
             rebuildUI();
         }
         break;
@@ -283,8 +399,19 @@ void MainScene::act(Action action) {
         }
         break;
     case Action::LightningShop:
-        if (game.GetState()==GameState::Menu) { jacaHub=false; lightningShop=true; shop=true; goals=false; rebuildUI(); }
+        if (game.GetState()==GameState::Menu) { jacaHub=false; lightningShop=true; onlineTab=onlinePage=0; shop=true; goals=false; rebuildUI(); }
         break;
+    case Action::OnlineRays: case Action::OnlineCoins: case Action::OnlineCombos:
+        if(lightningShop && shop) { onlineTab=static_cast<int>(action)-static_cast<int>(Action::OnlineRays); onlinePage=0; rebuildUI(); }
+        break;
+    case Action::OnlinePrevious: case Action::OnlineNext:
+        if(lightningShop && shop) {
+            onlinePage=std::clamp(onlinePage+(action==Action::OnlineNext?1:-1),0,OnlineShopPageCount-1); rebuildUI();
+        }
+        break;
+    case Action::OnlineBuy0: case Action::OnlineBuy1: case Action::OnlineBuy2:
+        onlineRequest(onlineTab*OnlineShopItemsPerTab+onlinePage*OnlineShopPageSize+static_cast<int>(action)-static_cast<int>(Action::OnlineBuy0)); break;
+    case Action::VerifyPurchases: onlineRequest(); break;
     case Action::Settings: settings=true; shop=goals=help=false; rebuildUI(); break;
     case Action::Help: settings=false; help=true; rebuildUI(); break;
     case Action::Jump:
@@ -339,13 +466,13 @@ void MainScene::act(Action action) {
         rebuildUI(); break;
     case Action::Item0: case Action::Item1: case Action::Item2: {
         if (!shop) break;
-        const int id = (upgradeShop ? CosmeticCount : shopPage*3) +
-                       static_cast<int>(action) - static_cast<int>(Action::Item0);
-        if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
+        const int row=static_cast<int>(action)-static_cast<int>(Action::Item0);
+        const int id=upgradeShop ? CosmeticCount+row : visualAt(shopPage*3+row);
+        if(id<0 || id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
         if (game.GetProfile().owned[id] || game.BuyAccessory(id)) {
             if(id<CosmeticCount) { game.EquipAccessory(id); shopNotice="Visual equipado!"; }
             else shopNotice="Melhoria permanente ativa nas suas corridas.";
-        } else shopNotice="Faltam "+whole(AccessoryCatalog()[id].price-game.GetProfile().coins)+" moedas. Continue correndo!";
+        } else { insufficientCoins=true; shopNotice="Faltam "+whole(AccessoryCatalog()[id].price-game.GetProfile().coins)+" moedas."; }
         save(); rebuildUI(); break;
     }
     default: break;
@@ -653,28 +780,28 @@ void MainScene::rebuildUI() {
         return;
     }
     if(lightningShop && shop) {
-        pill(panels,{24,center-290,432,580},Ink);
+        pill(panels,{24,center-310,432,600},Ink);
         text("LOJA ONLINE",30,{240,center+240},Cream,true);
         text("RAIOS: "+whole(game.GetProfile().lightningCharges)+"   |   MOEDAS: "+whole(game.GetProfile().coins),18,{240,center+195},Cream,true);
-        text("Escolha um pacote de raios ou moedas",17,{240,center+150},Muted);
-        text("RAIOS",17,{98,center+100},Cream,true);
-        text("MOEDAS",17,{240,center+100},Cream,true);
-        text("PRECO",17,{382,center+100},Cream,true);
-        for(int row=0;row<3;++row) {
-            const float y=center+55-row*48;
-            const char* rays[]={"2 raios","4 raios","10 raios"};
-            const char* packs[]={"2.000","4.500","10.000"};
-            const char* prices[]={"R$ 2,99","R$ 4,99","R$ 9,99"};
-            text(rays[row],20,{98,y},Cream,true);
-            text(packs[row],20,{240,y},Cream,true);
-            text(prices[row],20,{382,y},Cream,true);
+        button("RAIOS",{40,center+132,124,44},Action::OnlineRays,onlineTab==0,19);
+        button("MOEDAS",{178,center+132,124,44},Action::OnlineCoins,onlineTab==1,19);
+        button("COMBOS",{316,center+132,124,44},Action::OnlineCombos,onlineTab==2,19);
+        const char* hints[]={"Mais velocidade e protecao na corrida","Moedas para visuais e melhorias","Raios + moedas com cerca de 10% OFF"};
+        text(hints[onlineTab],16,{240,center+109},Muted);
+        for(int row=0;row<OnlineShopPageSize;++row) {
+            const float y=center+55-row*74;
+            const auto& item=OnlineShopCatalog[onlineTab*OnlineShopItemsPerTab+onlinePage*OnlineShopPageSize+row];
+            pill(panels,{40,y-31,400,68},Color4F(.07f,.25f,.25f,1));
+            text(item.title,onlineTab==2?16:21,{172,y+13},Cream,true);
+            text(item.price,20,{172,y-14},Color4B(199,240,100,255),true);
+            button(onlineBusy?"AGUARDE":"COMPRAR",{310,y-22,116,44},static_cast<Action>(static_cast<int>(Action::OnlineBuy0)+row),false,17);
         }
-        text("Cada preco vale para um pacote separado.",16,{240,center-95},Muted);
-        text("Raio: 6 s de velocidade e protecao",17,{240,center-130},Muted);
-        text("Ganhe 1 a cada 5.000 m na corrida",17,{240,center-160},Muted);
-        text("Compras online em preparacao",18,{240,center-200},Cream);
-        text("Pagamento ainda indisponivel",16,{240,center-225},Muted);
-        button("VOLTAR",{140,center-280,200,44},Action::Back);
+        if(onlinePage>0) button("ANTERIOR",{40,center-172,126,36},Action::OnlinePrevious,false,16);
+        text(std::to_string(onlinePage+1)+" / "+std::to_string(OnlineShopPageCount),17,{240,center-154},Cream,true);
+        if(onlinePage+1<OnlineShopPageCount) button("PROXIMA",{314,center-172,126,36},Action::OnlineNext,false,16);
+        button(onlineBusy?"AGUARDE...":"VERIFICAR COMPRAS",{70,center-223,340,38},Action::VerifyPurchases,false,18);
+        text(onlineNotice,14,{240,center-242},Cream);
+        button("VOLTAR",{140,center-296,200,40},Action::Back);
         return;
     }
     if(settings) {
@@ -774,7 +901,13 @@ void MainScene::rebuildUI() {
         rect(panels,{0,0,480,viewHeight},Color4F(.015f,.07f,.08f,.48f));
         pill(panels,{18,center-367,444,703},Color4F(.25f,.39f,.24f,1));
         pill(panels,{21,center-364,438,697},Color4F(.035f,.14f,.15f,1));
-        art(panels,"art/jaca-idle-v2.png",{96,94,240,240},{39,center+237},{72,72},1);
+        const auto equippedArt=ResolveJacaArtwork(profile.equipped,JacaAtlas::Idle,0);
+        const auto& equippedCrop=equippedArt.crop;
+        const float portraitScale=72.0f/std::max(equippedCrop.width,equippedCrop.height);
+        const Vec2 portraitSize(equippedCrop.width*portraitScale,equippedCrop.height*portraitScale);
+        art(panels,equippedArt.file,
+            Rect(equippedCrop.x,equippedCrop.y,equippedCrop.width,equippedCrop.height),
+            {39+(72-portraitSize.x)*.5f,center+237+(72-portraitSize.y)*.5f},portraitSize,1);
         text("LOJA DO MANGUE",14,{126,center+296},gold,true)->setAnchorPoint({0,.5f});
         fitLabel(text("Seu Jaca, seu estilo",28,{126,center+266},Cream,true),310,36)->setAnchorPoint({0,.5f});
         pill(panels,{40,center+198,400,34},Color4F(.09f,.26f,.23f,1));
@@ -784,8 +917,8 @@ void MainScene::rebuildUI() {
         button("VISUAIS",{40,center+145,192,44},Action::Looks,!upgradeShop);
         button("MELHORIAS",{248,center+145,192,44},Action::Upgrades,upgradeShop);
         for(int row=0;row<3;++row) {
-            const int id=(upgradeShop?CosmeticCount:shopPage*3)+row;
-            if(id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
+            const int id=upgradeShop?CosmeticCount+row:visualAt(shopPage*3+row);
+            if(id<0 || id>=ShopItemCount || (!upgradeShop && id>=CosmeticCount)) break;
             const auto& item=AccessoryCatalog()[id];
             const bool owned=profile.owned[id], equipped=id<CosmeticCount && profile.equipped==id;
             const bool active=owned && (upgradeShop || equipped);
@@ -825,6 +958,21 @@ void MainScene::rebuildUI() {
         button("VOLTAR",{150,center-293,180,40},Action::Back);
         status=text(shopNotice,13,{240,center-328},Muted);
         status->setWidth(390); status->setAlignment(TextHAlignment::CENTER); fitLabel(status,390,36);
+        if(insufficientCoins) {
+            buttons.clear();
+            auto* baseUI=ui;
+            auto* basePanels=panels;
+            ui=Node::create(); baseUI->addChild(ui,100);
+            panels=DrawNode::create(); ui->addChild(panels,-1);
+            rect(panels,{0,0,480,viewHeight},Color4F(.01f,.04f,.04f,.78f));
+            pill(panels,{30,center-145,420,290},Ink);
+            text("MOEDAS INSUFICIENTES",24,{240,center+91},gold,true);
+            fitLabel(text(shopNotice,21,{240,center+35},Cream),376,32);
+            text("Junte mais moedas nas corridas!",17,{240,center-5},Muted);
+            button("LOJA",{54,center-105,176,54},Action::Shop,true);
+            button("VOLTAR",{250,center-105,176,54},Action::Back);
+            ui=baseUI; panels=basePanels;
+        }
         return;
     }
     if (state == GameState::Menu) {
@@ -1909,8 +2057,8 @@ void MainScene::smokeTick(float dt) {
         act(Action::Next); smokeStep=15;
     } else if(smokeStep==15) {
         const float center=viewHeight*.52f;
-        smokeTouch({360,center-63},{360,center-63}); // Buy/equip the bandana from page two.
-        if(game.GetProfile().coins!=30000 || game.GetProfile().equipped!=4) {
+        smokeTouch({360,center-63},{360,center-63}); // Buy/equip the second visual on page two.
+        if(game.GetProfile().coins!=45000-AccessoryCatalog()[visualAt(4)].price || game.GetProfile().equipped!=visualAt(4)) {
             finishSmoke(false,"Shop cosmetic purchase failed"); return;
         }
         smokeStep=16;
@@ -1922,16 +2070,17 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==17) {
         const float center=viewHeight*.52f;
         smokeTouch({360,center+47},{360,center+47});
-        if(!game.GetProfile().owned[ComboUpgrade] || game.GetProfile().coins!=18000) {
+        if(!game.GetProfile().owned[ComboUpgrade] || game.GetProfile().coins!=45000-AccessoryCatalog()[visualAt(4)].price-AccessoryCatalog()[ComboUpgrade].price) {
             finishSmoke(false,"Shop upgrade purchase failed"); return;
         }
         Profile restored; std::string error;
-        if(!restored.Load(savePath,error) || !restored.owned[ComboUpgrade] || restored.equipped!=4) {
+        if(!restored.Load(savePath,error) || !restored.owned[ComboUpgrade] || restored.equipped!=visualAt(4)) {
             finishSmoke(false,"Shop v2 save failed"); return;
         }
         smokeStep=18;
     } else if(smokeStep==18) {
         capture("12-shop-upgrades.png");
+        game.GetProfile().coins=18000; // Keep subsequent reward fixtures independent of catalog order.
         smokeStep=21;
     } else if(smokeStep==21) {
         act(Action::Back);
@@ -2120,19 +2269,25 @@ void MainScene::smokeTick(float dt) {
     } else if(smokeStep==96) {
         const float center=viewHeight*.52f;
         smokeTouch({360,center+47},{360,center+47});
-        if(game.GetProfile().coins!=0 || game.GetProfile().owned[6] || shopNotice.find("Faltam")==std::string::npos) {
+        if(game.GetProfile().coins!=0 || game.GetProfile().owned[visualAt(shopPage*3)] || !insufficientCoins || shopNotice.find("Faltam")==std::string::npos) {
             finishSmoke(false,"Unaffordable shop item changed profile or lacked feedback"); return;
         }
         smokeStep=94;
     } else if(smokeStep==94) {
         capture("45-shop-insufficient.png"); smokeStep=97;
     } else if(smokeStep==97) {
+        const int page=shopPage;
+        act(Action::Next);
+        if(shopPage!=page) { finishSmoke(false,"Modal allowed background interaction"); return; }
+        act(Action::Back);
+        if(insufficientCoins || !shop) { finishSmoke(false,"Modal did not return to shop"); return; }
         act(Action::Previous);
         const int equipped=game.GetProfile().equipped;
         act(Action::Item1);
         if(game.GetProfile().coins!=0 || game.GetProfile().equipped!=equipped) {
             finishSmoke(false,"Owned cosmetic charged twice"); return;
         }
+        if(insufficientCoins) act(Action::Shop);
         act(Action::Upgrades); smokeStep=95;
     } else if(smokeStep==95) {
         capture("46-shop-upgrades-no-coins.png"); smokeStep=98;
@@ -2207,7 +2362,7 @@ void MainScene::smokeTick(float dt) {
             } else ++smokeStep;
         }
     } else if(smokeStep==532) {
-        act(Action::ClosePreview);
+        if(insufficientCoins) act(Action::Shop); else act(Action::ClosePreview);
         if(previewItem!=-1 || !shop) { finishSmoke(false,"Fitting back failed"); return; }
         game.GetProfile().owned[1]=true; game.EquipAccessory(1);
         shop=false; start(false); smokeStep=533;
@@ -2265,9 +2420,30 @@ void MainScene::smokeTick(float dt) {
         act(Action::JacaMenu);
         ++smokeStep;
     } else if(smokeStep==601+CosmeticCount*2) {
-        act(Action::LightningShop);
-        capture("66-lightning-shop.png");
-        ++smokeStep;
+        static int tabCapture=0;
+        if(tabCapture==0) {
+            act(Action::LightningShop);
+            capture("66-lightning-shop.png");
+        } else if(tabCapture==1) {
+            act(Action::OnlineCoins);
+            if(onlineTab!=1) { finishSmoke(false,"Online coins tab failed"); return; }
+            capture("71-online-coins.png");
+        } else if(tabCapture==2) {
+            act(Action::OnlineCombos);
+            if(onlineTab!=2) { finishSmoke(false,"Online combos tab failed"); return; }
+            capture("72-online-combos.png");
+        } else if(tabCapture>=3 && tabCapture<=11) {
+            const int tab=(tabCapture-3)/3, page=(tabCapture-3)%3;
+            if(page==0) act(static_cast<Action>(static_cast<int>(Action::OnlineRays)+tab));
+            else smokeTouch({377,viewHeight*.52f-154},{377,viewHeight*.52f-154});
+            if(onlineTab!=tab || onlinePage!=page) { finishSmoke(false,"Online shop paging failed"); return; }
+            capture("73-online-tab-"+std::to_string(tab)+"-page-"+std::to_string(page)+".png");
+        } else {
+            act(Action::OnlineRays);
+            if(onlineTab!=0) { finishSmoke(false,"Online rays tab failed"); return; }
+            ++smokeStep;
+        }
+        ++tabCapture;
     } else if(smokeStep==602+CosmeticCount*2) {
         start(false); game.GetProfile().lightningCharges=0;
         while(game.GetDistance()<10000) game.Update(.1);

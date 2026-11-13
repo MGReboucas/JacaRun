@@ -16,3 +16,6 @@
 /visual/run.bat
 /output/visual-smoke/
 /output/visual-smoke-*/
+/server/data/
+/server/.env
+/server/*.sqlite*
